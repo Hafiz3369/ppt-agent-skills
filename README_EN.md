@@ -65,18 +65,28 @@ ppt-agent-skill/
     svg2pptx.py               # SVG → PPTX (OOXML native SVG embedding)
 ```
 
-## Script Usage
+## Usage
 
-```bash
-# Merge preview
-python3 scripts/html_packager.py <slides_dir> -o preview.html
+Just describe your needs in the conversation to trigger the skill. The Agent will automatically execute the full 6-step workflow:
 
-# HTML to SVG
-python3 scripts/html2svg.py <slides_dir> -o <svg_dir>
-
-# SVG to PPTX
-python3 scripts/svg2pptx.py <svg_dir> -o output.pptx --html-dir <slides_dir>
 ```
+You: "Make a PPT about X"
+  → Agent interviews you for requirements (waits for your reply)
+  → Auto research → outline → planning draft → per-page HTML design
+  → Auto post-processing: HTML → SVG → PPTX
+  → All outputs saved to ppt-output/
+```
+
+**Trigger Examples**:
+
+| Scenario | What to Say |
+|----------|-------------|
+| Topic only | "Make a PPT about X" / "Create a presentation on Y" |
+| With source material | "Turn this document into slides" / "Make a PPT from this report" |
+| With requirements | "15-page dark tech style AI safety presentation" |
+| Implicit trigger | "I need to present to my boss about Y" / "Make training materials" |
+
+> No manual script execution needed. All post-processing (preview merge, SVG conversion, PPTX generation) is handled automatically by the Agent in Step 6.
 
 ## Technical Architecture
 

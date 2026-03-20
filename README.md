@@ -82,26 +82,28 @@ ppt-agent-skill/
     svg2pptx.py               # SVG → PPTX（OOXML 原生 SVG 嵌入）
 ```
 
-## 脚本用法
+## 使用方式
 
-```bash
-# 合并预览
-python3 scripts/html_packager.py <slides_dir> -o preview.html
+在对话中直接描述你的需求即可触发，Agent 会自动执行完整 6 步工作流：
 
-# HTML 转 SVG
-python3 scripts/html2svg.py <slides_dir> -o <svg_dir>
-
-# SVG 转 PPTX
-python3 scripts/svg2pptx.py <svg_dir> -o output.pptx --html-dir <slides_dir>
+```
+你："帮我做一个关于 X 的 PPT"
+  → Agent 提问调研需求（等你回复）
+  → 自动搜索资料 → 生成大纲 → 策划稿 → 逐页设计 HTML
+  → 自动后处理：HTML → SVG → PPTX
+  → 输出全部产物到 ppt-output/
 ```
 
-## 触发方式
+**触发示例**：
 
-在对话中，以下表达会触发此 Skill：
+| 场景 | 说法 |
+|------|------|
+| 纯主题 | "帮我做个 PPT" / "做一个关于 X 的演示" |
+| 带素材 | "把这篇文档做成 PPT" / "用这份报告做 slides" |
+| 带要求 | "做 15 页暗黑风的 AI 安全汇报材料" |
+| 隐式触发 | "我要给老板汇报 Y" / "做个培训课件" / "做路演 deck" |
 
-- "帮我做个 PPT" / "做一个关于 X 的演示"
-- "做 slides" / "做幻灯片" / "做汇报材料"
-- "把这篇文档做成 PPT" / "做培训课件" / "做路演 deck"
+> 全程无需手动执行任何脚本，所有后处理（预览合并、SVG 转换、PPTX 生成）由 Agent 在 Step 6 自动完成。
 
 ## 许可证
 
