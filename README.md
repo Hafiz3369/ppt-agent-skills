@@ -10,6 +10,23 @@
 需求调研 → 资料搜集 → 大纲策划 → 策划稿 → 风格+配图+HTML设计稿 → 后处理(SVG+PPTX)
 ```
 
+## 效果展示
+
+> 以「新一代小米SU7发布」为主题的示例输出（小米橙风格）：
+
+| 封面页 | 配置对比页 |
+|:---:|:---:|
+| ![封面页](ppt-output/png/slide_01_cover.png) | ![配置对比](ppt-output/png/slide_02_models.png) |
+
+| 动力续航页 | 智驾安全页 |
+|:---:|:---:|
+| ![动力续航](ppt-output/png/slide_03_power.png) | ![智驾安全](ppt-output/png/slide_04_smart.png) |
+
+| 结束页 |
+|:---:|
+| ![结束页](ppt-output/png/slide_05_end.png) |
+
+
 ## 核心特性
 
 | 特性 | 说明 |

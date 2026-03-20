@@ -410,9 +410,10 @@
 - 关键词: 用 <strong> 或 <span class="highlight"> 包裹（背景 accent-primary 10% 透明度）
 
 ### data（数据卡片）
-- 核心数字: font-size=36-48px, font-weight=800, 使用 accent-primary 渐变色(background: linear-gradient; -webkit-background-clip 除外)
-  - SVG 友好替代: 直接用 color=accent-primary，不要用 -webkit-background-clip: text
-- 单位/标签: font-size=14-16px, color=text-secondary
+- 核心数字: font-size=36-48px, font-weight=800, **直接用 `color: var(--accent-1)`**
+  - **禁止** `background-clip: text` + `-webkit-text-fill-color: transparent` 渐变文字（SVG转换后变成橙色色块+白色文字）
+  - html2svg.py 有兜底自动修复，但会丢失渐变效果只保留主色
+- 单位/标签: font-size=14-16px, color=text-secondary 或 color=accent-2
 - 补充说明: font-size=13px, 在数字下方
 
 ### list（列表卡片）
@@ -520,7 +521,9 @@
 
 **核心原则**：图片是**氛围的一部分**，不是独立的内容块。
 
-#### 5 种融入技法（全部管线安全）
+> **SVG 管线兼容警告**：所有渐隐/遮罩效果必须用 **真实 `<div>` 遮罩层** 实现（`linear-gradient` 背景的 div 叠加在图片上方）。**禁止使用 CSS `mask-image` / `-webkit-mask-image`**，该属性在 dom-to-svg 转换中完全丢失。html2svg.py 有兜底（自动降级为 opacity），但效果远不如 div 遮罩精细。
+
+#### 5 种融入技法（全部管线安全 -- 均使用 div 遮罩而非 mask-image）
 
 ##### 1. 渐隐融合 -- 封面页/章节封面的首选
 
@@ -599,11 +602,24 @@
 - 渐变遮罩用**真实 `<div>`**（禁用 ::before/::after）
 - `object-fit: cover`，`border-radius` 与容器一致
 - 图片使用**绝对路径**（由 agent 生成图片后填入）
+- 底层氛围图的 opacity 必须足够低（0.05-0.15），尺寸限制在容器的 45-60%，避免遮挡前景内容
 
 **禁止**：
+- 禁止使用 CSS `mask-image` / `-webkit-mask-image`（SVG 转换后完全丢失，必须用 div 遮罩层替代）
+- 禁止使用 `-webkit-background-clip: text`（SVG 中渐变变色块，必须用 `color` 直接上色）
+- 禁止使用 `-webkit-text-fill-color`（SVG 不识别，必须用标准 `color` 属性）
 - 禁止图片直接裸露在卡片角落（无融入效果）
 - 禁止图片占据整个卡片且无蒙版（文字不可读）
 - 禁止图片与背景色有明显的矩形边界线
+
+#### 内联 SVG 防偏移约束（详见 `pipeline-compat.md` 第 2 章）
+
+svg2pptx 对 SVG `<text>` 元素的 baseline/text-anchor 定位有精度损失（+/- 3-5px），会导致文字标注在 PPTX 中偏移。以下规则从 HTML 源头避免偏移：
+
+1. **内联 SVG 中禁止写 `<text>` 元素**。所有文字标注（数据标注、x 轴标签、图例文字、环形图中心文字）必须用 HTML `<div>` / `<span>` 绝对定位叠加在 SVG 上方
+2. **不同字号混排必须用 flex 独立元素**（`display:flex; align-items:baseline; gap:4px`），禁止嵌套不同字号的 span
+3. **环形图中心文字用 HTML position:absolute 叠加**，不写在 SVG `<text>` 里
+4. **SVG circle 弧线用 `stroke-dasharray="弧长 间隔"` 两值格式**，禁止 `stroke-dashoffset`
 
 ## 对比度安全规则（必须遵守）
 
@@ -895,7 +911,7 @@ Step 3 -> 使用 Prompt #2（大纲架构师）
 Step 4 -> 使用 Prompt #3（内容分配与策划稿）
 Step 5a -> 使用 style-system.md 选择风格
 Step 5b -> 如有 generate_image，为每页生成配图
-Step 5c -> 使用 Prompt #4（HTML 设计稿），逐页生成
-后处理 -> scripts/html_packager.py 合并预览 + scripts/html2svg.py 转 SVG
+Step 5c -> 使用 Prompt #4（HTML 设计稿），逐页生成。**必须遵守 `pipeline-compat.md` 中的 CSS 禁止清单和管线兼容性规则**
+后处理 -> scripts/html_packager.py 合并预览 + scripts/html2svg.py 转 SVG + scripts/svg2pptx.py 转 PPTX
 可选 -> 使用 Prompt #5（演讲备注）
 ```

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root {
+    --bg-primary: #1A1A1A;
+    --bg-secondary: #111111;
+    --card-bg-from: #2A2A2A;
+    --card-bg-to: #1A1A1A;
+    --card-border: rgba(255,105,0,0.15);
+    --card-radius: 16px;
+    --text-primary: #FFFFFF;
+    --text-secondary: rgba(255,255,255,0.65);
+    --accent-1: #FF6900;
+    --accent-2: #FF8C00;
+    --accent-3: #FFFFFF;
+    --accent-4: #E0E0E0;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    width: 1280px; height: 720px; overflow: hidden;
+    background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary));
+    font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+    color: var(--text-primary);
+    position: relative;
+  }
+
+  .page-title {
+    position: absolute; left: 40px; top: 20px;
+    width: 1200px; height: 50px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .title-accent {
+    width: 4px; height: 28px;
+    background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
+    border-radius: 2px;
+  }
+  .page-title h2 { font-size: 26px; font-weight: 700; }
+  .page-title .subtitle {
+    font-size: 14px; color: var(--text-secondary); margin-left: auto;
+  }
+
+  /* 英雄式布局: 顶部横 + 下方3列 */
+  .content-area {
+    position: absolute;
+    left: 40px; top: 80px;
+    width: 1200px; height: 580px;
+    display: grid;
+    grid-template: auto 1fr / repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .card {
+    border-radius: var(--card-radius);
+    background: linear-gradient(180deg, var(--card-bg-from), var(--card-bg-to));
+    border: 1px solid var(--card-border);
+    padding: 24px;
+    overflow: hidden;
+  }
+
+  /* 英雄卡片 -- 横跨3列 */
+  .hero-card {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 32px;
+    padding: 24px 32px;
+  }
+  .hero-icon {
+    width: 100px; height: 100px; flex-shrink: 0;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .hero-icon img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border-radius: 16px;
+  }
+  .hero-text h3 {
+    font-size: 20px; font-weight: 700; margin-bottom: 8px;
+  }
+  .hero-text p {
+    font-size: 14px; color: var(--text-secondary); line-height: 1.7;
+  }
+  .hero-text strong { color: var(--accent-1); }
+
+  /* 传感器阵列标签 */
+  .sensor-tags {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-top: 10px;
+  }
+  .sensor-tag {
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,105,0,0.25);
+    font-size: 12px; color: var(--accent-2);
+    background: rgba(255,105,0,0.04);
+  }
+
+  /* 子卡片 */
+  .sub-card h4 {
+    font-size: 16px; font-weight: 700; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sub-card h4 svg {
+    width: 18px; height: 18px; fill: var(--accent-1);
+  }
+
+  .feature-list {
+    list-style: none;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .feature-list li {
+    font-size: 13px; color: var(--text-secondary);
+    line-height: 1.6;
+    padding-left: 16px;
+    position: relative;
+  }
+  .feature-list li .dot {
+    position: absolute; left: 0; top: 7px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent-1);
+  }
+
+  /* 安全数据卡 */
+  .safety-data {
+    display: flex; flex-direction: column; gap: 14px;
+    margin-top: 4px;
+  }
+  .safety-item {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .safety-num {
+    font-size: 28px; font-weight: 800;
+    color: var(--accent-1);
+    min-width: 80px;
+  }
+  .safety-num .unit {
+    font-size: 14px;
+  }
+  .safety-desc {
+    font-size: 12px; color: var(--text-secondary);
+  }
+
+  .footer {
+    position: absolute; bottom: 16px; left: 40px; right: 40px;
+    display: flex; justify-content: space-between;
+    font-size: 12px; color: rgba(255,255,255,0.3);
+  }
+</style>
+</head>
+<body>
+  <div class="page-title">
+    <div class="title-accent"></div>
+    <h2>智能驾驶与安全配置</h2>
+    <span class="subtitle">全系标配激光雷达 / 700TOPS算力平台</span>
+  </div>
+
+  <div class="content-area">
+    <!-- 英雄卡: 智驾总览 -->
+    <div class="card hero-card">
+      <div class="hero-icon">
+        <img src="../images/su7_smart.png" alt="">
+      </div>
+      <div class="hero-text">
+        <h3>Xiaomi HAD 全场景智能驾驶</h3>
+        <p>全系标配<strong>700 TOPS</strong>高算力智能驾驶芯片，搭载<strong>XLA认知大模型</strong>全新架构，支持端到端全场景智驾。硬件从顶配下放至全系，实现真正的"智驾平权"。</p>
+        <div class="sensor-tags">
+          <span class="sensor-tag">128线激光雷达</span>
+          <span class="sensor-tag">4D毫米波雷达</span>
+          <span class="sensor-tag">11颗高清摄像头</span>
+          <span class="sensor-tag">12颗超声波雷达</span>
+          <span class="sensor-tag">XLA大模型</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 子卡1: 主动安全 -->
+    <div class="card sub-card">
+      <h4>
+        <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+        被动安全
+      </h4>
+      <ul class="feature-list">
+        <li><span class="dot"></span>铠甲笼式钢铝混合车身</li>
+        <li><span class="dot"></span>2200MPa小米超强钢关键部位</li>
+        <li><span class="dot"></span>高强钢+铝合金占比90.3%</li>
+        <li><span class="dot"></span>全系9安全气囊（+后排侧气囊）</li>
+        <li><span class="dot"></span>三重冗余应急开门设计</li>
+      </ul>
+    </div>
+
+    <!-- 子卡2: 智能安全 -->
+    <div class="card sub-card">
+      <h4>
+        <svg viewBox="0 0 24 24"><path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z"/></svg>
+        主动安全
+      </h4>
+      <ul class="feature-list">
+        <li><span class="dot"></span>MAI 0速起步误加速抑制</li>
+        <li><span class="dot"></span>LAEB 前向低速防碰撞</li>
+        <li><span class="dot"></span>RAEB 后向低速防碰撞</li>
+        <li><span class="dot"></span>全速域主动安全防护</li>
+        <li><span class="dot"></span>智驾保障最高300万保额</li>
+      </ul>
+    </div>
+
+    <!-- 子卡3: 安全数据 -->
+    <div class="card sub-card">
+      <h4>
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+        关键安全数据
+      </h4>
+      <div class="safety-data">
+        <div class="safety-item">
+          <span class="safety-num">9<span class="unit">个</span></span>
+          <span class="safety-desc">全系标配安全气囊数</span>
+        </div>
+        <div class="safety-item">
+          <span class="safety-num">2200<span class="unit">MPa</span></span>
+          <span class="safety-desc">超强钢最高强度</span>
+        </div>
+        <div class="safety-item">
+          <span class="safety-num">90.3<span class="unit">%</span></span>
+          <span class="safety-desc">高强度材料占比</span>
+        </div>
+        <div class="safety-item">
+          <span class="safety-num">300<span class="unit">万</span></span>
+          <span class="safety-desc">智驾保障最高保额</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>新一代小米SU7 | 智能驾驶与安全</span>
+    <span>04 / 05</span>
+  </div>
+</body>
+</html>

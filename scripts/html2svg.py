@@ -56,16 +56,24 @@ const path = require('path');
         });
 
         const imgDataMap = {};
+        const htmlDir = path.dirname(item.html);  // HTML文件所在目录
         for (const src of imgSrcs) {
             if (!src) continue;
-            // 处理 file:// 和绝对路径
+            if (src.startsWith('data:')) continue;  // 跳过已内联的
+            // 处理 file:// 和绝对/相对路径
             let filePath = src;
             if (filePath.startsWith('file://')) filePath = filePath.slice(7);
+            // 相对路径以HTML文件所在目录为基准resolve
+            if (!path.isAbsolute(filePath)) {
+                filePath = path.resolve(htmlDir, filePath);
+            }
             if (fs.existsSync(filePath)) {
                 const data = fs.readFileSync(filePath);
                 const ext = path.extname(filePath).slice(1) || 'png';
                 const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
                 imgDataMap[src] = `data:${mime};base64,${data.toString('base64')}`;
+            } else {
+                console.warn('Image not found:', filePath, '(src:', src, ')');
             }
         }
 
@@ -286,6 +294,82 @@ const path = require('path');
                 polygon.setAttribute('fill', arrow.color);
                 svg.appendChild(polygon);
                 el.appendChild(svg);
+            }
+
+            // 4. 修复 background-clip: text 渐变文字
+            // dom-to-svg 不支持此特性，导致渐变背景变成色块、文字变白
+            for (const el of document.querySelectorAll('*')) {
+                const cs = getComputedStyle(el);
+                const bgClip = cs.webkitBackgroundClip || cs.backgroundClip || '';
+                if (bgClip !== 'text') continue;
+
+                // 提取渐变/背景中的主色作为文字颜色
+                const bgImage = cs.backgroundImage || '';
+                let mainColor = '#FF6900'; // fallback
+                const colorMatch = bgImage.match(/(#[0-9a-fA-F]{3,8}|rgb[a]?\([^)]+\))/);
+                if (colorMatch) mainColor = colorMatch[1];
+
+                // 清除渐变背景效果，改用直接 color
+                el.style.backgroundImage = 'none';
+                el.style.background = 'none';
+                el.style.webkitBackgroundClip = 'border-box';
+                el.style.backgroundClip = 'border-box';
+                el.style.webkitTextFillColor = 'unset';
+                el.style.color = mainColor;
+                console.warn('html2svg fallback: background-clip:text -> color:' + mainColor, el.tagName);
+            }
+
+            // 5. 修复 -webkit-text-fill-color（非 background-clip:text 的独立使用）
+            for (const el of document.querySelectorAll('*')) {
+                const cs = getComputedStyle(el);
+                const fillColor = cs.webkitTextFillColor;
+                if (!fillColor || fillColor === cs.color) continue;
+                // 如果 text-fill-color 与 color 不同，SVG 中会丢失
+                // 将 text-fill-color 值应用到 color
+                if (fillColor !== 'rgba(0, 0, 0, 0)' && fillColor !== 'transparent') {
+                    el.style.color = fillColor;
+                    el.style.webkitTextFillColor = 'unset';
+                }
+            }
+
+            // 6. 修复 mask-image / -webkit-mask-image（SVG 不支持）
+            // 根据元素层级智能降级：底层图片降透明度，前景元素直接移除蒙版
+            for (const el of document.querySelectorAll('*')) {
+                const cs = getComputedStyle(el);
+                const maskImg = cs.maskImage || cs.webkitMaskImage || '';
+                if (!maskImg || maskImg === 'none') continue;
+
+                // 清除 mask
+                el.style.maskImage = 'none';
+                el.style.webkitMaskImage = 'none';
+
+                // 判断是否为底层装饰图片（通过 z-index、pointer-events、opacity 推断）
+                const zIndex = parseInt(cs.zIndex) || 0;
+                const pointerEvents = cs.pointerEvents;
+                const isImg = el.tagName === 'IMG';
+                const currentOpacity = parseFloat(cs.opacity) || 1;
+
+                if (isImg || pointerEvents === 'none' || zIndex <= 0) {
+                    // 底层氛围图：降低透明度 + 限制尺寸，不要遮挡内容
+                    const newOpacity = Math.min(currentOpacity, 0.15);
+                    el.style.opacity = String(newOpacity);
+                    // 如果图片过大，限制为容器的合理比例
+                    if (isImg) {
+                        const parent = el.parentElement;
+                        if (parent) {
+                            const parentRect = parent.getBoundingClientRect();
+                            const elRect = el.getBoundingClientRect();
+                            if (elRect.width > parentRect.width * 0.8) {
+                                el.style.maxWidth = '60%';
+                                el.style.maxHeight = '60%';
+                            }
+                        }
+                    }
+                    console.warn('html2svg fallback: mask-image -> opacity:' + newOpacity + ' (background layer)', el.tagName);
+                } else {
+                    // 前景元素：只移除蒙版，保持原样
+                    console.warn('html2svg fallback: mask-image removed (foreground)', el.tagName);
+                }
             }
         });
         await new Promise(r => setTimeout(r, 300));

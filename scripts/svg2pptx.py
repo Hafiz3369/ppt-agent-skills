@@ -429,7 +429,7 @@ class SvgConverter:
                 break
         if sp_tree is None:
             return
-        self._walk(root, sp_tree, 0, 0, 1.0, slide)
+        self._walk(root, sp_tree, 0, 0, 1.0, 1.0, slide)
 
     def _parse_grads(self, root):
         self.grads = {}
@@ -487,48 +487,49 @@ class SvgConverter:
             sy = float(m.group(4))
         return dx, dy, sx, sy
 
-    def _walk(self, el, sp, ox, oy, group_opacity, slide):
+    def _walk(self, el, sp, ox, oy, group_opacity, scale, slide):
         tag = self._tag(el)
         try:
             if tag == 'rect':
-                self._rect(el, sp, ox, oy, group_opacity, slide)
+                self._rect(el, sp, ox, oy, group_opacity, scale, slide)
             elif tag == 'text':
-                self._text(el, sp, ox, oy, group_opacity)
+                self._text(el, sp, ox, oy, group_opacity, scale)
             elif tag == 'circle':
-                self._circle(el, sp, ox, oy, group_opacity)
+                self._circle(el, sp, ox, oy, group_opacity, scale)
             elif tag == 'ellipse':
-                self._ellipse(el, sp, ox, oy, group_opacity)
+                self._ellipse(el, sp, ox, oy, group_opacity, scale)
             elif tag == 'line':
-                self._line(el, sp, ox, oy)
+                self._line(el, sp, ox, oy, scale)
             elif tag == 'path':
-                self._path(el, sp, ox, oy, group_opacity)
+                self._path(el, sp, ox, oy, group_opacity, scale)
             elif tag == 'image':
-                self._image(el, sp, ox, oy, slide)
+                self._image(el, sp, ox, oy, group_opacity, scale, slide)
             elif tag == 'g':
                 dx, dy, sx, sy = self._parse_transform(el)
                 el_opacity = float(el.get('opacity', '1'))
                 child_opacity = group_opacity * el_opacity
-                # scale 只应用于 delta，不缩放父级偏移
-                new_ox = ox + dx
-                new_oy = oy + dy
+                # scale 累积：父级scale * 当前g的scale
+                child_scale = scale * sx  # 假设sx==sy（等比缩放）
+                new_ox = ox + dx * scale
+                new_oy = oy + dy * scale
                 for c in el:
                     self._walk(c, sp, new_ox, new_oy,
-                               child_opacity, slide)
+                               child_opacity, child_scale, slide)
             elif tag in ('defs', 'style', 'linearGradient', 'radialGradient',
                          'stop', 'pattern', 'clipPath', 'filter', 'mask'):
-                pass  # 跳过定义元素（不跳过被 mask 的内容元素）
+                pass
             else:
                 for c in el:
-                    self._walk(c, sp, ox, oy, group_opacity, slide)
+                    self._walk(c, sp, ox, oy, group_opacity, scale, slide)
         except Exception as e:
             self.stats['errors'] += 1
             print(f"    Warning: {tag} element failed: {e}", file=sys.stderr)
 
-    def _rect(self, el, sp, ox, oy, opacity, slide):
-        x = float(el.get('x', 0)) + ox
-        y = float(el.get('y', 0)) + oy
-        w = float(el.get('width', 0))
-        h = float(el.get('height', 0))
+    def _rect(self, el, sp, ox, oy, opacity, scale, slide):
+        x = (float(el.get('x', 0)) * scale) + ox
+        y = (float(el.get('y', 0)) * scale) + oy
+        w = float(el.get('width', 0)) * scale
+        h = float(el.get('height', 0)) * scale
         if w <= 0 or h <= 0:
             return
 
@@ -573,13 +574,14 @@ class SvgConverter:
         sp.append(shape)
         self.stats['shapes'] += 1
 
-    def _text(self, el, sp, ox, oy, opacity):
+    def _text(self, el, sp, ox, oy, opacity, scale):
         """每个 tspan 保持独立文本框，保留精确 x/y 坐标。"""
         fill_s = el.get('fill', el.get('color', ''))
         fsz = el.get('font-size', '14px').replace('px', '')
         fw = el.get('font-weight', '')
         ff = el.get('font-family', '')
         baseline = el.get('dominant-baseline', '')
+        anchor = el.get('text-anchor', 'start')
 
         tspans = list(el.findall(f'{{{SVG_NS}}}tspan'))
 
@@ -588,22 +590,30 @@ class SvgConverter:
                 txt = ts.text
                 if not txt or not txt.strip():
                     continue
-                x = float(ts.get('x', 0)) + ox
-                y = float(ts.get('y', 0)) + oy
+                x = float(ts.get('x', 0)) * scale + ox
+                y = float(ts.get('y', 0)) * scale + oy
                 tlen = float(ts.get('textLength', 0))
                 ts_fsz = ts.get('font-size', fsz).replace('px', '')
                 ts_fw = ts.get('font-weight', fw)
                 ts_fill = ts.get('fill', fill_s)
                 ts_ff = ts.get('font-family', ff)
                 fh = float(ts_fsz)
+                # baseline偏移: text-after-edge -> y是底部减全高; auto -> y是baseline减85%
                 if 'after-edge' in baseline:
                     y -= fh
+                else:
+                    y -= fh * 0.85
                 c = parse_color(ts_fill)
                 hex6 = c[0] if c and c[0] != 'grad' else '000000'
                 alpha = c[1] if c and c[0] != 'grad' else 100000
                 alpha = int(alpha * opacity)
                 cx_v = px(tlen) if tlen > 0 else px(len(txt) * float(ts_fsz) * 0.7)
                 cy_v = px(fh * 1.5)
+                # text-anchor 偏移: middle -> x减半宽, end -> x减全宽
+                if anchor == 'middle':
+                    x -= cx_v / EMU_PX / 2
+                elif anchor == 'end':
+                    x -= cx_v / EMU_PX
                 run = {
                     'text': txt.strip(), 'sz': font_sz(ts_fsz),
                     'bold': ts_fw in ('bold', '700', '800', '900'),
@@ -616,16 +626,25 @@ class SvgConverter:
                 self.stats['shapes'] += 1
 
         elif el.text and el.text.strip():
-            x = float(el.get('x', 0)) + ox
-            y = float(el.get('y', 0)) + oy
+            x = float(el.get('x', 0)) * scale + ox
+            y = float(el.get('y', 0)) * scale + oy
             fh = float(fsz)
+            # baseline偏移
             if 'after-edge' in baseline:
                 y -= fh
+            else:
+                y -= fh * 0.85
             c = parse_color(fill_s)
             hex6 = c[0] if c and c[0] != 'grad' else '000000'
             alpha = c[1] if c and c[0] != 'grad' else 100000
             alpha = int(alpha * opacity)
             txt = el.text.strip()
+            txt_w = len(txt) * float(fsz) * 0.7
+            # text-anchor 偏移
+            if anchor == 'middle':
+                x -= txt_w / 2
+            elif anchor == 'end':
+                x -= txt_w
             run = {
                 'text': txt, 'sz': font_sz(fsz),
                 'bold': fw in ('bold', '700', '800', '900'),
@@ -638,10 +657,10 @@ class SvgConverter:
             sp.append(shape)
             self.stats['shapes'] += 1
 
-    def _circle(self, el, sp, ox, oy, opacity):
-        cx_v = float(el.get('cx', 0)) + ox
-        cy_v = float(el.get('cy', 0)) + oy
-        r = float(el.get('r', 0))
+    def _circle(self, el, sp, ox, oy, opacity, scale):
+        cx_v = float(el.get('cx', 0)) * scale + ox
+        cy_v = float(el.get('cy', 0)) * scale + oy
+        r = float(el.get('r', 0)) * scale
         if r <= 0 or r < 2:
             self.stats['skipped'] += 1
             return
@@ -686,10 +705,25 @@ class SvgConverter:
                 av.append(_el('a:gd', {'name': 'adj2', 'fmla': f'val {adj2}'}))
                 geom.append(av)
 
-                # 描边颜色 = SVG 的 stroke 颜色
+                # 描边颜色 = SVG 的 stroke 颜色（支持渐变引用）
                 stroke_color = parse_color(stroke_s)
                 ln_children = []
-                if stroke_color and stroke_color[0] != 'grad':
+                if stroke_color and stroke_color[0] == 'grad':
+                    # stroke 引用渐变 -> 提取渐变的第一个 stop 颜色作为实色
+                    gdef = self.grads.get(stroke_color[1])
+                    if gdef and gdef.get('stops'):
+                        first_stop = gdef['stops'][0]
+                        sc = parse_color(first_stop['color_str'])
+                        if sc and sc[0] != 'grad':
+                            ln_children.append(_el('a:solidFill', children=[
+                                _srgb(sc[0], int(sc[1] * el_opacity))
+                            ]))
+                    # 也尝试用渐变填充（OOXML线条支持渐变）
+                    if not ln_children and gdef:
+                        grad_fill = _make_grad(gdef)
+                        if grad_fill is not None:
+                            ln_children.append(grad_fill)
+                elif stroke_color and stroke_color[0] != 'grad':
                     ln_children.append(_el('a:solidFill', children=[
                         _srgb(stroke_color[0], int(stroke_color[1] * el_opacity))
                     ]))
@@ -744,11 +778,11 @@ class SvgConverter:
                              preset='ellipse', fill_el=fill_el, line_el=line_el))
         self.stats['shapes'] += 1
 
-    def _ellipse(self, el, sp, ox, oy, opacity):
-        cx_v = float(el.get('cx', 0)) + ox
-        cy_v = float(el.get('cy', 0)) + oy
-        rx = float(el.get('rx', 0))
-        ry = float(el.get('ry', 0))
+    def _ellipse(self, el, sp, ox, oy, opacity, scale):
+        cx_v = float(el.get('cx', 0)) * scale + ox
+        cy_v = float(el.get('cy', 0)) * scale + oy
+        rx = float(el.get('rx', 0)) * scale
+        ry = float(el.get('ry', 0)) * scale
         if rx <= 0 or ry <= 0:
             return
         el_opacity = float(el.get('opacity', '1')) * opacity
@@ -758,11 +792,11 @@ class SvgConverter:
                              preset='ellipse', fill_el=fill_el))
         self.stats['shapes'] += 1
 
-    def _line(self, el, sp, ox, oy):
-        x1 = float(el.get('x1', 0)) + ox
-        y1 = float(el.get('y1', 0)) + oy
-        x2 = float(el.get('x2', 0)) + ox
-        y2 = float(el.get('y2', 0)) + oy
+    def _line(self, el, sp, ox, oy, scale):
+        x1 = float(el.get('x1', 0)) * scale + ox
+        y1 = float(el.get('y1', 0)) * scale + oy
+        x2 = float(el.get('x2', 0)) * scale + ox
+        y2 = float(el.get('y2', 0)) * scale + oy
         line_el = make_line(el.get('stroke', '#000'), el.get('stroke-width', '1'))
         if line_el is None:
             return
@@ -779,7 +813,7 @@ class SvgConverter:
         sp.append(shape)
         self.stats['shapes'] += 1
 
-    def _path(self, el, sp, ox, oy, opacity):
+    def _path(self, el, sp, ox, oy, opacity, scale):
         """SVG <path> -> OOXML custGeom 形状。"""
         d = el.get('d', '')
         if not d or 'nan' in d:
@@ -806,17 +840,20 @@ class SvgConverter:
         line_el = make_line(el.get('stroke', ''), el.get('stroke-width', '1')) if el.get('stroke') else None
 
         shape = make_shape(self._id(), f'P{self.sid}',
-                           px(bx + ox), px(by + oy), px(bw), px(bh),
+                           px((bx + ox) * scale) if scale != 1.0 else px(bx + ox),
+                           px((by + oy) * scale) if scale != 1.0 else px(by + oy),
+                           px(bw * scale), px(bh * scale),
                            fill_el=fill_el, line_el=line_el, geom_el=geom_el)
         sp.append(shape)
         self.stats['shapes'] += 1
 
-    def _image(self, el, sp, ox, oy, slide):
+    def _image(self, el, sp, ox, oy, opacity, scale, slide):
         href = el.get(f'{{{XLINK_NS}}}href') or el.get('href', '')
-        x = float(el.get('x', 0)) + ox
-        y = float(el.get('y', 0)) + oy
-        w = float(el.get('width', 0))
-        h = float(el.get('height', 0))
+        x = float(el.get('x', 0)) * scale + ox
+        y = float(el.get('y', 0)) * scale + oy
+        w = float(el.get('width', 0)) * scale
+        h = float(el.get('height', 0)) * scale
+        el_opacity = float(el.get('opacity', '1')) * opacity
         if not href or w <= 0 or h <= 0:
             return
 
@@ -890,6 +927,19 @@ class SvgConverter:
             pic.crop_top = crop_tb
             pic.crop_bottom = crop_tb
 
+        # 应用透明度（通过 OOXML alphaModFix）
+        if el_opacity < 0.99:
+            from pptx.oxml.ns import qn
+            sp_pr = pic._element.find(qn('p:spPr'))
+            if sp_pr is None:
+                sp_pr = pic._element.find(qn('pic:spPr'))
+            # 在 blipFill 的 blip 上设置 alphaModFix
+            blip = pic._element.find('.//' + qn('a:blip'))
+            if blip is not None:
+                alpha_val = int(el_opacity * 100000)
+                alpha_el = _el('a:alphaModFix', {'amt': str(alpha_val)})
+                blip.append(alpha_el)
+
         self.stats['shapes'] += 1
 
 
@@ -934,6 +984,8 @@ def main():
     parser = argparse.ArgumentParser(description="SVG to PPTX (native shapes)")
     parser.add_argument('svg', help='SVG file or directory')
     parser.add_argument('-o', '--output', default='presentation.pptx')
+    parser.add_argument('--html-dir', default=None,
+                        help='HTML source directory (for future notes extraction)')
     args = parser.parse_args()
     convert(args.svg, args.output)
 

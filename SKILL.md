@@ -272,6 +272,7 @@ pip install python-pptx lxml Pillow 2>/dev/null
    ```
 
 2. **SVG 转换** -- 运行 `html2svg.py`（DOM 直接转 SVG，保留 `<text>` 可编辑）
+   > **重要**：HTML 设计稿必须遵守 `references/pipeline-compat.md` 中的管线兼容性规则，否则转换后会出现元素丢失、位置错位等问题。
    ```bash
    python3 SKILL_DIR/scripts/html2svg.py OUTPUT_DIR/slides/ -o OUTPUT_DIR/svg/
    ```
@@ -316,7 +317,7 @@ ppt-output/
 |------|-------|
 | 内容 | 每页 >= 2 信息卡片 / >= 60% 内容页含数据 / 章节有递进 |
 | 视觉 | 全局风格一致 / 配图风格统一 / 卡片不重叠 / 文字不溢出 |
-| 技术 | CSS 变量统一 / SVG 友好约束遵守 / HTML 可被 Puppeteer 渲染 |
+| 技术 | CSS 变量统一 / SVG 友好约束遵守 / HTML 可被 Puppeteer 渲染 / `pipeline-compat.md` 禁止清单检查 |
 
 ---
 
@@ -328,3 +329,4 @@ ppt-output/
 | `references/style-system.md` | Step 5a | 8 种预置风格 + CSS 变量 + 风格 JSON 模型 |
 | `references/bento-grid.md` | Step 5c | 7 种布局精确坐标 + 5 种卡片类型 + 决策矩阵 |
 | `references/method.md` | 初次了解 | 核心理念与方法论 |
+| `references/pipeline-compat.md` | **Step 5c 设计稿生成时** | CSS 禁止清单 + 图片路径 + 字号混排 + SVG text + 环形图 + svg2pptx 注意事项 |

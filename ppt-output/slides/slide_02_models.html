@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root {
+    --bg-primary: #1A1A1A;
+    --bg-secondary: #111111;
+    --card-bg-from: #2A2A2A;
+    --card-bg-to: #1A1A1A;
+    --card-border: rgba(255,105,0,0.15);
+    --card-radius: 16px;
+    --text-primary: #FFFFFF;
+    --text-secondary: rgba(255,255,255,0.65);
+    --accent-1: #FF6900;
+    --accent-2: #FF8C00;
+    --accent-3: #FFFFFF;
+    --accent-4: #E0E0E0;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    width: 1280px; height: 720px; overflow: hidden;
+    background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary));
+    font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+    color: var(--text-primary);
+    position: relative;
+  }
+
+  /* 页面标题区 */
+  .page-title {
+    position: absolute; left: 40px; top: 20px;
+    width: 1200px; height: 50px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .title-accent {
+    width: 4px; height: 28px;
+    background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
+    border-radius: 2px;
+  }
+  .page-title h2 {
+    font-size: 26px; font-weight: 700;
+  }
+  .page-title .subtitle {
+    font-size: 14px; color: var(--text-secondary);
+    margin-left: auto;
+  }
+
+  /* 内容区 -- 三栏等宽 */
+  .content-area {
+    position: absolute;
+    left: 40px; top: 80px;
+    width: 1200px; height: 580px;
+    display: grid;
+    grid-template: 1fr / repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .model-card {
+    border-radius: var(--card-radius);
+    background: linear-gradient(180deg, var(--card-bg-from), var(--card-bg-to));
+    border: 1px solid var(--card-border);
+    padding: 28px 24px;
+    display: flex; flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .model-card.featured {
+    border-color: rgba(255,105,0,0.4);
+    box-shadow: 0 0 30px rgba(255,105,0,0.08);
+  }
+  .model-card.featured .badge {
+    position: absolute; top: 16px; right: 16px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+    color: white; font-size: 11px; font-weight: 600;
+  }
+
+  .model-name {
+    font-size: 22px; font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .model-price {
+    font-size: 32px; font-weight: 800;
+    margin-bottom: 20px;
+  }
+  .model-price span {
+    color: var(--accent-1);
+  }
+  .model-price .currency {
+    font-size: 16px; font-weight: 600;
+    color: var(--accent-1);
+  }
+
+  .spec-list {
+    flex: 1;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .spec-item {
+    display: flex; justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .spec-item:last-child { border-bottom: none; }
+  .spec-label {
+    font-size: 13px; color: var(--text-secondary);
+  }
+  .spec-value {
+    font-size: 14px; font-weight: 600;
+  }
+  .spec-value.highlight {
+    color: var(--accent-1);
+  }
+
+  /* 底部对比条 */
+  .compare-bar {
+    margin-top: auto;
+    padding: 14px 0 0;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .compare-bar .bar-label {
+    font-size: 11px; color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .bar-track {
+    width: 100%; height: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px; overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+  }
+
+  /* 页脚 */
+  .footer {
+    position: absolute; bottom: 16px; left: 40px; right: 40px;
+    display: flex; justify-content: space-between;
+    font-size: 12px; color: rgba(255,255,255,0.3);
+  }
+</style>
+</head>
+<body>
+  <div class="page-title">
+    <div class="title-accent"></div>
+    <h2>三款车型配置对比</h2>
+    <span class="subtitle">标准版 / Pro / Max -- 全系仅涨价4000元</span>
+  </div>
+
+  <div class="content-area">
+    <!-- 标准版 -->
+    <div class="model-card">
+      <div class="model-name">标准版</div>
+      <div class="model-price"><span>21.99</span><span class="currency"> 万元</span></div>
+      <div class="spec-list">
+        <div class="spec-item">
+          <span class="spec-label">电机</span>
+          <span class="spec-value">V6s Plus</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">功率</span>
+          <span class="spec-value">320hp</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">电压平台</span>
+          <span class="spec-value">752V</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">CLTC续航</span>
+          <span class="spec-value highlight">720km</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">激光雷达</span>
+          <span class="spec-value highlight">标配</span>
+        </div>
+      </div>
+      <div class="compare-bar">
+        <div class="bar-label">续航能力</div>
+        <div class="bar-track"><div class="bar-fill" style="width:80%"></div></div>
+      </div>
+    </div>
+
+    <!-- Pro版 -->
+    <div class="model-card featured">
+      <div class="badge">最长续航</div>
+      <div class="model-name">Pro</div>
+      <div class="model-price"><span>24.99</span><span class="currency"> 万元</span></div>
+      <div class="spec-list">
+        <div class="spec-item">
+          <span class="spec-label">电机</span>
+          <span class="spec-value">V6s Plus</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">功率</span>
+          <span class="spec-value">320hp</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">电压平台</span>
+          <span class="spec-value">752V</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">CLTC续航</span>
+          <span class="spec-value highlight">902km</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">空气悬挂</span>
+          <span class="spec-value highlight">标配</span>
+        </div>
+      </div>
+      <div class="compare-bar">
+        <div class="bar-label">续航能力</div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div>
+      </div>
+    </div>
+
+    <!-- Max版 -->
+    <div class="model-card">
+      <div class="model-name">Max</div>
+      <div class="model-price"><span>30.39</span><span class="currency"> 万元</span></div>
+      <div class="spec-list">
+        <div class="spec-item">
+          <span class="spec-label">电机</span>
+          <span class="spec-value">双电机四驱</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">功率</span>
+          <span class="spec-value highlight">690hp</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">电压平台</span>
+          <span class="spec-value highlight">897V</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">CLTC续航</span>
+          <span class="spec-value">835km</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">零百加速</span>
+          <span class="spec-value highlight">3.08s</span>
+        </div>
+      </div>
+      <div class="compare-bar">
+        <div class="bar-label">续航能力</div>
+        <div class="bar-track"><div class="bar-fill" style="width:93%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>新一代小米SU7 | 三款车型配置对比</span>
+    <span>02 / 05</span>
+  </div>
+</body>
+</html>
