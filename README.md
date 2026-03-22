@@ -1,8 +1,25 @@
-# PPT Agent
+<div align="center">
+  <img src="assets/logo.png" alt="PPT Agent Logo" width="160" />
+  <h1>PPT Agent</h1>
+  <p><strong>像构建软件工程一样生成演示文稿。</strong></p>
 
-> 像构建软件工程一样生成演示文稿。
+  <p>
+    <a href="#快速开始"><img src="https://img.shields.io/badge/Quick_Start-blue?style=for-the-badge" alt="Quick Start" /></a>
+    <a href="README_EN.md"><img src="https://img.shields.io/badge/English_Docs-gray?style=for-the-badge" alt="English" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" /></a>
+  </p>
 
-[English Docs](README_EN.md)
+  <p>
+    <img src="https://img.shields.io/badge/Pipeline-6_Steps-4f7df5?style=flat-square" alt="Pipeline" />
+    <img src="https://img.shields.io/badge/Styles-8_Themes-ff6b35?style=flat-square" alt="Styles" />
+    <img src="https://img.shields.io/badge/Layouts-10_Types-00d4ff?style=flat-square" alt="Layouts" />
+    <img src="https://img.shields.io/badge/Charts-13_Templates-8b5cf6?style=flat-square" alt="Charts" />
+    <img src="https://img.shields.io/badge/Blocks-8_Components-22c55e?style=flat-square" alt="Blocks" />
+    <img src="https://img.shields.io/badge/Scripts-8_Tools-f59e0b?style=flat-square" alt="Scripts" />
+  </p>
+</div>
+
+---
 
 PPT Agent 是一个基于代码驱动的演示文稿生成流框架。本项目将“内容策划”与“视觉排版”完全解耦，通过严格的数据结构规划和按需加载的资产库，生成高保真 HTML 与可二次编辑的 PPTX，从根本上解决大模型长提示词所带来的排版错乱与幻觉问题。
 
