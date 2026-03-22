@@ -2,7 +2,7 @@
 
 `chart_type: ring`
 
-> **管线兼容**：中心文字用 HTML position:absolute 叠加，禁止在 SVG 中写 `<text>` 元素（见 `pipeline-compat.md` 2.3 节）。
+> **管线兼容**：中心文字用 HTML position:absolute 叠加，禁止在 SVG 中写 `<text>` 元素（见 `pipeline-compat.md` 3.3 节）。
 
 ```html
 <div style="position:relative; width:80px; height:80px;">

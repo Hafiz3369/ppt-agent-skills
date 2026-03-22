@@ -93,7 +93,7 @@
 | Step | 文件路径 | 用途 |
 |------|---------|------|
 | Step 1 | `prompts/prompt-1-research.md` | 需求调研（7 题深度访谈） |
-| Step 3 | `prompts/prompt-2-outline.md` | 大纲架构师 v2.0 |
+| Step 3 | `prompts/prompt-2-outline.md` | 大纲架构师 v3.0（含叙事弧线 + 论证策略 + Part 间逻辑关系） |
 | Step 4 | `prompts/prompt-3-planning.md` | 内容分配与策划稿（逐页生成） |
 | Step 5c | `prompts/prompt-4-design.md` | HTML 设计稿生成（逐页设计） |
 | 可选 | `prompts/prompt-5-notes.md` | 演讲备注 |
@@ -140,6 +140,7 @@
 |---------|---------|------|
 | `narrative-rhythm.md` | Step 3 完成后（仅一次） | 叙事节奏 + 10/15/20 页标准模板 |
 | `image-generation.md` | Step 5b（如需配图） | 配图 Prompt 公式 + 5 种融入技法 |
-| `pipeline-compat.md` | Step 5c 首页前（仅一次） | CSS 禁止清单 + 防偏移写法 |
+| `pipeline-compat.md` | Step 5c 首页前（仅一次） | 管线三层模型 + CSS 禁止/安全清单 + 防偏移写法 + SVG 元素支持矩阵 + 渐变/字体/性能约束 + 全管线 checklist（13 节） |
 | `quality-baseline.md` | Step 5c 首页前（仅一次） | 最低视觉丰富度基准（纯文字 checklist） |
 | `resource-registry.md` | 本文件，维护时查阅 | 全局资源映射唯一权威源 |
+| `scripts/planning_validator.py` | Step 4 每页写入后 + 全量验证 | 策划稿 JSON 格式与规则验证（单页+跨页） |

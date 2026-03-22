@@ -7,3 +7,4 @@ package.json
 ppt-output/*
 !ppt-output/png/
 .ace-tool/
+scripts/__pycache__/

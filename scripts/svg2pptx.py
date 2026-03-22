@@ -318,6 +318,7 @@ def parse_path_to_custgeom(d_str, bbox):
     path_el = _el('a:path', {'w': str(scale), 'h': str(scale)})
     i = 0
     cx_p, cy_p = 0, 0  # current point (absolute)
+    last_cx2, last_cy2 = 0, 0  # 上一个 C/S 的第二控制点（S 命令反射用）
     cmd = None
     rel = False
 
@@ -384,6 +385,7 @@ def parse_path_to_custgeom(d_str, bbox):
                     x1 += cx_p; y1 += cy_p
                     x2 += cx_p; y2 += cy_p
                     x += cx_p; y += cy_p
+                last_cx2, last_cy2 = x2, y2
                 cx_p, cy_p = x, y
                 path_el.append(_el('a:cubicBezTo', children=[
                     _el('a:pt', {'x': str(coord(x1, True)), 'y': str(coord(y1, False))}),
@@ -392,10 +394,79 @@ def parse_path_to_custgeom(d_str, bbox):
                 ]))
                 i += 6
 
-            elif cmd in ('s', 'q', 't', 'a'):
-                # 简化处理：跳过复杂曲线
-                skip = {'s': 4, 'q': 4, 't': 2, 'a': 7}.get(cmd, 2)
-                i += skip
+            elif cmd == 's':
+                # 平滑三次贝塞尔：反射上一个 C/S 的第二控制点
+                x2, y2 = float(items[i]), float(items[i+1])
+                x, y = float(items[i+2]), float(items[i+3])
+                if rel:
+                    x2 += cx_p; y2 += cy_p
+                    x += cx_p; y += cy_p
+                x1 = 2 * cx_p - last_cx2
+                y1 = 2 * cy_p - last_cy2
+                last_cx2, last_cy2 = x2, y2
+                cx_p, cy_p = x, y
+                path_el.append(_el('a:cubicBezTo', children=[
+                    _el('a:pt', {'x': str(coord(x1, True)), 'y': str(coord(y1, False))}),
+                    _el('a:pt', {'x': str(coord(x2, True)), 'y': str(coord(y2, False))}),
+                    _el('a:pt', {'x': str(coord(x, True)), 'y': str(coord(y, False))}),
+                ]))
+                i += 4
+
+            elif cmd == 'q':
+                # 二次贝塞尔 -> 三次贝塞尔近似
+                qx, qy = float(items[i]), float(items[i+1])
+                x, y = float(items[i+2]), float(items[i+3])
+                if rel:
+                    qx += cx_p; qy += cy_p
+                    x += cx_p; y += cy_p
+                x1 = cx_p + 2/3 * (qx - cx_p)
+                y1 = cy_p + 2/3 * (qy - cy_p)
+                x2 = x + 2/3 * (qx - x)
+                y2 = y + 2/3 * (qy - y)
+                last_cx2, last_cy2 = qx, qy
+                cx_p, cy_p = x, y
+                path_el.append(_el('a:cubicBezTo', children=[
+                    _el('a:pt', {'x': str(coord(x1, True)), 'y': str(coord(y1, False))}),
+                    _el('a:pt', {'x': str(coord(x2, True)), 'y': str(coord(y2, False))}),
+                    _el('a:pt', {'x': str(coord(x, True)), 'y': str(coord(y, False))}),
+                ]))
+                i += 4
+
+            elif cmd == 't':
+                # 平滑二次贝塞尔：反射上一个 Q 控制点
+                x, y = float(items[i]), float(items[i+1])
+                if rel:
+                    x += cx_p; y += cy_p
+                qx = 2 * cx_p - last_cx2
+                qy = 2 * cy_p - last_cy2
+                x1 = cx_p + 2/3 * (qx - cx_p)
+                y1 = cy_p + 2/3 * (qy - cy_p)
+                x2 = x + 2/3 * (qx - x)
+                y2 = y + 2/3 * (qy - y)
+                last_cx2, last_cy2 = qx, qy
+                cx_p, cy_p = x, y
+                path_el.append(_el('a:cubicBezTo', children=[
+                    _el('a:pt', {'x': str(coord(x1, True)), 'y': str(coord(y1, False))}),
+                    _el('a:pt', {'x': str(coord(x2, True)), 'y': str(coord(y2, False))}),
+                    _el('a:pt', {'x': str(coord(x, True)), 'y': str(coord(y, False))}),
+                ]))
+                i += 2
+
+            elif cmd == 'a':
+                # 弧线：完整转换复杂，降级为直线连终点保持路径连续
+                # 参数: rx ry x-rot large-arc sweep x y
+                _rx = float(items[i])
+                _ry = float(items[i+1])
+                # items[i+2] = x-rotation, items[i+3] = large-arc, items[i+4] = sweep
+                x, y = float(items[i+5]), float(items[i+6])
+                if rel:
+                    x += cx_p; y += cy_p
+                last_cx2, last_cy2 = x, y
+                cx_p, cy_p = x, y
+                path_el.append(_el('a:lnTo', children=[
+                    _el('a:pt', {'x': str(coord(x, True)), 'y': str(coord(y, False))}),
+                ]))
+                i += 7
             else:
                 i += 1
         except (IndexError, ValueError):
@@ -429,6 +500,7 @@ class SvgConverter:
         self.stats = {'shapes': 0, 'skipped': 0, 'errors': 0}
         tree = etree.parse(str(svg_path))
         root = tree.getroot()
+        self.root = root  # 供 _use 方法查找引用元素
         self._parse_grads(root)
         sp_tree = None
         for d in slide._element.iter():
@@ -512,6 +584,12 @@ class SvgConverter:
                 self._path(el, sp, ox, oy, group_opacity, scale)
             elif tag == 'image':
                 self._image(el, sp, ox, oy, group_opacity, scale, slide)
+            elif tag == 'polygon':
+                self._polygon(el, sp, ox, oy, group_opacity, scale)
+            elif tag == 'polyline':
+                self._polyline(el, sp, ox, oy, group_opacity, scale)
+            elif tag == 'use':
+                self._use(el, sp, ox, oy, group_opacity, scale, slide)
             elif tag == 'g':
                 dx, dy, sx, sy = self._parse_transform(el)
                 el_opacity = float(el.get('opacity', '1'))
@@ -710,6 +788,17 @@ class SvgConverter:
         stroke_s = el.get('stroke', '')
         stroke_w_s = el.get('stroke-width', '1')
         dasharray = el.get('stroke-dasharray', '')
+        dashoffset = el.get('stroke-dashoffset', '')
+
+        # stroke-dashoffset 兼容：转为等效旋转角度
+        extra_rotate = 0
+        if dashoffset and dasharray:
+            try:
+                offset_val = float(strip_unit(dashoffset))
+                circumference = 2 * math.pi * r
+                extra_rotate = -(offset_val / circumference) * 360  # 负偏移 = 顺时针旋转
+            except (ValueError, ZeroDivisionError):
+                pass
 
         # 环形图特殊处理：fill=none + stroke + dasharray -> OOXML arc + 粗描边
         if (fill_s == 'none' or not fill_s) and stroke_s and dasharray:
@@ -727,6 +816,7 @@ class SvgConverter:
                 rot_m = re.search(r'rotate\(\s*([\d.\-]+)', transform)
                 if rot_m:
                     start_angle = float(rot_m.group(1))
+                start_angle += extra_rotate  # 合并 dashoffset 等效旋转
 
                 # SVG -> PowerPoint 角度转换
                 # SVG rotate(-90) = 从 12 点钟方向开始
@@ -852,6 +942,89 @@ class SvgConverter:
             xfrm.set('flipV', '1')
         sp.append(shape)
         self.stats['shapes'] += 1
+
+    def _polygon(self, el, sp, ox, oy, opacity, scale):
+        """SVG <polygon> -> OOXML custGeom。"""
+        points_str = el.get('points', '')
+        if not points_str:
+            return
+        coords = re.findall(r'[+-]?\d*\.?\d+', points_str)
+        if len(coords) < 6:  # 至少 3 个点
+            return
+        xs = [float(coords[i]) for i in range(0, len(coords), 2)]
+        ys = [float(coords[i]) for i in range(1, len(coords), 2)]
+        d_parts = [f'M {xs[0]} {ys[0]}']
+        for j in range(1, len(xs)):
+            d_parts.append(f'L {xs[j]} {ys[j]}')
+        d_parts.append('Z')
+        d_str = ' '.join(d_parts)
+        bx, by = min(xs), min(ys)
+        bw = max(xs) - bx or 1
+        bh = max(ys) - by or 1
+        if bw < 4 and bh < 4:
+            self.stats['skipped'] += 1
+            return
+        geom_el = parse_path_to_custgeom(d_str, (bx, by, bw, bh))
+        el_opacity = float(el.get('opacity', '1')) * opacity
+        fill_el = make_fill(el.get('fill', ''), self.grads, el_opacity)
+        line_el = make_line(el.get('stroke', ''), el.get('stroke-width', '1')) if el.get('stroke') else None
+        shape = make_shape(self._id(), f'PG{self.sid}',
+                           px((bx + ox) * scale) if scale != 1.0 else px(bx + ox),
+                           px((by + oy) * scale) if scale != 1.0 else px(by + oy),
+                           px(bw * scale), px(bh * scale),
+                           fill_el=fill_el, line_el=line_el, geom_el=geom_el)
+        sp.append(shape)
+        self.stats['shapes'] += 1
+
+    def _polyline(self, el, sp, ox, oy, opacity, scale):
+        """SVG <polyline> -> OOXML custGeom（不闭合）。"""
+        points_str = el.get('points', '')
+        if not points_str:
+            return
+        coords = re.findall(r'[+-]?\d*\.?\d+', points_str)
+        if len(coords) < 4:  # 至少 2 个点
+            return
+        xs = [float(coords[i]) for i in range(0, len(coords), 2)]
+        ys = [float(coords[i]) for i in range(1, len(coords), 2)]
+        d_parts = [f'M {xs[0]} {ys[0]}']
+        for j in range(1, len(xs)):
+            d_parts.append(f'L {xs[j]} {ys[j]}')
+        d_str = ' '.join(d_parts)  # 不加 Z（不闭合）
+        bx, by = min(xs), min(ys)
+        bw = max(xs) - bx or 1
+        bh = max(ys) - by or 1
+        if bw < 4 and bh < 4:
+            self.stats['skipped'] += 1
+            return
+        geom_el = parse_path_to_custgeom(d_str, (bx, by, bw, bh))
+        el_opacity = float(el.get('opacity', '1')) * opacity
+        fill_el = make_fill(el.get('fill', 'none'), self.grads, el_opacity)
+        line_el = make_line(el.get('stroke', '#000'), el.get('stroke-width', '1'))
+        shape = make_shape(self._id(), f'PL{self.sid}',
+                           px((bx + ox) * scale) if scale != 1.0 else px(bx + ox),
+                           px((by + oy) * scale) if scale != 1.0 else px(by + oy),
+                           px(bw * scale), px(bh * scale),
+                           fill_el=fill_el, line_el=line_el, geom_el=geom_el)
+        sp.append(shape)
+        self.stats['shapes'] += 1
+
+    def _use(self, el, sp, ox, oy, opacity, scale, slide):
+        """SVG <use> -> 解析引用并递归处理。"""
+        href = el.get(f'{{{XLINK_NS}}}href') or el.get('href', '')
+        if not href or not href.startswith('#'):
+            return
+        ref_id = href[1:]
+        # 在整个 SVG 树中查找被引用元素
+        ref_el = None
+        for candidate in self.root.iter():
+            if candidate.get('id') == ref_id:
+                ref_el = candidate
+                break
+        if ref_el is None:
+            return
+        use_x = float(el.get('x', 0)) * scale
+        use_y = float(el.get('y', 0)) * scale
+        self._walk(ref_el, sp, ox + use_x, oy + use_y, opacity, scale, slide)
 
     def _path(self, el, sp, ox, oy, opacity, scale):
         """SVG <path> -> OOXML custGeom 形状。"""

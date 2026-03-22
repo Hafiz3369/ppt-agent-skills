@@ -167,13 +167,28 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 ### Step 3: 大纲策划
 
-**执行**：使用 `references/prompts/prompt-2-outline.md`（大纲架构师 v2.0）
+**执行**：使用 `references/prompts/prompt-2-outline.md`（大纲架构师 v3.0 -- Strategic Architect）
 
-**方法论**：金字塔原理 -- 结论先行、以上统下、归类分组、逻辑递进
+**方法论**：
+- **金字塔原理** -- 结论先行、以上统下、归类分组、逻辑递进
+- **叙事弧线** -- 根据 Step 1 第 4 题选择的叙事结构，确定 Part 排列的情感轨迹
+- **论证策略** -- 每 Part 选择论证策略（data_driven/case_study/comparison/framework/step_by_step/authority）
 
-**自检**：页数符合要求 / 每 part >= 2 页 / 要点有数据支撑
+**大纲架构师的 5 步思考过程**（prompt 内置，自动执行）：
+1. 提炼全局核心论点（1 句话 core_thesis）
+2. 确定 Part 数量和主题（含 Part 间逻辑关系标注）
+3. 为每 Part 选择论证策略
+4. 分配页面并确定每页论点
+5. 标注每页数据需求和搜索覆盖情况
 
-**产物**：`[PPT_OUTLINE]` JSON
+**自检**：
+- 页数符合要求
+- 每 Part >= 2 页（单页 Part 必须合并或扩充）
+- Part 之间有明确的逻辑递进关系（不是主题并列）
+- 要点有搜索数据支撑（缺失数据诚实标注 `found_in_search: false`）
+- `design_rationale` 字段完整（核心论点 / 叙事结构 / 情感弧线 / 逻辑链 / 页数分配理由）
+
+**产物**：`[PPT_OUTLINE]` JSON（含 `design_rationale` 和 Part 间 `transition_from_previous`）
 
 ---
 
@@ -231,28 +246,38 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 ── 第 1 页 ──────────────────────────────
 生成：用 Prompt #3 为第 1 页生成策划 JSON
 写入：write_to_file -> OUTPUT_DIR/planning/planning1.json
+验证：python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning/planning1.json --refs SKILL_DIR/references
 
 ── 第 2 页 ──────────────────────────────
 生成：用 Prompt #3 为第 2 页生成策划 JSON
       注入上下文：上一页 JSON（保证衔接）
 写入：write_to_file -> OUTPUT_DIR/planning/planning2.json
+验证：python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning/planning2.json --refs SKILL_DIR/references
 
 ── 第 3, 4, 5... 页 重复 ──────────────
-每页都是：生成该页 JSON -> write_to_file -> planning/planning{n}.json
+每页都是：生成 -> write_to_file -> 验证 -> 下一页
 ```
+
+> **验证是写入流程的一部分，不是事后审查。** 每页 JSON 写入后立即运行 `planning_validator.py` 单页验证。validator 检查：字段完整性、枚举值合法性、资源文件路径存在性、card_style 多样性。有 ERROR 时必须修正后再继续下一页。
 
 **操作边界**：
 1. 每次只在 Prompt #3 中请求**一页**的策划（封面/目录/章节封面等极简页可 2-3 页一起，但仍然每页独立文件）
 2. 每页生成后**必须**立即写入 `planning/planning{n}.json`
-3. 写入完成后才开始下一页
-4. 不要用 Python 脚本操作 JSON 文件
-5. 不要尝试一次输出全部页面
+3. 写入后立即运行 `planning_validator.py` 验证（ERROR = 必须修正，WARNING = 建议修正）
+4. 验证通过后才开始下一页
+5. 不要用 Python 脚本操作 JSON 文件
+6. 不要尝试一次输出全部页面
 
 **上下文传递**：每页生成时注入上一页的完整 JSON，保证内容衔接和节奏递进。
 
 所有策划稿完成后：
-1. 向用户展示策划稿概览
-2. **[STOP -- 等待用户确认]**：告知用户可以直接编辑对应的 `planning/planning{n}.json` 修改任意页面的内容/布局/卡片结构。修改完成后回复确认，再进入 Step 5。
+1. 运行全量验证（含跨页规则：布局多样性 + visual_weight 节奏 + image usage 多样性）：
+   ```bash
+   python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning/ --refs SKILL_DIR/references
+   ```
+2. 修正全量验证发现的跨页问题（如有）
+3. 向用户展示策划稿概览
+4. **[STOP -- 等待用户确认]**：告知用户可以直接编辑对应的 `planning/planning{n}.json` 修改任意页面的内容/布局/卡片结构。修改完成后回复确认，再进入 Step 5。
 
 **产物**：每页独立的策划 JSON -> `OUTPUT_DIR/planning/planning{n}.json`（n = 1, 2, 3...）
 
@@ -321,26 +346,46 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 | 总页数 >= 18 | 读取 `narrative-rhythm.md` 的 **20 页标准模板** |
 | Part 数量确定后 | 读取 `narrative-rhythm.md` 的**章节色彩递进规则** |
 
-**第三层：按 planning JSON 的 required_resources 清单加载（每页 HTML 生成前必须完成）**
+**第三层：脚本自动组装资源（每页 HTML 生成前必须执行）**
 
-> **禁止跳过。** 生成每页 HTML 前，必须读取该页 `planning{n}.json` 中 `required_resources` 字段列出的**全部资源路径**。未读取的资源 = 未利用的设计能力 = 输出质量下降。
+> **禁止手动逐个 view_file 资源文件，禁止跳过此步。** 资源组装已自动化为 `resource_assembler.py` 脚本，LLM 只需执行两个操作：运行脚本 + view_file 输出文件。这彻底消除了"偷懒不读资源自己瞎猜"的可能性。
 
-> **核心变化**：资源路径不再由消费者自行推断（如猜测"英雄式"对应哪个文件），而是由 Step 4 策划阶段（已预读所有 README，掌握完整映射关系）直接写入 `required_resources`。消费者只需"按清单取货"。
+**原理**：`resource_assembler.py` 读取 `planning{n}.json`，自动提取两层资源声明——页面级 `required_resources`（layout / page_template / principles[]）和卡片级 `cards[].resource_ref`（block / chart / icon / principle），读取每个资源文件的完整内容，按 `[RESOURCES]` 块格式组装输出到文本文件。
 
-每页生成前，读取 `planning{n}.json` 的 `required_resources` 对象，按字段逐一加载：
+**每页 HTML 生成前的强制执行流程**：
 
-| required_resources 字段 | 读取什么 | 如何使用 |
-|------------------------|---------|--------|
-| `layout` | `references/{路径}`（如 `layouts/hero-top.md`） | 复制 Grid 结构作为 HTML 起点 |
-| `page_template` | `references/{路径}`（如 `page-templates/cover.md`） | 按结构规范设计 |
-| `blocks[]` | `references/{路径}`（如 `blocks/timeline.md`） | 按组件的 JSON 结构和设计要点实现 |
-| `charts[]` | `references/{路径}`（如 `charts/kpi.md`） | 复制图表 HTML/SVG 代码并填充实际数据 |
-| `icons[]` | `references/{路径}`（如 `icons/data-analytics.md`） | 复制对应 SVG 代码 |
-| `principles[]` | `references/{路径}`（如 `principles/visual-hierarchy.md`） | 作为设计决策的判断依据 |
+```bash
+# Step 1: 运行脚本组装资源（机械化，无需 LLM 判断）
+python3 SKILL_DIR/scripts/resource_assembler.py \
+  OUTPUT_DIR/planning/planning{n}.json \
+  --refs SKILL_DIR/references \
+  -o OUTPUT_DIR/resources/resources-{n}.txt
 
-> 值为 `null` 或空数组 `[]` 的字段跳过。每个非空路径都必须实际读取并注入 `[RESOURCES]` 块。
+# Step 2: 读取组装后的资源文件（view_file）
+view_file OUTPUT_DIR/resources/resources-{n}.txt
+```
 
-**首页生成前必须完整读取的资源**（仅一次，全局生效）：
+> 首页 HTML 生成前，可选用批量模式一次性为所有页面组装资源：
+> ```bash
+> python3 SKILL_DIR/scripts/resource_assembler.py \
+>   OUTPUT_DIR/planning/ \
+>   --refs SKILL_DIR/references \
+>   -o OUTPUT_DIR/resources/
+> ```
+> 之后每页生成前只需 `view_file OUTPUT_DIR/resources/resources-{n}.txt` 即可。
+
+**输出的 [RESOURCES] 块包含**（按两层分区组织，无内容的分区自动省略）：
+
+| 分区 | 来源 | 内容 |
+|------|------|------|
+| `=== LAYOUT ===` | `required_resources.layout` | 布局文件的完整 HTML 骨架（Grid 结构 + card_style 映射表） |
+| `=== PAGE_TEMPLATE ===` | `required_resources.page_template` | 页面结构规范（封面/目录/章节/结束页） |
+| `=== PAGE_PRINCIPLES ===` | `required_resources.principles[]` | 页面级设计原则完整内容 |
+| `=== CARD_RESOURCES ===` | `cards[].resource_ref` | 按卡片序号分组：每个卡片的 [block]/[chart]/[icon]/[principle] 资源完整内容 |
+
+> 脚本输出会显示资源统计和 WARNING（文件未找到时），方便快速发现 planning JSON 中的路径错误。
+
+**首页生成前必须完整读取的全局资源**（仅一次，全局生效）：
 - `references/prompts/prompt-4-design.md` -- 设计规则基础
 - `references/pipeline-compat.md` -- 管线约束硬性规则
 - `references/styles/README.md` -- 装饰技法工具箱 + 色彩原则
@@ -364,29 +409,8 @@ Prompt #4 模板
 + CSS 变量定义（5a 产物）[必须]
 + 该页策划稿 JSON（Step 4 产物，含 cards[]/card_type/chart_type/position/layout_hint）[必须]
 + 该页内容文本（Step 4 产物）[必须]
-+ [RESOURCES] 块：按 required_resources 清单读取的全部资源（布局骨架 + 复合组件 + 图表模板 + 图标 + 页面模板 + 原则摘要）[必须]
++ [RESOURCES] 块：view_file resources-{n}.txt 的完整内容（resource_assembler.py 自动组装）[必须]
 + 配图信息（usage + 路径 + placement，来自 planning JSON 的 image 字段 + 5b 产物路径）[可选 -- usage=none 时省略 IMAGE_INFO 块]
-```
-
-**[RESOURCES] 块格式**（每个分区对应 `required_resources` 的一个字段，无内容的分区省略）：
-```
-=== LAYOUT ===
-（required_resources.layout 指定文件的 HTML 骨架部分）
-
-=== PAGE_TEMPLATE ===
-（required_resources.page_template 指定文件的结构规范）
-
-=== BLOCKS ===
-（required_resources.blocks[] 中每个文件的 JSON 结构 + 设计要点）
-
-=== CHARTS ===
-（required_resources.charts[] 中每个文件的 HTML/SVG 代码）
-
-=== ICONS ===
-（required_resources.icons[] 中每个文件的 SVG 图标代码）
-
-=== PRINCIPLES ===
-（required_resources.principles[] 中每个文件的核心原理 + 在PPT中的应用 + 自检项）
 ```
 
 > **装饰手法不在每页 Prompt 中重复注入。** 装饰工具箱（`styles/README.md`）在首页生成前读取一次，模型每页自由组合不同装饰技法，而不是被同一份装饰说明反复引导。
@@ -398,9 +422,9 @@ Prompt #4 模板
 - 禁止 `::before`/`::after` 伪元素用于视觉装饰、禁止 `conic-gradient`、禁止 CSS border 三角形
 - 配图融入设计：按 `planning{n}.json` 的 `image.usage` 决定融入技法（7 种用法详见 `image-generation.md`）
 
-**布局骨架引用（防错位核心机制）**：每个布局文件（如 `layouts/hero-top.md`）包含完整的 HTML 骨架代码。生成 content 页时，先读取对应布局文件的骨架，以此为起点填充内容。跨行/跨列卡片的 `grid-row` / `grid-column` 属性必须与骨架保持一致。详见 Prompt #4 的"布局骨架使用方法"章节。
+**布局骨架引用（防错位核心机制）**：每个布局文件（如 `layouts/hero-top.md`）包含完整的 HTML 骨架代码。生成 content 页时，`resources-{n}.txt` 的 LAYOUT 分区已包含完整骨架代码，以此为起点填充内容。跨行/跨列卡片的 `grid-row` / `grid-column` 属性必须与骨架保持一致。详见 Prompt #4 的"布局骨架使用方法"章节。
 
-**逐页生成**：每次只读取 `OUTPUT_DIR/planning/planning{n}.json`，生成该页 HTML 后写入 `OUTPUT_DIR/slides/slide-{NN}.html`，再生成下一页。无需批量处理，每页都是轻量独立操作。
+**逐页生成**：每次只读取 `OUTPUT_DIR/resources/resources-{n}.txt`（已包含该页所有资源），生成该页 HTML 后写入 `OUTPUT_DIR/slides/slide-{NN}.html`，再生成下一页。无需批量处理，每页都是轻量独立操作。
 
 ##### 并行生成接口（subagent 预留）
 
@@ -415,10 +439,10 @@ Prompt #4 模板
   style_json:        OUTPUT_DIR/style.json 的内容（全局共享，只读）
   image_info:        该页配图信息（usage + path + placement，来自 planning JSON 的 image 字段 + 5b 产物路径，可为空）
   global_resources:  首页前已读取的全局资源（prompt-4 / pipeline-compat / styles/README / principles/README / blocks/README / card-styles.md）
-  per_page_resources: required_resources 字段列出的全部资源内容（由调度者按路径读取后注入）
+  resources_txt:     resource_assembler.py 为该页生成的 resources-{n}.txt 完整内容（包含页面级+卡片级所有资源）
 ```
 
-> **简化说明**：旧版需要调度者自行推断 layout_hint/card_type/chart_type -> 文件路径，现在 `required_resources` 已包含完整路径，调度者只需遍历路径列表读取内容即可。
+> **简化说明**：`resource_assembler.py` 已将资源组装完全自动化。调度者只需为每页运行一次脚本生成 `resources-{n}.txt`，然后将文件内容作为 `resources_txt` 字段注入即可。
 
 **并行策略**（subagent 可用时）：
 - 按 Part 分组（同一 Part 的页面分给同一 subagent，保证章节内视觉一致性）
@@ -433,10 +457,10 @@ Prompt #4 模板
 |---|--------|---------|------------------|
 | 1 | **内容完整** | 每张卡片有标题 + 正文/数据/列表（无空卡）；data 卡片有可视化元素 | 补充缺失内容，空卡填满 |
 | 2 | **布局无重叠** | 所有卡片通过 CSS Grid 自动排列或明确 grid-row/grid-column 定位；跨行/跨列卡片的 span 属性与布局文件一致 | 对照所选布局的 HTML 骨架修正 grid 定位 |
-| 3 | **管线安全** | 无 `::before`/`::after` 装饰、无 `conic-gradient`、无 `-webkit-background-clip:text`、无 `mask-image`、无 CSS border 三角形、无 `background-image:url()`；内联 SVG 中无 `<text>` 元素 | 替换为管线安全写法（真实 DOM / 内联 SVG） |
+| 3 | **管线安全** | 无 `::before`/`::after` 装饰、无 `conic-gradient`、无 `-webkit-background-clip:text`、无 `mask-image`、无 `clip-path`、无 CSS border 三角形、无 `background-image:url()`；内联 SVG 中无 `<text>` 元素、无 `<use>`/`<symbol>`/`<clipPath>`/`<filter>` 元素；SVG path 只用 M/L/H/V/C/Z 命令（完整清单见 `pipeline-compat.md` 第 1、6 节） | 替换为管线安全写法（真实 DOM / 内联 SVG） |
 | 4 | **不溢出画布** | 内容区 `overflow:hidden`；每张卡片 `overflow:hidden`；图表容器有明确 `height`；正文有 `-webkit-line-clamp` 截断 | 缩减内容（缩短正文 > 减少列表项 > 移除装饰） |
 | 5 | **色彩规范** | 所有颜色通过 `var(--xxx)` 引用（除 transparent 和 rgba(255,255,255,0.x)）；accent 色不超过同页 2 种 | 替换硬编码颜色为 CSS 变量 |
-| 6 | **资源已消费** | `required_resources` 中列出的每个路径都已实际读取并在 HTML 中体现：布局来自 `layout` 指定骨架、复合组件符合 `blocks[]` 设计要点、图表来自 `charts[]` 模板、原则在设计决策中被考虑 | 回读 `required_resources` 中指定的资源文件修正 |
+| 6 | **资源已消费** | `resources-{n}.txt` 中的资源已在 HTML 中体现：布局来自 LAYOUT 分区的骨架；每个卡片的复合组件/图表/图标符合 CARD_RESOURCES 分区中该卡片 [block]/[chart]/[icon] 的设计要点和模板；PAGE_PRINCIPLES 和卡片级 [principle] 在设计决策中被考虑 | 回读 `resources-{n}.txt` 对照修正 |
 
 > 自检不是事后审查，而是生成流程的一部分。把 6 项检查融入"生成 -> 检查 -> 修正 -> 写入"的循环中。
 
@@ -601,6 +625,7 @@ slides/*.html --> svg/*.svg --> presentation.pptx
 ppt-output/
   progress.json        # 进度日志（中断恢复用）
   slides/              # 每页 HTML
+  resources/           # resource_assembler.py 组装的资源文本块（每页一个）
   png/                 # PNG 截图（PNG 管线产物）
   svg/                 # 矢量 SVG（SVG 管线产物，可导入 PPT 编辑）
   images/              # AI 配图
@@ -621,7 +646,7 @@ ppt-output/
 | 维度 | 检查项 |
 |------|-------|
 | 全局一致 | CSS 变量跨页一致 / 配色统一 / 配图风格统一 |
-| 叙事节奏 | 相邻页 visual_weight 差 <= 3 / 不连续 3 页高密度 |
+| 叙事节奏 | 相邻页 visual_weight 差 <= 5 / 不连续 3 页高密度 / 规则冲突时内容完整性 > 节奏美感 |
 | 管线安全 | 所有 HTML 无 `pipeline-compat.md` 禁止清单中的 CSS |
 
 ---
@@ -633,7 +658,7 @@ ppt-output/
 | 文件 | 何时读 | 内容 |
 |------|-------|------|
 | `prompts/prompt-1-research.md` | Step 1 | 需求调研 |
-| `prompts/prompt-2-outline.md` | Step 3 | 大纲架构 |
+| `prompts/prompt-2-outline.md` | Step 3 | 大纲架构 v3.0（叙事弧线 + 论证策略 + Part 逻辑关系） |
 | `prompts/prompt-3-planning.md` | Step 4 | 策划稿（含 14 种 card_type + decoration_hints） |
 | `prompts/prompt-4-design.md` | Step 5c 首页前 | HTML 设计稿 |
 | `blocks/README.md` | Step 4 首页前 | 复合组件选择指南 + 总表 |
@@ -647,7 +672,9 @@ ppt-output/
 | `charts/{type}.md` | Step 5c 按需 | 13 种图表模板 |
 | `icons/{category}.md` | Step 5c 按需 | 4 类 SVG 图标 |
 | `page-templates/{type}.md` | Step 5c 按需 | 页面结构建议 |
-| `narrative-rhythm.md` | Step 3 后 | 节奏 + 色彩递进 |
+| `narrative-rhythm.md` | Step 3 后 | 节奏 + 色彩递进 + 规则冲稁优先级 + 边缘场景 |
 | `pipeline-compat.md` | Step 5c 首页前 | CSS 禁止清单 |
 | `quality-baseline.md` | Step 5c 首页前 | 视觉完成度 checklist |
 | `resource-registry.md` | 维护时 | **全局映射唯一权威源** |
+| `scripts/resource_assembler.py` | Step 5c 每页生成前 | 自动组装 [RESOURCES] 文本块 |
+| `scripts/planning_validator.py` | Step 4 每页写入后 + 全量验证 | 策划稿 JSON 格式与规则验证（单页+跨页） |

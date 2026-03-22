@@ -371,6 +371,168 @@ const path = require('path');
                     console.warn('html2svg fallback: mask-image removed (foreground)', el.tagName);
                 }
             }
+
+            // 7. 修复 background-image: url() -> 转为 <img> 标签
+            // dom-to-svg 忽略 CSS background-image，导致背景图完全消失
+            for (const el of document.querySelectorAll('*')) {
+                const cs = getComputedStyle(el);
+                const bgImg = cs.backgroundImage || '';
+                if (!bgImg || bgImg === 'none') continue;
+                // 跳过渐变（渐变是安全的）
+                if (bgImg.startsWith('linear-gradient') || bgImg.startsWith('radial-gradient')
+                    || bgImg.startsWith('repeating-')) continue;
+                const urlMatch = bgImg.match(/url\(["']?([^"')]+)["']?\)/);
+                if (!urlMatch) continue;
+                const url = urlMatch[1];
+                if (url.startsWith('data:')) continue; // data URI 背景保留
+
+                const img = document.createElement('img');
+                img.src = url;
+                img.style.position = 'absolute';
+                img.style.top = '0'; img.style.left = '0';
+                img.style.width = '100%'; img.style.height = '100%';
+                img.style.objectFit = 'cover';
+                img.style.pointerEvents = 'none';
+                if (cs.position === 'static') el.style.position = 'relative';
+                el.style.backgroundImage = 'none';
+                el.insertBefore(img, el.firstChild);
+                console.warn('html2svg fix: background-image:url() -> <img>', el.tagName);
+            }
+
+            // 8. 移除 clip-path（svg2pptx 不支持 clipPath）
+            for (const el of document.querySelectorAll('*')) {
+                const cs = getComputedStyle(el);
+                if (cs.clipPath && cs.clipPath !== 'none') {
+                    el.style.clipPath = 'none';
+                    el.style.webkitClipPath = 'none';
+                    if (!el.style.overflow) el.style.overflow = 'hidden';
+                    console.warn('html2svg fix: clip-path -> overflow:hidden', el.tagName);
+                }
+            }
+
+            // 9. 移除 backdrop-filter（dom-to-svg 不支持）
+            for (const el of document.querySelectorAll('*')) {
+                const cs = getComputedStyle(el);
+                const bf = cs.backdropFilter || cs.webkitBackdropFilter || '';
+                if (bf && bf !== 'none') {
+                    el.style.backdropFilter = 'none';
+                    el.style.webkitBackdropFilter = 'none';
+                    console.warn('html2svg fix: backdrop-filter removed', el.tagName);
+                }
+            }
+
+            // 10. 修复 CSS filter（blur/drop-shadow -> 移除以防光栅化）
+            for (const el of document.querySelectorAll('*')) {
+                const cs = getComputedStyle(el);
+                const filter = cs.filter || '';
+                if (!filter || filter === 'none') continue;
+                if (filter.includes('blur(')) {
+                    el.style.filter = 'none';
+                    el.style.opacity = String(Math.min(parseFloat(cs.opacity) || 1, 0.7));
+                    console.warn('html2svg fix: filter:blur() -> opacity', el.tagName);
+                } else if (filter.includes('drop-shadow(')) {
+                    const m = filter.match(/drop-shadow\(([^)]+)\)/);
+                    el.style.filter = 'none';
+                    if (m) el.style.boxShadow = m[1];
+                    console.warn('html2svg fix: drop-shadow -> box-shadow', el.tagName);
+                }
+            }
+
+            // 11. 移除 mix-blend-mode（svg2pptx 不支持）
+            for (const el of document.querySelectorAll('*')) {
+                const cs = getComputedStyle(el);
+                if (cs.mixBlendMode && cs.mixBlendMode !== 'normal') {
+                    el.style.mixBlendMode = 'normal';
+                    console.warn('html2svg fix: mix-blend-mode removed', el.tagName);
+                }
+            }
+
+            // 12. 将内联 SVG 中的 <text> 元素提取为 HTML 叠加层
+            // svg2pptx 处理 SVG text 有 baseline 偏移问题，HTML 定位更精确
+            for (const svg of document.querySelectorAll('svg')) {
+                // 跳过页面级 SVG（非用户内联的）
+                if (!svg.parentElement || svg.parentElement === document.body) continue;
+                const texts = Array.from(svg.querySelectorAll('text'));
+                if (texts.length === 0) continue;
+
+                const parent = svg.parentElement;
+                const pcs = getComputedStyle(parent);
+                if (pcs.position === 'static') parent.style.position = 'relative';
+                const parentRect = parent.getBoundingClientRect();
+
+                for (const text of texts) {
+                    try {
+                        // 跳过带旋转的文字（HTML 难以精确复制）
+                        const tf = text.getAttribute('transform') || '';
+                        if (tf.includes('rotate') || tf.includes('skew')) continue;
+
+                        const tspans = text.querySelectorAll('tspan');
+                        const items = tspans.length > 0 ? Array.from(tspans) : [text];
+
+                        for (const item of items) {
+                            const content = item.textContent;
+                            if (!content || !content.trim()) continue;
+                            const itemRect = item.getBoundingClientRect();
+                            if (itemRect.width === 0 && itemRect.height === 0) continue;
+
+                            const fill = item.getAttribute('fill') || text.getAttribute('fill')
+                                || text.getAttribute('color') || '#000';
+                            const fs = (item.getAttribute('font-size') || text.getAttribute('font-size') || '14')
+                                .replace('px', '');
+                            const fw = item.getAttribute('font-weight') || text.getAttribute('font-weight') || '400';
+                            const ff = item.getAttribute('font-family') || text.getAttribute('font-family') || '';
+                            const op = item.getAttribute('opacity') || text.getAttribute('opacity') || '';
+
+                            const span = document.createElement('span');
+                            span.textContent = content.trim();
+                            span.style.position = 'absolute';
+                            span.style.left = (itemRect.left - parentRect.left) + 'px';
+                            span.style.top = (itemRect.top - parentRect.top) + 'px';
+                            span.style.fontSize = fs + 'px';
+                            span.style.fontWeight = fw;
+                            span.style.color = fill;
+                            if (ff) span.style.fontFamily = ff;
+                            if (op) span.style.opacity = op;
+                            span.style.lineHeight = '1.2';
+                            span.style.whiteSpace = 'nowrap';
+                            span.style.pointerEvents = 'none';
+
+                            parent.appendChild(span);
+                        }
+                        text.remove();
+                        console.warn('html2svg fix: SVG <text> -> HTML overlay');
+                    } catch (e) {
+                        // 失败时保留原始 SVG text
+                    }
+                }
+            }
+
+            // 13. 展开 <use> 引用为实际元素（svg2pptx 不递归展开 <use>）
+            for (const svg of document.querySelectorAll('svg')) {
+                const uses = Array.from(svg.querySelectorAll('use'));
+                for (const use of uses) {
+                    const href = use.getAttribute('href')
+                        || use.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+                    if (!href || !href.startsWith('#')) continue;
+                    try {
+                        const ref = svg.querySelector(href);
+                        if (!ref) continue;
+                        const clone = ref.cloneNode(true);
+                        clone.removeAttribute('id');
+                        const ux = use.getAttribute('x') || '0';
+                        const uy = use.getAttribute('y') || '0';
+                        if (ux !== '0' || uy !== '0') {
+                            const et = clone.getAttribute('transform') || '';
+                            clone.setAttribute('transform', ('translate(' + ux + ',' + uy + ') ' + et).trim());
+                        }
+                        for (const attr of ['fill', 'stroke', 'opacity', 'stroke-width']) {
+                            if (use.hasAttribute(attr)) clone.setAttribute(attr, use.getAttribute(attr));
+                        }
+                        use.parentNode.replaceChild(clone, use);
+                        console.warn('html2svg fix: <use> expanded inline');
+                    } catch (e) {}
+                }
+            }
         });
         await new Promise(r => setTimeout(r, 300));
 
