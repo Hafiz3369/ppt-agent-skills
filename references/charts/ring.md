@@ -1,10 +1,10 @@
-# 环形百分比（必须用内联 SVG，禁止 conic-gradient）
+# 环形百分比（推荐用内联 SVG）
 
 `chart_type: ring`
 
 > **视觉灵魂**：圆弧的饱满度直观传达"占比" -- 90% 的弧几乎闭合让人安心，30% 的弧孤独地悬着让人紧迫。
 >
-> **管线兼容**：中心文字用 HTML position:absolute 叠加，禁止在 SVG 中写 `<text>` 元素（见 `pipeline-compat.md` 3.3 节）。
+> 也可用 `conic-gradient` 实现更简洁的纯 CSS 环形图。内联 SVG 版本在动画和精确控制方面更灵活。
 
 ## 结构骨架
 

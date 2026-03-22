@@ -31,7 +31,7 @@
 ## 关键规则
 
 - **维度数限制**：3-6 维最佳，6 维以上标签太挤不推荐
-- **文字标签必须用 HTML 叠加**（position:absolute），禁止 SVG text（管线兼容）
+- **文字标签**可用 HTML 叠加（position:absolute）或 SVG text，按场景灵活选择
 - 网格线用极细极淡的 card-border 色（视觉存在但不抢戏）
 - 数据多边形用 accent 色 + 15% opacity 填充 + 实色描边
 

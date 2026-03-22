@@ -9,6 +9,7 @@
   {{PLANNING_JSON}}     <- planning{n}.json 的完整 JSON
   {{PAGE_CONTENT}}      <- planning{n}.json 中提取的内容摘要
   {{IMAGE_INFO}}        <- 配图信息（usage + path + placement）
+  {{TECHNIQUE_CARDS}}   <- 从 director_command 提取技法牌编号，展开为完整 CSS 原子代码
   {{RESOURCES}}         <- resource_assembler 组装的完整资源块
 
 用法:
@@ -52,19 +53,135 @@ from resource_assembler import assemble_resources
 
 
 PROMPT_TEMPLATE_REL = "prompts/prompt-4-design.md"
+TECHNIQUE_CARDS_REL = "technique-cards.md"
 
 
 def extract_prompt_body(template_path: Path) -> str:
-    """从 prompt-4-design.md 中提取 ```text ... ``` 之间的 prompt 正文。"""
-    content = template_path.read_text(encoding="utf-8")
-    # 匹配 ```text\n ... \n```
-    match = re.search(r"```text\n(.*?)```", content, re.DOTALL)
-    if not match:
-        print("Error: prompt-4-design.md 中未找到 ```text ... ``` 代码块",
+    """从 prompt-4-design.md 中提取 ```text ... ``` 之间的 prompt 正文。
+
+    使用行级扫描而非正则，正确处理模板内嵌套的代码块（```html 等）。
+    逻辑：找到 ```text 起始行后，向后扫描找到最后一个独占一行的 ``` 作为结束标记。
+    """
+    lines = template_path.read_text(encoding="utf-8").splitlines(keepends=True)
+
+    # 1. 找 ```text 起始行
+    start_idx = None
+    for i, line in enumerate(lines):
+        if line.strip() == "```text":
+            start_idx = i + 1  # 内容从下一行开始
+            break
+    if start_idx is None:
+        print("Error: prompt-4-design.md 中未找到 ```text 起始标记",
               file=sys.stderr)
         sys.exit(1)
-    return match.group(1)
 
+    # 2. 从末尾向前找最后一个独占一行的 ```（这是外层代码块的结束标记）
+    end_idx = None
+    for i in range(len(lines) - 1, start_idx - 1, -1):
+        if lines[i].strip() == "```":
+            end_idx = i
+            break
+    if end_idx is None or end_idx <= start_idx:
+        print("Error: prompt-4-design.md 中未找到 ``` 结束标记",
+              file=sys.stderr)
+        sys.exit(1)
+
+    return "".join(lines[start_idx:end_idx])
+
+
+# ── 技法牌展开（方案 B 核心） ──────────────────────────────────────────
+
+def parse_technique_cards(refs_dir: Path) -> dict[str, str]:
+    """解析 technique-cards.md，按 T1-T10 编号建立索引。
+
+    返回 {"T1": "完整的 T1 章节文本", "T2": "...", ...}
+    """
+    tc_path = refs_dir / TECHNIQUE_CARDS_REL
+    if not tc_path.is_file():
+        print(f"Warning: 技法牌文件不存在: {tc_path}", file=sys.stderr)
+        return {}
+
+    text = tc_path.read_text(encoding="utf-8")
+    # 按 ## T{N}. 标题分割
+    sections = re.split(r"(?=^## T\d+\.)", text, flags=re.MULTILINE)
+
+    cards = {}
+    for section in sections:
+        match = re.match(r"^## (T\d+)\.", section)
+        if match:
+            card_id = match.group(1)
+            cards[card_id] = section.strip()
+    return cards
+
+
+def extract_technique_refs(director_command: str) -> list[str]:
+    """从 director_command 文本中提取技法牌编号（T1-T10）。
+
+    支持格式：
+    - "T1 破界水印"
+    - "T2"
+    - "（T7 留白压迫）"
+    - "用 T1+T3+T7 组合"
+    """
+    if not director_command:
+        return []
+    refs = re.findall(r"\bT(\d{1,2})\b", director_command)
+    # 去重并保持顺序
+    seen = set()
+    result = []
+    for num in refs:
+        card_id = f"T{num}"
+        if card_id not in seen and 1 <= int(num) <= 10:
+            seen.add(card_id)
+            result.append(card_id)
+    return result
+
+
+def build_technique_cards_block(
+    planning: dict,
+    technique_cards: dict[str, str],
+) -> str:
+    """根据 director_command 中的技法牌引用，组装展开后的技法牌文本块。
+
+    输出格式：
+    - 仅注入本页引用的 2-3 张牌的完整 CSS 原子代码和 ADAPT 参数
+    - 未被引用的牌不注入（减少上下文噪音）
+    """
+    director_cmd = planning.get("director_command", "")
+    refs = extract_technique_refs(director_cmd)
+
+    if not refs:
+        return ("（director_command 中未引用技法牌编号。"
+                "请根据本页情绪自由选择 2-3 个技法，"
+                "参考 technique-cards.md 的 T1-T10。）")
+
+    parts = []
+    parts.append(f"本页 director_command 引用了 {len(refs)} 张技法牌："
+                 f" {' + '.join(refs)}")
+    parts.append("")
+
+    missing = []
+    for card_id in refs:
+        if card_id in technique_cards:
+            parts.append(technique_cards[card_id])
+            parts.append("")  # 空行分隔
+        else:
+            missing.append(card_id)
+
+    if missing:
+        parts.append(f"[WARNING] 以下技法牌未找到定义: {', '.join(missing)}")
+
+    parts.append("### 组合规则")
+    parts.append("1. 技法服务于 director_command 的情绪 -- "
+                 "先感受画面，再选参数")
+    parts.append("2. ADAPT 参数必须变异 -- "
+                 "即使两页用了同一张牌，尺寸/位置/内容都必须不同")
+    parts.append("3. 不要堆砌 -- 内容完整性（P0）永远优先于视觉效果（P3）")
+
+    return "\n".join(parts)
+
+
+# ── 风格定义构建 ────────────────────────────────────────────────────────
 
 def build_style_definition(style_path: Path) -> str:
     """从 style.json 构建风格定义文本（灵魂描述 + CSS 变量）。
@@ -227,11 +344,14 @@ def build_image_info(planning: dict, image_dir: Path | None) -> str:
     return " | ".join(info_parts)
 
 
+# ── 主组装逻辑 ──────────────────────────────────────────────────────────
+
 def assemble_prompt(
     planning_path: Path,
     refs_dir: Path,
     style_path: Path,
     image_dir: Path | None,
+    technique_cards: dict[str, str],
 ) -> str:
     """组装完整的设计 prompt（所有占位符已替换）。"""
 
@@ -253,6 +373,7 @@ def assemble_prompt(
     planning_json = build_planning_json(planning)
     page_content = extract_page_content(planning)
     image_info = build_image_info(planning, image_dir)
+    tc_block = build_technique_cards_block(planning, technique_cards)
     resources = assemble_resources(planning_path, refs_dir)
 
     # 4. 替换占位符
@@ -260,20 +381,20 @@ def assemble_prompt(
     result = result.replace("{{STYLE_DEFINITION}}", style_def)
     result = result.replace("{{PLANNING_JSON}}", planning_json)
     result = result.replace("{{PAGE_CONTENT}}", page_content)
+    result = result.replace("{{TECHNIQUE_CARDS}}", tc_block)
 
     if image_info:
         result = result.replace("{{IMAGE_INFO}}", image_info)
     else:
-        # 无配图时，用正则移除整个 IMAGE_INFO 相关段落（不依赖精确字符串匹配）
-        # 匹配 "## 配图信息" 开头的段落直到下一个 "##" 或文件末尾
+        # 无配图时，用正则移除整个 IMAGE_INFO 相关段落
         result = re.sub(
-            r"##\s*配图信息[^\n]*\n.*?\{\{IMAGE_INFO\}\}[^\n]*\n"
+            r"###\s*配图信息[^\n]*\n.*?\{\{IMAGE_INFO\}\}[^\n]*\n"
             r"(?:\n\([^)]*\)\n)?",  # 可选的括号说明行
-            "## 配图信息\n无配图（usage=none）\n\n",
+            "### 配图信息\n无配图（usage=none）\n\n",
             result,
             flags=re.DOTALL,
         )
-        # 兜底：如果正则没命中，至少替换占位符本身
+        # 兜底
         result = result.replace("{{IMAGE_INFO}}", "无配图（usage=none）")
 
     result = result.replace("{{RESOURCES}}", resources)
@@ -295,10 +416,13 @@ def process_single(
     refs_dir: Path,
     style_path: Path,
     image_dir: Path | None,
+    technique_cards: dict[str, str],
     output: str | None,
 ):
     """处理单个 planning JSON。"""
-    result = assemble_prompt(planning_path, refs_dir, style_path, image_dir)
+    result = assemble_prompt(
+        planning_path, refs_dir, style_path, image_dir, technique_cards,
+    )
 
     if output:
         out_path = Path(output)
@@ -314,6 +438,7 @@ def process_batch(
     refs_dir: Path,
     style_path: Path,
     image_dir: Path | None,
+    technique_cards: dict[str, str],
     output_dir: str,
 ):
     """批量处理目录下所有 planning JSON。"""
@@ -329,7 +454,9 @@ def process_batch(
     for f in files:
         num = f.stem.replace("planning", "")
         out_file = out_dir / f"prompt-ready-{num}.txt"
-        result = assemble_prompt(f, refs_dir, style_path, image_dir)
+        result = assemble_prompt(
+            f, refs_dir, style_path, image_dir, technique_cards,
+        )
         out_file.write_text(result, encoding="utf-8")
         print(f"OK: {f.name} -> {out_file}", file=sys.stderr)
 
@@ -339,7 +466,7 @@ def process_batch(
 def main():
     parser = argparse.ArgumentParser(
         description="Prompt Assembler -- "
-                    "组装完整设计 Prompt（模板 + 风格 + 策划 + 资源 + 配图）",
+                    "组装完整设计 Prompt（模板 + 风格 + 策划 + 技法牌 + 资源 + 配图）",
     )
     parser.add_argument(
         "path",
@@ -378,13 +505,28 @@ def main():
         print(f"Warning: 配图目录不存在: {image_dir}", file=sys.stderr)
         image_dir = None
 
+    # 预加载技法牌索引（全局一次）
+    technique_cards = parse_technique_cards(refs_dir)
+    if technique_cards:
+        print(f"Loaded {len(technique_cards)} technique cards: "
+              f"{', '.join(sorted(technique_cards.keys()))}",
+              file=sys.stderr)
+    else:
+        print("Warning: 未加载到技法牌定义", file=sys.stderr)
+
     if input_path.is_file():
-        process_single(input_path, refs_dir, style_path, image_dir, args.output)
+        process_single(
+            input_path, refs_dir, style_path, image_dir,
+            technique_cards, args.output,
+        )
     elif input_path.is_dir():
         if not args.output:
             print("Error: 批量模式必须用 -o 指定输出目录", file=sys.stderr)
             sys.exit(1)
-        process_batch(input_path, refs_dir, style_path, image_dir, args.output)
+        process_batch(
+            input_path, refs_dir, style_path, image_dir,
+            technique_cards, args.output,
+        )
     else:
         print(f"Error: 路径不存在: {input_path}", file=sys.stderr)
         sys.exit(1)

@@ -130,7 +130,5 @@
 | `narrative-rhythm.md` | Step 3 完成后（仅一次） | 叙事节奏原则 + 灵动节奏变奏指引（无固定页数模板） |
 | `resource-menu.md` | Step 4 每页策划时（通过 `{{RESOURCE_MENU}}` 注入 prompt-3） | 资源菜单速查卡（布局/卡片/图表/card_style/装饰技法完整选项）。防止上下文衰减导致后半程策划退化 |
 | `image-generation.md` | Step 5b（如需配图） | 配图 Prompt 公式 + 7 种融入技法（灵魂描述，非代码模板） |
-| `pipeline-compat.md` | Step 5c 首页前（仅一次） | 管线三层模型 + CSS 禁止/安全清单 + 防偏移写法 + SVG 元素支持矩阵 + 全管线 checklist（13 节） |
-| `quality-baseline.md` | Step 5c 首页前（仅一次） | 最低视觉丰富度基准 + 灵动变化维度指引 |
 | `resource-registry.md` | 本文件，维护时查阅 | 全局资源映射唯一权威源 |
 | `scripts/planning_validator.py` | Step 4 每页写入后 + 全量验证 | 策划稿 JSON 格式与规则验证（单页+跨页） |

@@ -41,7 +41,7 @@ opacity: 0;
 }
 ```
 
-**SVG/PPTX 兼容警告**：`::after` 在 dom-to-svg 转换中**会丢失**，导致 PPTX 中数字消失。必须同时保留一个真实 `<span>` 作为 fallback：
+**提示**：`::after` 伪元素在 HTML 预览中工作正常。如果需要导出 PPTX（SVG 管线），`::after` 可能丢失，可选择性保留一个真实 `<span>` 作为 fallback：
 
 ```html
 <!-- 正确写法：动画 + fallback 共存 -->

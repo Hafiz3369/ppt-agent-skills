@@ -194,6 +194,9 @@ def validate_single(planning: dict, refs_dir: Path | None) -> ValidationResult:
     if elevated_count > 1:
         r.warn(f"[{label}] elevated style 建议每页最多 1 个（当前: {elevated_count}）")
 
+    # ── 按 page_type 的内容质量校验 ───────────────────────────────────
+    _validate_page_type_quality(planning, cards, pt, label, r)
+
     # ── required_resources ─────────────────────────────────────────────
     rr = planning.get("required_resources", {})
     if pt == "content":
@@ -239,6 +242,93 @@ def validate_single(planning: dict, refs_dir: Path | None) -> ValidationResult:
         r.warn(f"[{label}] content 页 decoration_hints 为空")
 
     return r
+
+
+def _is_brand_info_card(card: dict) -> bool:
+    """检测卡片是否只是伪装成卡片的品牌/页脚信息。
+
+    判定标准：无标题且内容只含姓名|日期|公司等元数据，
+    不承载任何实质内容。
+    """
+    title = card.get("title", "").strip()
+    content = card.get("content", "").strip()
+    data_points = card.get("data_points", [])
+
+    # 有标题的卡片不算纯品牌信息（除非标题也是空的）
+    if title:
+        return False
+
+    # 有实质数据点的不算
+    if data_points and any(len(str(dp)) > 15 for dp in data_points):
+        return False
+
+    # 内容只有短文本且包含常见品牌信息分隔符
+    if content and len(content) < 60:
+        separators = ["|", "/", "·", "--", "—"]
+        if any(sep in content for sep in separators):
+            # 进一步检测：内容中是否有日期模式或极短片段
+            parts = [p.strip() for p in content.replace("|", "/").replace("·", "/").split("/")]
+            # 如果每段都少于 15 字且没有动词/论点，大概率是品牌信息
+            if all(len(p) < 15 for p in parts if p):
+                return True
+
+    return False
+
+
+def _validate_page_type_quality(
+    planning: dict, cards: list[dict], pt: str, label: str, r: ValidationResult
+) -> None:
+    """按 page_type 检查卡片质量和数量。
+
+    核心原则：品牌信息（演讲人/日期/公司）是页脚元素，不是卡片。
+    只含品牌信息的卡片不计入有效内容卡片数。
+    """
+    # 统计有效内容卡片（排除纯品牌信息卡片）
+    content_cards = [c for c in cards if not _is_brand_info_card(c)]
+    brand_cards = [c for c in cards if _is_brand_info_card(c)]
+
+    if brand_cards:
+        for idx, card in enumerate(cards):
+            if _is_brand_info_card(card):
+                r.warn(
+                    f"[{label}] cards[{idx}] 疑似品牌信息伪装成卡片"
+                    f"（内容: '{card.get('content', '')[:30]}...'）。"
+                    f"品牌信息应写入 content_summary.supporting_points，"
+                    f"不占用 cards[] 名额"
+                )
+
+    if pt == "cover":
+        # 封面至少 2 张有效内容卡片
+        if len(content_cards) < 2:
+            r.error(
+                f"[{label}] 封面页有效内容卡片不足: {len(content_cards)} 张"
+                f"（最低 2 张。品牌信息不算卡片，应放入 supporting_points）"
+            )
+        # 封面必须有至少一个数据可视化或 quote
+        has_visual = any(
+            c.get("card_type") in ("data_highlight", "data", "quote")
+            for c in content_cards
+        )
+        if not has_visual:
+            r.warn(
+                f"[{label}] 封面页缺少数据/金句卡片"
+                f"（推荐 data_highlight/data/quote 作为视觉爆裂点）"
+            )
+
+    elif pt == "end":
+        # 结束页至少 2 张有效内容卡片
+        if len(content_cards) < 2:
+            r.error(
+                f"[{label}] 结束页有效内容卡片不足: {len(content_cards)} 张"
+                f"（最低 2 张：要点总结 + 行动号召）"
+            )
+        # 结束页推荐有 list 卡片做要点回顾
+        has_list = any(c.get("card_type") == "list" for c in content_cards)
+        if not has_list:
+            r.warn(
+                f"[{label}] 结束页缺少 list 卡片"
+                f"（推荐用 list 回顾 3-5 条核心要点）"
+            )
 
 
 def validate_cross_page(plannings: list[dict]) -> ValidationResult:

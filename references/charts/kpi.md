@@ -24,7 +24,7 @@
 ## 关键规则
 
 - 趋势箭头颜色语义：上升=绿色、下降=红色、持平=text-secondary
-- 箭头用内联 SVG polygon 画三角形（管线安全）
+- 箭头用内联 SVG polygon 或 CSS border 三角形均可
 - 数字用 `font-variant-numeric: tabular-nums` 让等宽数字对齐
 - 多个 KPI 并排时，数字大小应一致
 

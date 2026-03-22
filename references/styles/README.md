@@ -211,13 +211,6 @@ style.json 不仅是 CSS 变量的容器，更是整个 PPT **视觉灵魂的基
 | 标题下划线 | accent 色的短横带，像标题的"基座" | 标题强调 |
 | 品牌色块 | 大面积低透明度的圆角矩形，像跳板上的水泡 | 风格标记 |
 
-### 管线安全底线（所有技法必须遵守）
-
-- 所有装饰必须是真实 DOM 节点（`div` / `span` / 内联 `svg`）
-- 禁止 `::before` / `::after` 伪元素
-- 禁止 `mask-image`、`conic-gradient`、CSS border 三角形
-- 图形优先用内联 SVG
-- 详细禁止清单见 `pipeline-compat.md`
 
 ---
 

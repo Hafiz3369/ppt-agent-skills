@@ -134,22 +134,19 @@
 
 ---
 
-## 图片 HTML 规范（管线安全底线）
+## 图片 HTML 规范
 
-- 使用真实 `<img>` 标签（禁用 CSS background-image）
-- 渐变遮罩用**真实 `<div>`**（禁用 ::before/::after）
+- 图片可用 `<img>` 标签或 CSS `background-image`，按场景选择最佳方式
+- 遮罩方式不限：`<div>` 遮罩层、`::before`/`::after` 伪元素、`mask-image` 均可
 - `object-fit: cover`，`border-radius` 与容器一致
 - 图片使用**绝对路径**（由 agent 生成图片后填入）
 
-**禁止**：
-- 禁止 CSS `mask-image` / `-webkit-mask-image`（SVG 转换后完全丢失）
-- 禁止 `-webkit-background-clip: text`（SVG 中变色块）
-- 禁止 `-webkit-text-fill-color`（SVG 不识别）
-- 禁止图片直接裸露无融入效果
-- 禁止图片占满卡片且无蒙版（文字不可读）
-- 禁止图片中出现文字（AI 生成的文字质量差）
-- 禁止与页面配色冲突的颜色
-- 禁止与内容无关的装饰图
-- 禁止重复使用相同 prompt
-- 禁止模糊泛指的 prompt -- 每个 prompt 必须包含至少 3 个具象物体/场景细节
-- 禁止省略质量锚定后缀
+**避免**：
+- 图片直接裸露无融入效果
+- 图片占满卡片且无蒙版（文字不可读）
+- 图片中出现文字（AI 生成的文字质量差）
+- 与页面配色冲突的颜色
+- 与内容无关的装饰图
+- 重复使用相同 prompt
+- 模糊泛指的 prompt -- 每个 prompt 必须包含至少 3 个具象物体/场景细节
+- 省略质量锚定后缀
