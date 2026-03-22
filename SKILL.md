@@ -196,9 +196,12 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 | 4 | `charts/README.md` | 13 种图表 + 数据类型映射 | data 卡片的 `chart_type` 选择 |
 | 5 | `icons/README.md` | 4 类 SVG 图标 | 图标类卡片的 icon 选择 |
 | 6 | `principles/README.md` | 6 大设计原则索引 | 策划时就考虑原则 |
-| 7 | `image-generation.md`（**需要配图时**） | prompt 6 维度构造公式 + 场景叙事翻译表 + 风格关键词表 + 构图自适应表 | 每页 `image.prompt` 的构造 + `image.usage` 的选择 |
+| 7 | `styles/README.md` 的**装饰技法工具箱**章节 | 3 层装饰技法（背景层/卡片层/页面层各 5 种）+ 管线安全底线 | 每页 `decoration_hints` 的选择 |
+| 8 | `image-generation.md`（**需要配图时**） | prompt 6 维度构造公式 + 场景叙事翻译表 + 风格关键词表 + 构图自适应表 | 每页 `image.prompt` 的构造 + `image.usage` 的选择 |
 
-> 第 7 项仅在 Q7 配图偏好 != A（不需要）时读取。策划师要写 `image.prompt`，就必须先掌握 prompt 构造方法、场景翻译技巧和各风格的关键词——没有这些上下文就是"没见过食材长什么样就要写菜谱"。
+> 第 8 项仅在 Q7 配图偏好 != A（不需要）时读取。策划师要写 `image.prompt`，就必须先掌握 prompt 构造方法、场景翻译技巧和各风格的关键词——没有这些上下文就是"没见过食材长什么样就要写菜谱"。
+>
+> 第 7 项的 `styles/README.md` 只读"装饰技法工具箱"章节（L100-141），**不读**风格决策流程和调色板信息（那些留给 Step 5a）。策划师需要知道"有哪些装饰手法可选"，但不需要此刻决定具体配色。
 
 > 预读后，策划师就知道自己的"工具箱"里有什么。后续逐页策划时，根据内容特征从工具箱中选择最合适的组件，而非只用最熟悉的几种。
 
@@ -362,7 +365,7 @@ Prompt #4 模板
 + 该页策划稿 JSON（Step 4 产物，含 cards[]/card_type/chart_type/position/layout_hint）[必须]
 + 该页内容文本（Step 4 产物）[必须]
 + [RESOURCES] 块：按 required_resources 清单读取的全部资源（布局骨架 + 复合组件 + 图表模板 + 图标 + 页面模板 + 原则摘要）[必须]
-+ 配图路径（5b 产物）[可选 -- 无配图时省略 IMAGE_INFO 块]
++ 配图信息（usage + 路径 + placement，来自 planning JSON 的 image 字段 + 5b 产物路径）[可选 -- usage=none 时省略 IMAGE_INFO 块]
 ```
 
 **[RESOURCES] 块格式**（每个分区对应 `required_resources` 的一个字段，无内容的分区省略）：
@@ -410,7 +413,7 @@ Prompt #4 模板
   page_number:       页码
   planning_json:     OUTPUT_DIR/planning/planning{n}.json 的内容
   style_json:        OUTPUT_DIR/style.json 的内容（全局共享，只读）
-  image_paths:       该页配图路径列表（可为空）
+  image_info:        该页配图信息（usage + path + placement，来自 planning JSON 的 image 字段 + 5b 产物路径，可为空）
   global_resources:  首页前已读取的全局资源（prompt-4 / pipeline-compat / styles/README / principles/README / blocks/README / card-styles.md）
   per_page_resources: required_resources 字段列出的全部资源内容（由调度者按路径读取后注入）
 ```

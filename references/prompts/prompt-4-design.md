@@ -85,6 +85,8 @@
 ## 配图信息（如有）
 {{IMAGE_INFO}}
 
+（此处注入该页配图的完整信息。格式：`usage: xxx | path: /abs/path/to/image.png | placement: xxx`。`usage` 决定融入技法，`path` 是图片绝对路径，`placement` 是放置位置。按 usage 值选择对应的 HTML 模板实现——详见下方"配图融入设计"章节。无配图时整个块省略。）
+
 ## 参考资源（强制使用）
 {{RESOURCES}}
 
