@@ -27,8 +27,9 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 | **图片生成**（绝大多数环境都有） | 缺失 -> 纯 CSS 装饰替代 |
 | **文件输出** | 必须有 |
 | **脚本执行**（Python/Node.js） | 缺失 -> 跳过自动打包和 SVG 转换 |
+| **Sub-agent / 并行代理**（Agent tool / subagent） | 可用 -> Step 4 策划和 Step 5c HTML 生成启用并行模式；缺失 -> 退回逐页串行 |
 
-**原则**：检查实际可调用的工具列表，有什么用什么。
+**原则**：检查实际可调用的工具列表，有什么用什么。检测 sub-agent 能力时，确认是否有 `Agent` 工具（或等价的 subagent 调用能力）。若有，在 `progress.json` 中标记 `"has_subagent": true`，后续 Step 4 和 Step 5c 自动启用并行模式。
 
 ---
 
@@ -315,7 +316,11 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 > **核心原则：一个 planning JSON 对应一个 HTML。** 每页策划稿写入 `planning/planning{n}.json`（n = 页码），轻量独立，便于用户逐页编辑和 Step 5c 按需读取。
 
-**生成节奏**：
+##### 模式选择：串行 vs 并行（Sub-agent）
+
+根据环境感知阶段检测的 `has_subagent` 标记自动选择模式：
+
+**模式 A：串行模式（无 sub-agent）**
 
 ```
 ── 第 1 页 ──────────────────────────────
@@ -333,9 +338,67 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 每页都是：生成 -> write_to_file -> 验证 -> 下一页
 ```
 
+**模式 B：并行模式（有 sub-agent，标准/大型复杂度时推荐）**
+
+> **按 Part 分组并行，组内串行。** 同一 Part 的页面由同一个 sub-agent 串行生成（保证章节内衔接），不同 Part 的 sub-agent 并行执行（加速整体流程）。
+
+**分发前准备**（主 agent 执行）：
+1. 完成 4a 资源菜单预读
+2. 确定 Part 分组：`Part 1: [page 1-4], Part 2: [page 5-8], ...`
+3. 为每组准备共享上下文：需求 JSON + 大纲 JSON + 搜索素材 + 资源菜单内容 + 设计原则 cheatsheet
+
+**并行分发**（使用 Agent tool / 等价并行工具）：
+```
+┌─ Sub-agent A (Part 1: 封面+引入) ──────────────────────
+│  输入：共享上下文 + Part 1 页面列表 + 上下文衔接指令
+│  任务：逐页生成 planning JSON -> 写入 -> 验证
+│  产物：planning1.json ~ planning4.json
+│
+├─ Sub-agent B (Part 2: 核心论证) ───────────── 并行 ────
+│  输入：共享上下文 + Part 2 页面列表 + Part 1 最后一页摘要（衔接用）
+│  任务：逐页生成 planning JSON -> 写入 -> 验证
+│  产物：planning5.json ~ planning8.json
+│
+├─ Sub-agent C (Part 3: 总结+结尾) ───────────── 并行 ────
+│  输入：共享上下文 + Part 3 页面列表 + Part 2 最后一页摘要（衔接用）
+│  任务：逐页生成 planning JSON -> 写入 -> 验证
+│  产物：planning9.json ~ planning12.json
+└────────────────────────────────────────────────────────
+```
+
+**Sub-agent Prompt 模板**：
+```
+你是 PPT 策划师，负责生成第 {start_page} ~ {end_page} 页的策划稿 JSON。
+
+## 共享上下文
+- 需求 JSON: {requirement_json}
+- 大纲 JSON: {outline_json}（仅你负责的 Part 部分）
+- 搜索素材: {search_findings_for_this_part}
+- 设计原则 Cheatsheet: {cheatsheet_content}
+- 资源菜单: {resource_menu_content}
+
+## 衔接上下文
+- 上一个 Part 最后一页摘要: {previous_part_last_page_summary}
+  （第一个 Part 无此项）
+
+## 执行规则
+1. 严格遵循 Prompt #3 的策划规范
+2. 每页生成后立即写入 OUTPUT_DIR/planning/planning{n}.json
+3. 写入后运行验证: python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning/planning{n}.json --refs SKILL_DIR/references
+4. ERROR 必须修正后再继续下一页
+5. 组内串行：上一页的完整 JSON 作为下一页的衔接上下文
+```
+
+**回收与校验**（主 agent 执行）：
+1. 等待所有 sub-agent 完成
+2. 运行全量验证（含跨页规则）
+3. 重点检查 Part 交界处（如 page 4→5, page 8→9）的衔接是否自然，必要时微调
+
+**轻量模式（<= 8 页）**：即使有 sub-agent 也建议串行，页数少时并行开销不划算。
+
 > **验证是写入流程的一部分，不是事后审查。** 每页 JSON 写入后立即运行 `planning_validator.py` 单页验证。validator 检查：字段完整性、枚举值合法性、资源文件路径存在性、card_style 多样性。有 ERROR 时必须修正后再继续下一页。
 
-**操作边界**：
+**操作边界**（两种模式通用）：
 1. 每次只在 Prompt #3 中请求**一页**的策划（封面/目录/章节封面等极简页可 2-3 页一起，但仍然每页独立文件）
 2. 每页生成后**必须**立即写入 `planning/planning{n}.json`
 3. 写入后立即运行 `planning_validator.py` 验证（ERROR = 必须修正，WARNING = 建议修正）
@@ -343,7 +406,7 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 5. 不要用 Python 脚本操作 JSON 文件
 6. 不要尝试一次输出全部页面
 
-**上下文传递**：每页生成时注入上一页的完整 JSON，保证内容衔接和节奏递进。
+**上下文传递**：每页生成时注入上一页的完整 JSON，保证内容衔接和节奏递进。并行模式下，Part 交界处通过"上一 Part 最后一页摘要"传递衔接上下文。
 
 所有策划稿完成后：
 1. 运行全量验证（含跨页规则：布局多样性 + visual_weight 节奏 + image usage 多样性）：
@@ -547,11 +610,11 @@ view_file OUTPUT_DIR/prompts-ready/prompt-ready-{n}.txt
 
 **禁止行为**：不读 prompt-ready 文件就直接写 HTML。这是 Step 5c 的第一条红线。
 
-##### 并行生成接口（subagent 预留）
+##### 并行生成模式（Sub-agent 可用时启用）
 
-> 当前单 agent 环境下仍逐页串行。此接口定义了并行生成的输入契约，以便将来有 subagent 能力时可直接分发。
+> 每页 HTML 的生成输入**完全自包含**，页面之间无运行时依赖，天然适合并行。有 sub-agent 能力时**必须启用并行模式**（标准/大型复杂度）。
 
-每页 HTML 的生成输入**完全自包含**，页面之间无运行时依赖：
+每页 HTML 的生成输入：
 
 ```
 并行单元输入:
@@ -561,12 +624,64 @@ view_file OUTPUT_DIR/prompts-ready/prompt-ready-{n}.txt
   global_resources:  首页前已读取的全局资源（styles/README / principles/README / blocks/README / card-styles.md）
 ```
 
-> **简化说明**：`prompt_assembler.py` 已将 prompt 组装完全自动化。调度者只需为每页运行一次脚本生成 `prompt-ready-{n}.txt`，然后将文件内容作为 `prompt_ready_txt` 字段注入即可。每个 prompt-ready 文件是完全自包含的。
+**并行策略**：按 Part 分组（同一 Part 的页面分给同一 sub-agent，保证章节内视觉一致性）。不同 Part 的 sub-agent 并行执行。
 
-**并行策略**（subagent 可用时）：
-- 按 Part 分组（同一 Part 的页面分给同一 subagent，保证章节内视觉一致性）
-- 每个 subagent 接收该组所有页面的上述输入，串行生成组内页面
-- 不同 Part 的 subagent 可并行执行
+**分发前准备**（主 agent 执行）：
+1. 完成 GATE CHECK（prompt_assembler.py 已为所有页面生成 prompt-ready 文件）
+2. 读取全局资源（styles/README.md + principles/README.md + blocks/README.md）
+3. 确定 Part 分组
+
+**并行分发**（使用 Agent tool / 等价并行工具）：
+```
+┌─ Sub-agent A (Part 1: page 1-4) ──────────────────────
+│  输入：global_resources + prompt-ready-1~4.txt 内容
+│  任务：逐页读取 prompt-ready -> 生成 HTML -> 5 项自检 -> 写入 slides/
+│  产物：slide-01.html ~ slide-04.html
+│
+├─ Sub-agent B (Part 2: page 5-8) ────────── 并行 ──────
+│  输入：global_resources + prompt-ready-5~8.txt 内容
+│  任务：同上
+│  产物：slide-05.html ~ slide-08.html
+│
+├─ Sub-agent C (Part 3: page 9-12) ───────── 并行 ──────
+│  输入：global_resources + prompt-ready-9~12.txt 内容
+│  任务：同上
+│  产物：slide-09.html ~ slide-12.html
+└────────────────────────────────────────────────────────
+```
+
+**Sub-agent Prompt 模板**：
+```
+你是 PPT 设计师，负责生成第 {start_page} ~ {end_page} 页的 HTML 设计稿。
+
+## 全局资源（已读取，直接使用）
+{global_resources_content}
+
+## 执行规则
+对于你负责的每一页（N = {start_page} ~ {end_page}）：
+
+1. 读取 OUTPUT_DIR/prompts-ready/prompt-ready-{N}.txt
+2. 基于 prompt-ready 内容生成 HTML：
+   - 布局骨架来自 [RESOURCES] 的 LAYOUT 分区
+   - 复合组件参考 [RESOURCES] 的 CARD_RESOURCES 分区
+   - 图表模板参考 [RESOURCES] 的 chart 分区
+3. 5 项自检（内容完整/布局无重叠/不溢出画布/色彩规范/资源已消费）
+4. 写入 OUTPUT_DIR/slides/slide-{NN}.html（NN = 两位数页码）
+
+## 核心约束
+- 画布 1280x720px，overflow:hidden
+- 所有颜色通过 CSS 变量引用
+- 禁止不读 prompt-ready 文件就直接写 HTML
+- 组内逐页串行生成，保证章节内视觉一致性
+```
+
+**回收与校验**（主 agent 执行）：
+1. 等待所有 sub-agent 完成
+2. 检查所有 `slide-XX.html` 文件是否存在
+3. 跨页视觉一致性抽检（Part 交界处的配色/装饰风格衔接）
+4. 运行 `html_packager.py` 生成 `preview.html`
+
+**串行退化**：轻量模式（<= 8 页）或无 sub-agent 时，主 agent 按原有逐页串行流程执行。
 
 ##### 每页生成后 5 项自检（必做 -- 写入文件前对照）
 
