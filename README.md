@@ -27,19 +27,23 @@
 
 ## 效果展示
 
-> 以「新一代小米SU7发布」为主题的示例输出（小米橙风格）：
+> 以「Linux Do 社区深度解析」为主题的示例输出（暗黑科技风格）：
 
-| 封面页 | 配置对比页 |
-|:---:|:---:|
-| ![封面页](ppt-output/png/slide_01_cover.png) | ![配置对比](ppt-output/png/slide_02_models.png) |
-
-| 动力续航页 | 智驾安全页 |
-|:---:|:---:|
-| ![动力续航](ppt-output/png/slide_03_power.png) | ![智驾安全](ppt-output/png/slide_04_smart.png) |
-
-| 结束页 |
-|:---:|
-| ![结束页](ppt-output/png/slide_05_end.png) |
+<div align="center">
+  <img src="assets/screenshots/slide1.png" width="32%" />
+  <img src="assets/screenshots/slide2.png" width="32%" />
+  <img src="assets/screenshots/slide3.png" width="32%" />
+  <img src="assets/screenshots/slide4.png" width="32%" />
+  <img src="assets/screenshots/slide5.png" width="32%" />
+  <img src="assets/screenshots/slide6.png" width="32%" />
+  <img src="assets/screenshots/slide7.png" width="32%" />
+  <img src="assets/screenshots/slide8.png" width="32%" />
+  <img src="assets/screenshots/slide9.png" width="32%" />
+  <img src="assets/screenshots/slide10.png" width="32%" />
+  <img src="assets/screenshots/slide11.png" width="32%" />
+  <img src="assets/screenshots/slide12.png" width="32%" />
+  <img src="assets/screenshots/slide13.png" width="32%" />
+</div>
 
 ---
 
