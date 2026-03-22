@@ -1,49 +1,30 @@
-# 非对称两栏布局 (2/3 + 1/3)
+# 非对称两栏版式 (2/3 + 1/3)
 
-适用: 主次关系。**最常用的布局 -- 一个核心论点 + 一个辅助数据区。**
+> 重力场：重力明显偏向一侧，另一侧轻声附和
 
-## CSS Grid 定义
+适用：主次关系鲜明的两块内容。核心论点占据 2/3 视觉领地，辅助数据在侧翼呼应。
 
-```css
-.content-area {
-  grid-template: 1fr / 2fr 1fr;
-}
-/* 主: 790x580 | 辅: 390x580 */
+## 重力结构
+
+```
+Grid: 2fr 1fr 列 x 1fr 行
+两张卡片自动排列，无需 grid 定位
 ```
 
-## HTML 骨架
+## 灵动化指引
 
-```html
-<div class="content-area" style="position:absolute; left:40px; top:80px; width:1200px; height:580px;
-     display:grid; grid-template-columns:2fr 1fr; gap:20px;">
+### 反差是灵魂
+- 主区域 + `elevated` / `accent` = 不可回避的重力核心
+- 辅助区 + `outline` / `transparent` = 轻盈的侧翼呼吸
+- 绝对禁止两侧都用 `filled` -- 那等于没有主次
 
-  <!-- 卡片 1: 主区域（左，宽 ~790px） -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:24px; display:flex; flex-direction:column; gap:16px; overflow:hidden;">
-    <div style="display:flex; align-items:center; gap:8px;">
-      <div style="width:3px; height:16px; border-radius:2px; background:var(--accent-1);"></div>
-      <h3 style="font-size:20px; font-weight:700; color:var(--text-primary);">核心论点标题</h3>
-    </div>
-    <!-- 主卡片：放置核心论述、大段文字、主要数据可视化 -->
-  </div>
+### 重力反转的可能
+- 将列比例改为 `1fr 2fr`，让主区域在右侧 -- 打破"主角总在左边"的视觉惯性
+- 主区域用 `transparent` 只放一个 80px 的核心数字，辅助区反而用 `filled` 塞满细节 -- 以小搏大
 
-  <!-- 卡片 2: 辅助区域（右，宽 ~390px） -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:24px; display:flex; flex-direction:column; gap:16px; overflow:hidden;">
-    <div style="display:flex; align-items:center; gap:8px;">
-      <div style="width:3px; height:16px; border-radius:2px; background:var(--accent-2);"></div>
-      <h3 style="font-size:18px; font-weight:700; color:var(--text-primary);">辅助数据</h3>
-    </div>
-    <!-- 辅助卡片：放置 KPI、环形图、列表等补充信息 -->
-  </div>
+### 纵深感的制造
+- 辅助区可以在视觉上"靠后"（用更低的对比度、更小的字号），让主区域在感知上"更近"
+- 主辅之间不仅是宽度的差异，更是"景深"的差异
 
-</div>
-```
-
-## 设计要点
-
-- 主卡片（左）承载核心内容，视觉重心在左
-- 辅助卡片（右）承载补充数据/列表，字号可比主卡片小 1-2px
-- 不需要额外的 `grid-row` / `grid-column` 指定
+### 无需 Grid 定位
+两张卡片自动排列，不需要写 `grid-row` / `grid-column`。

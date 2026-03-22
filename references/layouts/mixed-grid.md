@@ -1,136 +1,54 @@
-# 混合网格布局
+# 混合网格版式
 
-适用: 高信息密度, 4-6个异构块。**推荐：信息密度最高时优先选择。**
+> 重力场：多个不同密度的重力点交错分布，像一座信息密集的仪表盘
 
-## 2x3 网格（6 卡片）
+适用：高信息密度，4-6 个异构块。当内容维度多、每个维度都需要独立展示时的最佳选择。
 
-```css
-.content-area {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: repeat(3, 1fr);
-}
-/* 6个卡片: 各 590x180 */
+## 重力结构变体
+
+### 2x3 等分（6 卡片）
+```
+Grid: 1fr 1fr 列 x repeat(3, 1fr) 行
+6 个卡片: 自动填充，无需写 grid 定位
 ```
 
-可通过 `grid-row`/`grid-column` 的 span 让个别卡片跨行/跨列，形成大小混搭效果。
-
-### HTML 骨架
-
-```html
-<div class="content-area" style="position:absolute; left:40px; top:80px; width:1200px; height:580px;
-     display:grid; grid-template-columns:1fr 1fr; grid-template-rows:repeat(3, 1fr); gap:20px;">
-
-  <!-- 6 个卡片，自动排列（左上 -> 右上 -> 左中 -> 右中 -> 左下 -> 右下） -->
-  <!-- 不需要写 grid-row/grid-column，自动填充 -->
-  <div class="card" style="..."><!-- 卡片1 --></div>
-  <div class="card" style="..."><!-- 卡片2 --></div>
-  <div class="card" style="..."><!-- 卡片3 --></div>
-  <div class="card" style="..."><!-- 卡片4 --></div>
-  <div class="card" style="..."><!-- 卡片5 --></div>
-  <div class="card" style="..."><!-- 卡片6 --></div>
-</div>
+### 2+1+2 交错（5 卡片，中间横贯）
+```
+Grid: 1fr 1fr 列 x repeat(3, 1fr) 行
+卡片1-2: 自动排列到第 1 行
+卡片3: grid-column: 1 / -1（必须跨两列 -- 这是中间"横梁"的保证）
+卡片4-5: 自动排列到第 3 行
 ```
 
-## 2+1+2 网格（5 卡片，大小交错）
-
-```css
-.content-area {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: repeat(3, 1fr);
-}
+### 1+2+1 三明治（4 卡片，上下横贯）
+```
+Grid: 1fr 1fr 列 x auto 1fr auto 行
+顶部大卡: grid-column: 1 / -1（必须跨两列）
+中间左右: 自动排列
+底部大卡: grid-column: 1 / -1（必须跨两列）
 ```
 
-### HTML 骨架（关键：中间卡片必须跨两列）
+## 灵动化指引
 
-```html
-<div class="content-area" style="position:absolute; left:40px; top:80px; width:1200px; height:580px;
-     display:grid; grid-template-columns:1fr 1fr; grid-template-rows:repeat(3, 1fr); gap:20px;">
+### 密度网格的灵魂在于"不均匀"
+- 即使是 6 等分网格，也绝对不能让 6 张卡片看起来一模一样 -- 必须混合至少 3 种 card_style
+- 让 1-2 张卡片用 `accent` 或 `elevated` 从矩阵中"跃出"
+- 其余用 `filled` + `outline` + `transparent` 交错
+- 某张卡片可以只放一个大号数据（透明底 + 64px 数字），与旁边信息密集的 filled 卡片形成极致反差
 
-  <!-- 卡片1: 左上（自动排列到 row 1, col 1） -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:20px; display:flex; flex-direction:column; gap:12px; overflow:hidden;">
-    <!-- 590x180 -->
-  </div>
+### 2+1+2 的特殊张力
+- 中间横贯的卡片是天然的"腰带" -- 用 `accent` 让它成为分割上下两个世界的燃烧地平线
+- 或者用 `transparent` + 横排的 tag_cloud/指标行，让它成为一条若有若无的流水线
 
-  <!-- 卡片2: 右上（自动排列到 row 1, col 2） -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:20px; display:flex; flex-direction:column; gap:12px; overflow:hidden;">
-    <!-- 590x180 -->
-  </div>
+### 关键 Grid 约束
 
-  <!-- 卡片3: 中间横条（跨两列） -->
-  <!-- ★ 必须写 grid-column: 1 / -1 ★ -->
-  <div class="card" style="grid-column: 1 / -1;
-       /* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:20px; display:flex; align-items:center; gap:24px; overflow:hidden;">
-    <!-- 1200x180 横向排列内容 -->
-  </div>
+| 属性 | 场景 | 必须性 |
+|------|------|-------|
+| 中间卡片 `grid-column: 1 / -1` | 2+1+2 变体 | **必须** |
+| 顶/底卡片 `grid-column: 1 / -1` | 1+2+1 变体 | **必须** |
+| 6 等分时任何 span | 6 等分 | **不写** -- 写了反而破坏均分 |
 
-  <!-- 卡片4: 左下（自动排列到 row 3, col 1） -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:20px; display:flex; flex-direction:column; gap:12px; overflow:hidden;">
-    <!-- 590x180 -->
-  </div>
-
-  <!-- 卡片5: 右下（自动排列到 row 3, col 2） -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:20px; display:flex; flex-direction:column; gap:12px; overflow:hidden;">
-    <!-- 590x180 -->
-  </div>
-</div>
-```
-
-## 1+2+1 重点突出（4 卡片）
-
-```css
-.content-area {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto 1fr auto;
-}
-```
-
-### HTML 骨架
-
-```html
-<div class="content-area" style="position:absolute; left:40px; top:80px; width:1200px; height:580px;
-     display:grid; grid-template-columns:1fr 1fr; grid-template-rows:auto 1fr auto; gap:20px;">
-
-  <!-- 顶部大卡（跨两列） -->
-  <!-- ★ grid-column: 1 / -1 ★ -->
-  <div class="card" style="grid-column: 1 / -1; ...">
-    <!-- 1200x~200 -->
-  </div>
-
-  <!-- 左（自动排列） -->
-  <div class="card" style="..."><!-- 590x~260 --></div>
-
-  <!-- 右（自动排列） -->
-  <div class="card" style="..."><!-- 590x~260 --></div>
-
-  <!-- 底部大卡（跨两列） -->
-  <!-- ★ grid-column: 1 / -1 ★ -->
-  <div class="card" style="grid-column: 1 / -1; ...">
-    <!-- 1200x~100 -->
-  </div>
-</div>
-```
-
-## 易错点
-
-| 错误 | 正确 |
-|------|------|
-| 2+1+2 的中间卡片没写 `grid-column: 1 / -1` | 必须写，否则不跨列 |
-| 1+2+1 的顶部/底部卡片没写 `grid-column: 1 / -1` | 必须写 |
-| 6 卡片网格里某个卡片写了 span 导致后续卡片错位 | 纯 6 等分时**不要**写任何 span |
-
-## 设计要点
-
-- 混合网格卡片尺寸较小（590x180 或更小），content 要极度精简
-- 每张卡片 padding:20px（比标准 24px 小），gap:12px，标题 15-16px
-- 数据卡片的大数字不超过 36px（空间限制）
-- **关键约束**: 所有卡片不得超出内容区边界（x+w<=1240, y+h<=660），间距>=20px
+### 注意：空间紧凑
+- 每张卡片空间有限（约半宽 x 1/3 高），内容必须极度精炼
+- 数据数字不超过 36px，标题不超过 16px
+- 正因为空间紧凑，card_style 的差异化更加重要 -- 它是在有限空间内创造层次感的唯一手段

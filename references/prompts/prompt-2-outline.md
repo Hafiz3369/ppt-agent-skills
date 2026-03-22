@@ -73,14 +73,16 @@ Part 4: 落地计划与团队保障
 
 ## 输入
 - PPT 主题：{{TOPIC}}
-- 受众：{{AUDIENCE}}
-- 目的/期望行动：{{PURPOSE}}
-- 叙事结构：{{NARRATIVE_STRUCTURE}}
-- 内容侧重：{{EMPHASIS}}
-- 说服力要素偏好：{{PERSUASION_STYLE}}
-- 页数要求：{{PAGE_REQUIREMENTS}}
+- 演示场景：{{SCENE}}（Q1 -- 现场演讲/自阅文档/培训教学，决定信息密度策略）
+- 受众：{{AUDIENCE}}（Q2）
+- 目的/期望行动：{{PURPOSE}}（Q3）
+- 叙事结构：{{NARRATIVE_STRUCTURE}}（Q4）
+- 内容侧重：{{EMPHASIS}}（Q5）
+- 说服力要素偏好：{{PERSUASION_STYLE}}（Q6）
+- 页数要求与信息密度：{{PAGE_REQUIREMENTS}}（Q8 -- 页数 + 信息密度偏好）
 - 复杂度：{{COMPLEXITY_LEVEL}}
-- 补充信息（品牌/必含/必避等）：{{EXTRA_INFO}}
+- 品牌与身份信息：{{BRAND_INFO}}（Q9 -- 演讲人/日期/公司/品牌色/Logo）
+- 内容边界：{{CONTENT_CONSTRAINTS}}（Q10 -- 必须包含 + 必须回避）
 - 搜索资料集合：
 {{SEARCH_RESULTS}}
 

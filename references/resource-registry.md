@@ -1,6 +1,8 @@
 # 资源注册表（唯一权威映射源）
 
-> **维护规则**：新增/删除/重命名任何资源文件时，只需修改本文件。所有上游文件（SKILL.md、prompt-3、prompt-4、prompts.md）通过引用本文件获取映射，不再内联重复。
+> **维护规则**：新增/删除/重命名任何资源文件时，只需修改本文件。所有上游文件通过引用本文件获取映射，不再内联重复。
+>
+> **资源哲学**：所有资源文件提供的是**设计灵魂和思路框架**，而非可复制粘贴的 HTML/CSS 代码。LLM 读取后应获得"设计方向感"而非"固定模板"。
 
 ---
 
@@ -10,7 +12,7 @@
 |----------|-------|---------|
 | `blue_white` | 蓝白商务 | `styles/blue-white.md` |
 | `minimal_gray` | 极简灰白 | `styles/minimal-gray.md` |
-| `xiaomi_orange` | 小米橙 | `styles/xiaomi-orange.md` |
+| `warm_earth` | 暖色大地 | `styles/warm-earth.md` |
 | `fresh_green` | 清新自然 | `styles/fresh-green.md` |
 | `royal_red` | 朱红宫墙 | `styles/royal-red.md` |
 | `dark_tech` | 暗黑科技 | `styles/dark-tech.md` |
@@ -68,10 +70,10 @@
 
 | page_type 值 | 文件路径 | 说明 |
 |-------------|---------|------|
-| `cover` | `page-templates/cover.md` | 纯文字结构规范，不提供 HTML 代码 |
-| `toc` | `page-templates/toc.md` | 纯文字结构规范 |
-| `section` | `page-templates/section.md` | 纯文字结构规范 |
-| `end` | `page-templates/end.md` | 纯文字结构规范 |
+| `cover` | `page-templates/cover.md` | 灵魂驱动设计指引（唯一必须：醒目标题，其余元素均为可选叙事工具） |
+| `toc` | `page-templates/toc.md` | 灵魂驱动设计指引（唯一必须：Part 结构展示） |
+| `section` | `page-templates/section.md` | 灵魂驱动设计指引（唯一必须：章节标题，连续章节封面必须变化构图） |
+| `end` | `page-templates/end.md` | 灵魂驱动设计指引（唯一必须：核心结论，与封面形成收束镜像） |
 
 ---
 
@@ -79,7 +81,7 @@
 
 | Step | 文件路径 | 用途 |
 |------|---------|------|
-| Step 1 | `prompts/prompt-1-research.md` | 需求调研（7 题深度访谈） |
+| Step 1 | `prompts/prompt-1-research.md` | 需求调研（五层递进访谈，12 基础题 + 0-3 动态题） |
 | Step 3 | `prompts/prompt-2-outline.md` | 大纲架构师 v3.0（含叙事弧线 + 论证策略 + Part 间逻辑关系） |
 | Step 4 | `prompts/prompt-3-planning.md` | 内容分配与策划稿（逐页生成） |
 | Step 5c | `prompts/prompt-4-design.md` | HTML 设计稿生成（逐页设计） |
@@ -101,7 +103,7 @@
 | `matrix_chart` | 象限矩阵块 | `blocks/matrix-chart.md` | 跨列跨行 |
 
 **选择指南**：`blocks/README.md`（内容特征 -> 推荐 card_type）
-**视觉变体**：`blocks/card-styles.md`（6 种 card_style 的 CSS 实现 + 搭配规则）
+**视觉变体**：`blocks/card-styles.md`（6 种 card_style 的空间存在感哲学 + 搭配规则）
 
 ---
 
@@ -125,9 +127,10 @@
 
 | 文件路径 | 何时读取 | 内容 |
 |---------|---------|------|
-| `narrative-rhythm.md` | Step 3 完成后（仅一次） | 叙事节奏 + 10/15/20 页标准模板 |
-| `image-generation.md` | Step 5b（如需配图） | 配图 Prompt 公式 + 5 种融入技法 |
-| `pipeline-compat.md` | Step 5c 首页前（仅一次） | 管线三层模型 + CSS 禁止/安全清单 + 防偏移写法 + SVG 元素支持矩阵 + 渐变/字体/性能约束 + 全管线 checklist（13 节） |
-| `quality-baseline.md` | Step 5c 首页前（仅一次） | 最低视觉丰富度基准（纯文字 checklist） |
+| `narrative-rhythm.md` | Step 3 完成后（仅一次） | 叙事节奏原则 + 灵动节奏变奏指引（无固定页数模板） |
+| `resource-menu.md` | Step 4 每页策划时（通过 `{{RESOURCE_MENU}}` 注入 prompt-3） | 资源菜单速查卡（布局/卡片/图表/card_style/装饰技法完整选项）。防止上下文衰减导致后半程策划退化 |
+| `image-generation.md` | Step 5b（如需配图） | 配图 Prompt 公式 + 7 种融入技法（灵魂描述，非代码模板） |
+| `pipeline-compat.md` | Step 5c 首页前（仅一次） | 管线三层模型 + CSS 禁止/安全清单 + 防偏移写法 + SVG 元素支持矩阵 + 全管线 checklist（13 节） |
+| `quality-baseline.md` | Step 5c 首页前（仅一次） | 最低视觉丰富度基准 + 灵动变化维度指引 |
 | `resource-registry.md` | 本文件，维护时查阅 | 全局资源映射唯一权威源 |
 | `scripts/planning_validator.py` | Step 4 每页写入后 + 全量验证 | 策划稿 JSON 格式与规则验证（单页+跨页） |

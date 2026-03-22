@@ -1,49 +1,27 @@
-# 50/50 对称布局
+# 对称双栏版式 (50/50)
 
-适用: 对比、并列概念（A vs B、优势 vs 劣势、方案 A vs 方案 B）
+> 重力场：左右等量的重力对峙，如天平两端的博弈
 
-## CSS Grid 定义
+适用：对比、并列概念（A vs B、优势 vs 劣势、方案 A vs 方案 B）
 
-```css
-.content-area {
-  grid-template: 1fr / 1fr 1fr;
-}
-/* 左: 590x580 | 右: 590x580 */
+## 重力结构
+
+```
+Grid: 1fr 1fr 列 x 1fr 行
+两张卡片自动排列，无需 grid 定位
 ```
 
-## HTML 骨架
+## 灵动化指引
 
-```html
-<div class="content-area" style="position:absolute; left:40px; top:80px; width:1200px; height:580px;
-     display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+### "对称"不等于"一模一样"
+- 两张卡片的**信息骨架**可以对称（同样的维度、同样的层级），但**视觉表达必须有反差**
+- 经典灵动手法：一侧用 `accent`（代表推荐/新方案/胜者），另一侧用 `filled` 或 `outline`（代表现状/旧方案/败者）
+- 即使是对等比较，也要在 accent 色上做差异（左用 accent-1，右用 accent-2/accent-3）
 
-  <!-- 卡片 1: 左侧 -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:24px; display:flex; flex-direction:column; gap:16px; overflow:hidden;">
-    <div style="display:flex; align-items:center; gap:8px;">
-      <div style="width:3px; height:16px; border-radius:2px; background:var(--accent-1);"></div>
-      <h3 style="font-size:18px; font-weight:700; color:var(--text-primary);">左侧标题</h3>
-    </div>
-    <!-- 卡片内容区 -->
-  </div>
+### 超越刻板对称的进阶表达
+- **重力倾斜**：虽然空间 50/50，但让一侧的内容视觉重量远大于另一侧（如左侧用大号数据 + accent，右侧用 outline + 小号文字），制造"形式对称但重力偏心"的张力
+- **跨越缝隙**：让某个装饰元素（如一个大号 VS 标记、或一条对角线渐变带）横跨两张卡片的中线，打破物理分隔的死板感
+- **高低呼吸**：左侧卡片内容从顶部开始铺排，右侧卡片内容故意从中部开始，形成视觉上的高低错落
 
-  <!-- 卡片 2: 右侧 -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:24px; display:flex; flex-direction:column; gap:16px; overflow:hidden;">
-    <div style="display:flex; align-items:center; gap:8px;">
-      <div style="width:3px; height:16px; border-radius:2px; background:var(--accent-2);"></div>
-      <h3 style="font-size:18px; font-weight:700; color:var(--text-primary);">右侧标题</h3>
-    </div>
-    <!-- 卡片内容区 -->
-  </div>
-
-</div>
-```
-
-## 设计要点
-
-- 两张卡片用不同 accent 色竖线区分（左 accent-1，右 accent-2）
-- 对比型内容建议左右卡片内部结构对称（同样的字号、同样的数据展示方式）
-- 不需要额外的 `grid-row` / `grid-column` 指定，CSS Grid 自动排列
+### 无需 Grid 定位
+两张卡片自动排列，不需要写 `grid-row` / `grid-column`。

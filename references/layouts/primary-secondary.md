@@ -1,70 +1,36 @@
-# 主次结合布局 (大 + 两小)
+# 主次结合版式 (大 + 两小)
 
-适用: 层级关系。**推荐：信息层次丰富时优先选择。** 一个核心论点 + 两个辅助数据。
+> 重力场：一个贯穿式的深渊 + 两个悬浮的轻量卫星
 
-## CSS Grid 定义
+适用：主从关系鲜明的内容。一个核心论点独占 2/3 画面，两个辅助数据在侧翼轻声附和。
 
-```css
-.content-area {
-  grid-template-columns: 2fr 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-/* 主: 790x580 (跨两行) | 辅1: 390x280 | 辅2: 390x280 */
+## 重力结构
+
+```
+Grid: 2fr 1fr 列 x 1fr 1fr 行
+主区域: grid-row: 1 / -1（必须跨两行 -- 这是"深渊"的物理保证）
+辅助区: 自动排列到右侧上下
 ```
 
-## HTML 骨架（关键：主卡片必须写 grid-row: 1 / -1）
+## 灵动化指引
 
-```html
-<div class="content-area" style="position:absolute; left:40px; top:80px; width:1200px; height:580px;
-     display:grid; grid-template-columns:2fr 1fr; grid-template-rows:1fr 1fr; gap:20px;">
+### 主区域的意境变化（每次使用都必须不同）
+- **数据宇宙**：主区域塞满核心图表 + 大号数据 + 详细解读，是整页的信息黑洞。辅助区用 `outline` 轻描淡写几个补充 KPI
+- **极简主张**：主区域 80% 留白，只放一句 36px 的核心论断 + 一个微小的数据佐证。辅助区反而用 `accent` 和 `elevated` 承载具体数据，形成"主区安静、侧翼喧嚣"的反差
+- **图文叙事**：主区域上半部放配图（card-inset），下半部放文字解读。辅助区用紧凑的 data 卡片
 
-  <!-- 卡片 1: 主区域（左，跨两行） -->
-  <!-- ★ 必须写 grid-row: 1 / -1 ★ -->
-  <div class="card" style="grid-row: 1 / -1;
-       /* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:24px; display:flex; flex-direction:column; gap:16px; overflow:hidden;">
-    <div style="display:flex; align-items:center; gap:8px;">
-      <div style="width:3px; height:16px; border-radius:2px; background:var(--accent-1);"></div>
-      <h3 style="font-size:20px; font-weight:700; color:var(--text-primary);">核心论点</h3>
-    </div>
-    <!-- 主卡片内容：核心论述 + 数据可视化 + 详细解读 -->
-  </div>
+### 辅助区的存在感
+- 辅助区空间紧凑（约 1/3 宽度 x 半高），内容必须极度精炼
+- 两个辅助卡片之间应使用不同的 card_style -- 一个 `filled` 一个 `outline`，或一个 `elevated` 一个 `transparent`
+- 辅助卡片适合：KPI 数字、环形图、进度条、简要列表
 
-  <!-- 卡片 2: 右上辅助 -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:24px; display:flex; flex-direction:column; gap:14px; overflow:hidden;">
-    <div style="display:flex; align-items:center; gap:8px;">
-      <div style="width:3px; height:16px; border-radius:2px; background:var(--accent-2);"></div>
-      <h3 style="font-size:16px; font-weight:700; color:var(--text-primary);">辅助数据 A</h3>
-    </div>
-    <!-- 辅助卡片：KPI/环形图/简要数据 -->
-  </div>
+### 关键 Grid 约束
 
-  <!-- 卡片 3: 右下辅助 -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:24px; display:flex; flex-direction:column; gap:14px; overflow:hidden;">
-    <div style="display:flex; align-items:center; gap:8px;">
-      <div style="width:3px; height:16px; border-radius:2px; background:var(--accent-3);"></div>
-      <h3 style="font-size:16px; font-weight:700; color:var(--text-primary);">辅助数据 B</h3>
-    </div>
-    <!-- 辅助卡片：KPI/列表/标签云 -->
-  </div>
+| 属性 | 必须性 | 说明 |
+|------|-------|------|
+| 主区域 `grid-row: 1 / -1` | **必须** | 不写则主区域只占一行，辅助卡片被挤到下方 |
+| 辅助区 `grid-row` | **不写** | 自动排列到右侧上下 |
 
-</div>
-```
-
-## 易错点
-
-| 错误 | 正确 |
-|------|------|
-| 主卡片没写 `grid-row: 1 / -1` 导致只占一行 | 主卡片**必须**写 `grid-row: 1 / -1` 跨两行 |
-| 辅助卡片写了 `grid-row` 导致布局崩溃 | 辅助卡片**不写** `grid-row`，自动排列即可 |
-
-## 设计要点
-
-- 主卡片（790px 宽）承载核心内容，辅助卡片（390px 宽、280px 高）承载补充数据
-- 辅助卡片空间有限，内容要紧凑：标题 16px（比主卡片小），gap 14px（比主卡片小）
-- 辅助卡片适合放 KPI、环形图、进度条等简洁数据展示
+### 灵动反转
+- 尝试将列比例改为 `1fr 2fr`，让主区域在右侧 -- 打破"主角总在左边"的惯性
+- 尝试让主区域用 `transparent` 而辅助用 `accent` -- 反常规即灵动

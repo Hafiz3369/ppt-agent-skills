@@ -49,34 +49,64 @@ def read_resource(refs_dir: Path, rel_path: str) -> str | None:
     return None
 
 
+# 每页必须注入的全局资源（无论 planning JSON 是否声明）
+GLOBAL_RESOURCES = [
+    "blocks/card-styles.md",
+]
+
+
 def assemble_resources(planning_path: Path, refs_dir: Path) -> str:
-    """读取 planning JSON 并组装 [RESOURCES] 文本块（两层格式）。"""
+    """读取 planning JSON 并组装 [RESOURCES] 文本块（两层格式 + 去重 + 全局注入）。"""
     planning = json.loads(planning_path.read_text(encoding="utf-8"))
     page_num = planning.get("page_number", "?")
     page_type = planning.get("page_type", "?")
     title = planning.get("title", "?")
     warnings = 0
+    resource_count = 0  # 精确计数
+    seen_paths: set[str] = set()  # 去重：记录已加载的资源路径
+
+    def _load_unique(rel_path: str) -> str | None:
+        """加载资源并去重。已加载过的返回 None。"""
+        nonlocal resource_count
+        clean = rel_path.removeprefix("references/")
+        if clean in seen_paths:
+            return None  # 已加载过，跳过
+        seen_paths.add(clean)
+        content = read_resource(refs_dir, rel_path)
+        if content:
+            resource_count += 1
+        return content
 
     sections = []
     rr = planning.get("required_resources", {})
 
+    # ── GLOBAL（每页必须注入的全局资源）─────────────────────────────────
+    global_parts = []
+    for gpath in GLOBAL_RESOURCES:
+        content = _load_unique(gpath)
+        if content:
+            global_parts.append(f"--- {gpath} ---\n{content}")
+    if global_parts:
+        sections.append("=== GLOBAL_RESOURCES ===\n" + "\n\n".join(global_parts))
+
     # ── LAYOUT ──────────────────────────────────────────────────────────
     layout_path = rr.get("layout")
     if layout_path:
-        content = read_resource(refs_dir, layout_path)
+        content = _load_unique(layout_path)
         if content:
             sections.append(f"=== LAYOUT ({layout_path}) ===\n{content}")
-        else:
+        elif layout_path.removeprefix("references/") not in seen_paths:
             sections.append(f"=== LAYOUT ===\n[WARNING] 文件未找到: {layout_path}")
             warnings += 1
+        # else: 已去重，静默跳过
 
     # ── PAGE_TEMPLATE ───────────────────────────────────────────────────
     pt_path = rr.get("page_template")
     if pt_path:
-        content = read_resource(refs_dir, pt_path)
+        content = _load_unique(pt_path)
         if content:
             sections.append(f"=== PAGE_TEMPLATE ({pt_path}) ===\n{content}")
-        else:
+        elif pt_path.removeprefix("references/") not in seen_paths:
             sections.append(f"=== PAGE_TEMPLATE ===\n[WARNING] 文件未找到: {pt_path}")
             warnings += 1
 
@@ -87,10 +117,10 @@ def assemble_resources(planning_path: Path, refs_dir: Path) -> str:
         for p in principles:
             if not p:
                 continue
-            content = read_resource(refs_dir, p)
+            content = _load_unique(p)
             if content:
                 parts.append(f"--- {p} ---\n{content}")
-            else:
+            elif p.removeprefix("references/") not in seen_paths:
                 parts.append(f"--- {p} ---\n[WARNING] 文件未找到")
                 warnings += 1
         if parts:
@@ -124,12 +154,14 @@ def assemble_resources(planning_path: Path, refs_dir: Path) -> str:
             path = ref.get(key)
             if not path:
                 continue
-            content = read_resource(refs_dir, path)
+            content = _load_unique(path)
             if content:
                 res_lines.append(f"[{key}] {path}\n{content}")
-            else:
+            elif path.removeprefix("references/") not in seen_paths:
                 res_lines.append(f"[{key}] {path}\n[WARNING] 文件未找到")
                 warnings += 1
+            else:
+                res_lines.append(f"[{key}] {path}\n（已在上方加载，此处去重跳过）")
 
         if res_lines:
             card_parts.append(card_header + "\n" + "\n\n".join(res_lines))
@@ -141,7 +173,6 @@ def assemble_resources(planning_path: Path, refs_dir: Path) -> str:
 
     # ── 组装最终输出 ────────────────────────────────────────────────────
     body = "\n\n".join(sections)
-    resource_count = body.count("---")
 
     header = (
         f"# [RESOURCES] 第 {page_num} 页: {title} ({page_type})\n"
@@ -150,7 +181,7 @@ def assemble_resources(planning_path: Path, refs_dir: Path) -> str:
     )
     stats = (
         f"\n# ─────────────────────────────────────────────────\n"
-        f"# 资源声明: {resource_count} 条"
+        f"# 资源文件: {resource_count} 个（去重后）"
     )
     if warnings > 0:
         stats += f", {warnings} 个文件未找到 (!!)"

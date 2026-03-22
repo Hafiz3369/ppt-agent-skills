@@ -1,39 +1,28 @@
-# 单一焦点布局
+# 单一焦点版式
 
-适用: 一个核心论点/一张全屏图表/一个关键数据。**极少使用 -- 除非该页确实只有一个全屏内容。**
+> 重力场：所有视觉引力汇聚一处，四周是无尽的呼吸空间
 
-## CSS Grid 定义
+适用：一个核心论点独占全场、一张全屏图表、一个改变认知的关键数据。极少使用 -- 只有当内容确实只需要一个极致的焦点时才选择。
 
-```css
-.content-area {
-  grid-template: 1fr / 1fr;
-}
-/* 单卡: 1200x580 */
+## 重力结构
+
+```
+Grid: 1fr 列 x 1fr 行
+唯一的内容区域占据全部可用空间
 ```
 
-## HTML 骨架
+## 灵动化指引
 
-```html
-<div class="content-area" style="position:absolute; left:40px; top:80px; width:1200px; height:580px;
-     display:grid; grid-template-columns:1fr; gap:20px;">
+### 单一焦点是最考验设计功力的版式
+没有多卡片的组合可以依赖，整个画面的张力全靠唯一的焦点和它周围的留白来撑住。
 
-  <!-- 唯一卡片: 全幅 -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:32px; display:flex; flex-direction:column; gap:20px; overflow:hidden;">
-    <div style="display:flex; align-items:center; gap:8px;">
-      <div style="width:3px; height:16px; border-radius:2px; background:var(--accent-1);"></div>
-      <h3 style="font-size:22px; font-weight:700; color:var(--text-primary);">焦点标题</h3>
-    </div>
-    <!-- 大面积内容区：可放全屏图表、大段论述、核心数据展示 -->
-    <!-- 内部可用 flex/grid 进一步分区 -->
-  </div>
+### 焦点的三种灵魂
+- **数据暴风眼**：画面正中一个 120px+ 的核心数据，周围是极大面积的留白 + 装饰性大号水印残影。用 `transparent` style 让数据裸露在虚空中
+- **论断碑石**：一句 36px+ 的核心论断居于画面黄金分割处，配一个微妙的渐变光晕背景装饰，文字本身就是全部的视觉锚点
+- **全景图鉴**：一个大型 SVG 数据可视化（雷达图/象限图/架构图）铺满整个区域，配文字标注散布在图表周围
 
-</div>
-```
+### 留白是设计的一部分
+单一焦点版式中，内容只应该占据 30-50% 的画面面积，剩余空间的"空"本身就是一种设计语言 -- 它传达的是"这个信息值得你屏住呼吸去凝视"。
 
-## 设计要点
-
-- 卡片内部可用 CSS Grid 二次分区（如左文字右图表）
-- padding 可以用 32px（比标准 24px 稍大），因为空间充裕
-- 适合放一个大型 SVG 数据可视化 + 解读文字
+### 无需 Grid 定位
+只有一个卡片，自动铺满。

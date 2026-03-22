@@ -67,14 +67,73 @@ def extract_prompt_body(template_path: Path) -> str:
 
 
 def build_style_definition(style_path: Path) -> str:
-    """从 style.json 构建 CSS 变量定义文本。"""
+    """从 style.json 构建风格定义文本（灵魂描述 + CSS 变量）。
+
+    输出三层信息：
+    1. 灵魂层 -- mood_keywords / design_soul / variation_strategy（情绪锚点）
+    2. 装饰基因层 -- decoration_dna（标志手法/禁止手法/推荐组合）
+    3. 色值层 -- css_variables 映射为 :root 变量
+    """
     style = json.loads(style_path.read_text(encoding="utf-8"))
 
-    lines = ["```json"]
-    lines.append(json.dumps(style, indent=2, ensure_ascii=False))
-    lines.append("```")
+    sections = []
 
-    return "\n".join(lines)
+    # 灵魂层
+    soul_parts = []
+    if style.get("design_soul"):
+        soul_parts.append(f"**灵魂宣言**: {style['design_soul']}")
+    if style.get("mood_keywords"):
+        keywords = " / ".join(style["mood_keywords"])
+        soul_parts.append(f"**情绪关键词**: {keywords}")
+    if style.get("variation_strategy"):
+        soul_parts.append(f"**跨页变奏策略**: {style['variation_strategy']}")
+    if soul_parts:
+        sections.append("### 风格灵魂（设计时的情绪锚点）\n" + "\n".join(soul_parts))
+
+    # 装饰基因层
+    dna = style.get("decoration_dna", {})
+    if dna:
+        dna_parts = []
+        if dna.get("signature_move"):
+            dna_parts.append(f"- **标志手法**: {dna['signature_move']}")
+        if dna.get("forbidden"):
+            dna_parts.append(f"- **禁止**: {', '.join(dna['forbidden'])}")
+        if dna.get("recommended_combos"):
+            combos = " | ".join(dna["recommended_combos"])
+            dna_parts.append(f"- **推荐组合**: {combos}")
+        if dna_parts:
+            sections.append("### 装饰基因\n" + "\n".join(dna_parts))
+
+    # CSS 变量层
+    css_vars = style.get("css_variables", {})
+    if css_vars:
+        css_lines = [":root {"]
+        var_map = {
+            "bg_primary": "--bg-primary",
+            "bg_secondary": "--bg-secondary",
+            "card_bg_from": "--card-bg-from",
+            "card_bg_to": "--card-bg-to",
+            "card_border": "--card-border",
+            "card_radius": "--card-radius",
+            "text_primary": "--text-primary",
+            "text_secondary": "--text-secondary",
+            "accent_1": "--accent-1",
+            "accent_2": "--accent-2",
+            "accent_3": "--accent-3",
+            "accent_4": "--accent-4",
+        }
+        for json_key, css_var in var_map.items():
+            if json_key in css_vars:
+                css_lines.append(f"  {css_var}: {css_vars[json_key]};")
+        css_lines.append("}")
+        sections.append("### CSS 变量\n```css\n" + "\n".join(css_lines) + "\n```")
+    else:
+        # 兼容旧格式 style.json（纯 CSS 变量平铺）
+        sections.append("### 风格定义\n```json\n"
+                        + json.dumps(style, indent=2, ensure_ascii=False)
+                        + "\n```")
+
+    return "\n\n".join(sections)
 
 
 def build_planning_json(planning: dict) -> str:
@@ -205,16 +264,16 @@ def assemble_prompt(
     if image_info:
         result = result.replace("{{IMAGE_INFO}}", image_info)
     else:
-        # 无配图时，移除整个 IMAGE_INFO 区块（包括标题和说明）
-        result = result.replace(
-            "## 配图信息（如有）\n{{IMAGE_INFO}}\n\n"
-            "（此处注入该页配图的完整信息。格式：`usage: xxx | path: "
-            "/abs/path/to/image.png | placement: xxx`。`usage` 决定融入技法，"
-            "`path` 是图片绝对路径，`placement` 是放置位置。按 usage 值选择对应"
-            "的 HTML 模板实现——详见下方\"配图融入设计\"章节。无配图时整个块省略。）",
-            "## 配图信息\n无配图（usage=none）",
+        # 无配图时，用正则移除整个 IMAGE_INFO 相关段落（不依赖精确字符串匹配）
+        # 匹配 "## 配图信息" 开头的段落直到下一个 "##" 或文件末尾
+        result = re.sub(
+            r"##\s*配图信息[^\n]*\n.*?\{\{IMAGE_INFO\}\}[^\n]*\n"
+            r"(?:\n\([^)]*\)\n)?",  # 可选的括号说明行
+            "## 配图信息\n无配图（usage=none）\n\n",
+            result,
+            flags=re.DOTALL,
         )
-        # 兜底：如果上面的精确匹配没命中，至少替换占位符本身
+        # 兜底：如果正则没命中，至少替换占位符本身
         result = result.replace("{{IMAGE_INFO}}", "无配图（usage=none）")
 
     result = result.replace("{{RESOURCES}}", resources)

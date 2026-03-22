@@ -2,54 +2,27 @@
 
 `chart_type: timeline`
 
+> **视觉灵魂**：一条横线上的节点串联起来就是"时间的河流" -- 从左到右是过去到未来的旅程，每个节点是一个里程碑。
+
+## 结构原理
+
 用 flex 水平排列，适合展示历史沿革、产品迭代、项目里程碑。
 
-```html
-<div style="display:flex; flex-direction:column; gap:0;">
-  <!-- 时间轴线 + 节点 -->
-  <div style="display:flex; align-items:center; padding:0 20px;">
-    <div style="flex:1; height:2px; background:rgba(255,255,255,0.1);"></div>
-    <div style="width:12px; height:12px; border-radius:50%; background:var(--accent-1);
-        border:3px solid var(--bg-primary); margin:0 -1px; position:relative; z-index:1;"></div>
-    <div style="flex:1; height:2px; background:rgba(255,255,255,0.1);"></div>
-    <div style="width:12px; height:12px; border-radius:50%; background:var(--accent-2);
-        border:3px solid var(--bg-primary); margin:0 -1px; position:relative; z-index:1;"></div>
-    <div style="flex:1; height:2px; background:rgba(255,255,255,0.1);"></div>
-    <div style="width:12px; height:12px; border-radius:50%; background:var(--accent-3);
-        border:3px solid var(--bg-primary); margin:0 -1px; position:relative; z-index:1;"></div>
-    <div style="flex:1; height:2px; background:rgba(255,255,255,0.1);"></div>
-    <div style="width:14px; height:14px; border-radius:50%; background:var(--accent-4);
-        border:3px solid var(--bg-primary); margin:0 -1px; position:relative; z-index:1;"></div>
-    <div style="flex:1; height:2px; background:rgba(255,255,255,0.1);"></div>
-  </div>
-  <!-- 标签行 -->
-  <div style="display:flex; margin-top:12px; text-align:center;">
-    <div style="flex:1; padding:0 8px;">
-      <div style="font-size:13px; font-weight:700; color:var(--accent-1);">2020</div>
-      <div style="font-size:11px; color:var(--text-secondary); margin-top:4px; line-height:1.4;">
-        单卡训练<br>参数 &lt; 1B
-      </div>
-    </div>
-    <div style="flex:1; padding:0 8px;">
-      <div style="font-size:13px; font-weight:700; color:var(--accent-2);">2022</div>
-      <div style="font-size:11px; color:var(--text-secondary); margin-top:4px; line-height:1.4;">
-        千卡集群<br>100B+ 参数
-      </div>
-    </div>
-    <div style="flex:1; padding:0 8px;">
-      <div style="font-size:13px; font-weight:700; color:var(--accent-3);">2024</div>
-      <div style="font-size:11px; color:var(--text-secondary); margin-top:4px; line-height:1.4;">
-        超算融合<br>MoE 1T+
-      </div>
-    </div>
-    <div style="flex:1; padding:0 8px;">
-      <div style="font-size:13px; font-weight:700; color:var(--accent-4);">2026</div>
-      <div style="font-size:11px; color:var(--text-secondary); margin-top:4px; line-height:1.4;">
-        边缘智能<br>端云协同
-      </div>
-    </div>
-  </div>
-</div>
-```
+- 上层：水平轴线 + 节点圆点（圆点用 accent 色，轴线用极淡色）
+- 下层：每个节点的标签（年份/阶段名 + 简要描述）
+- 节点间用 flex:1 的线段连接，自动等距
 
-最后一个节点稍大（14px vs 12px）突出"当前/未来"状态。
+## 关键规则
+
+- 每个节点的圆点颜色用 accent-1 到 accent-4 递进（章节色彩的微观版）
+- 最后一个节点（"当前/未来"）可以稍大，突出"终点"
+- 节点圆点用真实 div 元素（border-radius:50%），外加背景色边框与底色区分
+- 标签文字用 HTML 元素（禁止 SVG text）
+
+## 灵动指引
+
+- 节点数以 3-5 个为最佳 -- 太多节点观众记不住
+- 轴线粗细极细（1-2px），存在但不抢戏
+- "当前"节点可以用脉冲效果（外圈 + 内圈双圈，外圈低 opacity）制造视觉焦点
+- 可以交替上下排列标签（奇数节点标签在上，偶数在下），让时间轴在纵向上有呼吸感
+- 不必永远是水平的 -- 如果卡片纵向空间充裕，纵向时间轴同样有效

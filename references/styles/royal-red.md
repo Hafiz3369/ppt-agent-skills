@@ -2,38 +2,38 @@
 
 适用场景：文化/历史主题、政务汇报、品牌故事、中国风
 
-## JSON 定义
+## style.json 参考
 
 ```json
 {
-  "style_name": "朱红宫墙 (Royal Red)",
   "style_id": "royal_red",
-  "background": { "primary": "#8B0000", "gradient_to": "#5C0000" },
-  "card": { "gradient_from": "#A52A2A", "gradient_to": "#7A0000", "border": "rgba(255,215,0,0.15)", "border_radius": 8 },
-  "text": { "primary": "#FFF8E7", "secondary": "rgba(255,248,231,0.75)", "title_size": 28, "body_size": 14, "card_title_size": 20 },
-  "accent": { "primary": ["#FFD700", "#FFA500"], "secondary": ["#FFF8E7", "#F5E6C8"] },
-  "font_family": "PingFang SC, STSong, SimSun, Microsoft YaHei, serif",
-  "grid_pattern": { "enabled": false },
-  "decorations": { "corner_lines": true, "glow_effects": false, "description": "金色角饰、祥云纹理，传统纹样装饰边框" }
-}
-```
-
-## CSS 变量
-
-```css
-:root {
-  --bg-primary: #8B0000;
-  --bg-secondary: #5C0000;
-  --card-bg-from: #A52A2A;
-  --card-bg-to: #7A0000;
-  --card-border: rgba(255,215,0,0.15);
-  --card-radius: 8px;
-  --text-primary: #FFF8E7;
-  --text-secondary: rgba(255,248,231,0.75);
-  --accent-1: #FFD700;
-  --accent-2: #FFA500;
-  --accent-3: #FFF8E7;
-  --accent-4: #F5E6C8;
+  "style_name": "朱红宫墙 (Royal Red)",
+  "mood_keywords": ["宫墙黄昏", "金缕暗纹", "厚重沉淀", "仪式庄严", "千年重量"],
+  "design_soul": "故宫红墙上一缕金线划过黄昏，庄重中透出温暖的光 -- 每一处纹理都有千年的重量，金色不是奢华而是时间的包浆",
+  "variation_strategy": "内容页用深朱红底+金色角饰+祥云纹理制造宫廷画卷感（庄重），数据页用金色关键数字+印章编号+极简布局（肃穆），章节封面用大面积朱红留白+金色PART编号+一句古诗/引言（仪式），通过'浓墨重彩的金红交织'和'极简朱红空旷+一点金'的交替制造'在故宫长廊中走走停停'的节奏",
+  "decoration_dna": {
+    "signature_move": "金色中式角纹（L形+回纹细节SVG）-- 故宫窗棂的精致",
+    "forbidden": ["科技感元素(网格点阵/光晕/角标线)", "蓝色/紫色系颜色", "现代极简元素"],
+    "recommended_combos": [
+      "金色角饰 + 祥云纹理底部装饰 + 金色渐隐分隔线",
+      "印章编号 + 金色标题竖线 + 大号低透明度汉字水印"
+    ]
+  },
+  "css_variables": {
+    "bg_primary": "#8B0000",
+    "bg_secondary": "#5C0000",
+    "card_bg_from": "#A52A2A",
+    "card_bg_to": "#7A0000",
+    "card_border": "rgba(255,215,0,0.15)",
+    "card_radius": "8px",
+    "text_primary": "#FFF8E7",
+    "text_secondary": "rgba(255,248,231,0.75)",
+    "accent_1": "#FFD700",
+    "accent_2": "#FFA500",
+    "accent_3": "#FFF8E7",
+    "accent_4": "#F5E6C8"
+  },
+  "font_family": "PingFang SC, STSong, SimSun, Microsoft YaHei, serif"
 }
 ```
 

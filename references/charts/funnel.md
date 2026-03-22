@@ -2,41 +2,25 @@
 
 `chart_type: funnel`
 
-用 CSS 宽度递减模拟漏斗，适合销售漏斗、转化率、筛选流程。
+> **视觉灵魂**：逐层收窄的色块 = 逐步流失的用户/资源。宽度的递减本身就是"漏斗"的隐喻，观众无需思考就能理解"每一层在流失什么"。
 
-```html
-<div style="display:flex; flex-direction:column; align-items:center; gap:2px;">
-  <!-- 第1层（最宽） -->
-  <div style="width:100%; height:40px; background:var(--accent-1); border-radius:4px;
-      display:flex; align-items:center; justify-content:space-between; padding:0 16px;">
-    <span style="font-size:13px; font-weight:600; color:var(--bg-primary);">访问用户</span>
-    <span style="font-size:16px; font-weight:800; color:var(--bg-primary);">100,000</span>
-  </div>
-  <!-- 第2层 -->
-  <div style="width:78%; height:40px; background:var(--accent-2); border-radius:4px;
-      display:flex; align-items:center; justify-content:space-between; padding:0 16px;">
-    <span style="font-size:13px; font-weight:600; color:white;">注册用户</span>
-    <span style="font-size:16px; font-weight:800; color:white;">42,000</span>
-  </div>
-  <!-- 第3层 -->
-  <div style="width:52%; height:40px; background:var(--accent-3); border-radius:4px;
-      display:flex; align-items:center; justify-content:space-between; padding:0 14px;">
-    <span style="font-size:12px; font-weight:600; color:var(--bg-primary);">付费用户</span>
-    <span style="font-size:15px; font-weight:800; color:var(--bg-primary);">12,600</span>
-  </div>
-  <!-- 第4层（最窄） -->
-  <div style="width:30%; height:40px; background:var(--accent-4); border-radius:4px;
-      display:flex; align-items:center; justify-content:center; padding:0 12px; gap:8px;">
-    <span style="font-size:12px; font-weight:600; color:var(--bg-primary);">VIP</span>
-    <span style="font-size:15px; font-weight:800; color:var(--bg-primary);">3,780</span>
-  </div>
-  <!-- 转化率标注 -->
-  <div style="display:flex; gap:24px; margin-top:8px; font-size:11px; color:var(--text-secondary);">
-    <span>注册率 42%</span>
-    <span>付费率 30%</span>
-    <span>VIP 率 30%</span>
-  </div>
-</div>
-```
+## 结构原理
 
-每层宽度按实际转化比例递减。颜色用 accent-1 到 accent-4 递进。
+- 使用 CSS 宽度递减模拟漏斗（从 100% 逐层按转化率递减）
+- 每层是一个矩形色块，内部包含标签 + 数值
+- 层间 gap 极小（2-3px），让漏斗有"连续收窄"的视觉效果
+- 底部可选的转化率标注行
+
+## 关键规则
+
+- 每层宽度 = 上一层宽度 * 本层转化率（保持数据诚实）
+- 颜色用 accent-1 到 accent-4 逐层递进（章节色彩递进的微观版）
+- 文字颜色要确保在对应 accent 色块上可读（深色 accent 用白字，浅色 accent 用背景色反色）
+- 最窄层的宽度不要小于 20%（太窄放不下文字）
+- 所有文字用 HTML 元素，不用 SVG text
+
+## 灵动指引
+
+- 层数不必固定为 4 层 -- 3 层漏斗比 6 层更有冲击力（少即是多）
+- 如果某一层的流失特别剧烈，可以在该层和下一层之间加一条醒目的转化率标注（如红色高亮 "-58%"）
+- 漏斗图最适合放在宽卡片或单一焦点版式中，让宽度递减有足够的视觉空间

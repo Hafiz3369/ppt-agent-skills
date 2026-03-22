@@ -1,58 +1,32 @@
-# 瀑布流布局 (3 列不等高)
+# 瀑布流版式 (3 列不等高)
 
-适用：多条信息块、FAQ、特性列表。**推荐：4-6 个不等高信息块自然排列。**
+> 重力场：参差不齐的重力阶梯，像自然山崖的断层一样创造节奏感
 
-## CSS Grid 定义
+适用：多条不等高的信息块（FAQ、特性列表、多维度分析）。4-6 个内容块自然排列。
 
-```css
-.content-area {
-  grid-template-columns: repeat(3, 1fr);
-  grid-auto-rows: auto;
-  align-content: start;
-}
-/* 卡片自然排列，高度由内容决定 */
-/* 整体用 align-content:start 确保从顶部开始排列 */
+## 重力结构
+
+```
+Grid: repeat(3, 1fr) 列 x auto 自动行高
+align-content: start（从顶部开始排列）
+卡片高度由内容自然决定，不强制等高
+无需 grid-row/grid-column 定位，自动从左到右、从上到下排列
 ```
 
-## HTML 骨架
+## 灵动化指引
 
-```html
-<div class="content-area" style="position:absolute; left:40px; top:80px; width:1200px; height:580px;
-     display:grid; grid-template-columns:repeat(3, 1fr); grid-auto-rows:auto;
-     align-content:start; gap:20px; overflow:hidden;">
+### 瀑布流的天然优势：参差不齐就是灵动
+- 不同卡片因内容量不同而高度各异，这种自然的参差本身就制造了视觉节奏
+- **绝对禁止**让所有卡片的内容量都差不多 -- 那就变成了三栏等宽版式，失去了瀑布流的意义
 
-  <!-- 卡片按顺序自动从左到右、从上到下排列 -->
-  <!-- 不需要写 grid-row/grid-column -->
+### 刻意制造高低差
+- 让某张卡片只放一个核心数据（矮），旁边的卡片放列表 + 数据解读（高）
+- 让某张卡片用 `transparent` + 大留白（视觉上矮），旁边用 `filled` 塞满内容（视觉上高）
 
-  <!-- 卡片 1 -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:20px; display:flex; flex-direction:column; gap:12px; overflow:hidden;">
-    <div style="display:flex; align-items:center; gap:8px;">
-      <div style="width:3px; height:16px; border-radius:2px; background:var(--accent-1);"></div>
-      <h3 style="font-size:16px; font-weight:700; color:var(--text-primary);">要点 A</h3>
-    </div>
-    <p style="font-size:13px; color:var(--text-secondary); line-height:1.7;">内容文字...</p>
-  </div>
+### card_style 的韵律
+- 6 张卡片至少用 3 种不同的 card_style，形成视觉节拍（如 filled-outline-accent-filled-transparent-outline）
+- 让某张关键卡片用 `accent` 或 `elevated` 从参差不齐的阶梯中跃出
 
-  <!-- 卡片 2 (可以更高) -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:20px; display:flex; flex-direction:column; gap:12px; overflow:hidden;">
-    <!-- 内容可以比卡片1多 -->
-  </div>
-
-  <!-- 卡片 3-6: 同样的结构，不同的内容长度 -->
-  <!-- ... -->
-
-</div>
-```
-
-## 设计要点
-
-- 瀑布流的关键是 `grid-auto-rows: auto` + `align-content: start`
-- 卡片高度由内容决定，不同卡片可以有不同高度
-- 3 列布局下每张卡片约 387px 宽，内容要紧凑
-- 外层容器 `overflow:hidden` 防止内容溢出 580px 高度限制
-- 不需要任何 `grid-row` / `grid-column` 指定
-- 瀑布流适合 FAQ、多特性列表、多维度分析等场景
+### 防溢出
+- 外层容器 `overflow:hidden` 防止总高度超过 580px
+- 卡片空间紧凑（约 1/3 宽度），内容精炼

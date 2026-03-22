@@ -1,61 +1,27 @@
-# 三栏等宽布局
+# 三栏等宽版式
 
-适用: 3 个并列比较（三大优势、三个阶段、三个产品）
+> 重力场：三个均衡的信息脉冲横向排列，如三面旗帜并立
 
-## CSS Grid 定义
+适用：3 个并列比较（三大优势、三个阶段、三个产品线）
 
-```css
-.content-area {
-  grid-template: 1fr / repeat(3, 1fr);
-}
-/* 卡1: 387x580 | 卡2: 387x580 | 卡3: 386x580 */
+## 重力结构
+
+```
+Grid: repeat(3, 1fr) 列 x 1fr 行
+三张卡片自动排列，无需 grid 定位
 ```
 
-## HTML 骨架
+## 灵动化指引
 
-```html
-<div class="content-area" style="position:absolute; left:40px; top:80px; width:1200px; height:580px;
-     display:grid; grid-template-columns:repeat(3, 1fr); gap:20px;">
+### "三栏"是最容易落入千篇一律陷阱的版式
+三张等宽卡片 + 相同 card_style + 相同信息结构 = 死板的产品说明书。必须主动打破：
 
-  <!-- 卡片 1 -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:24px; display:flex; flex-direction:column; gap:16px; overflow:hidden;">
-    <div style="display:flex; align-items:center; gap:8px;">
-      <div style="width:3px; height:16px; border-radius:2px; background:var(--accent-1);"></div>
-      <h3 style="font-size:18px; font-weight:700; color:var(--text-primary);">项目 A</h3>
-    </div>
-    <!-- 内容 -->
-  </div>
+1. **card_style 的非均匀分布**：让中间那张用 `accent` 或 `elevated`（因为中间是自然的视线首落点），两侧用 `filled` + `outline` 或 `transparent`
+2. **内容形态的差异化**：三张卡片即使展示同级信息，也应该用不同的内容组织方式 -- 例如第一张用数据可视化、第二张用列表、第三张用引用金句
+3. **视觉重量的波浪**：三张卡片的内容密度不应完全相同。让某张卡片内容稀疏（大片留白 + 一个核心数字），另一张卡片内容丰满（列表 + 数据 + 解读）
 
-  <!-- 卡片 2 -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:24px; display:flex; flex-direction:column; gap:16px; overflow:hidden;">
-    <div style="display:flex; align-items:center; gap:8px;">
-      <div style="width:3px; height:16px; border-radius:2px; background:var(--accent-2);"></div>
-      <h3 style="font-size:18px; font-weight:700; color:var(--text-primary);">项目 B</h3>
-    </div>
-    <!-- 内容 -->
-  </div>
+### 跨越等宽的限制
+- 可以在三张卡片上方或下方叠加一个 `transparent` 的跨列元素（比如一行标签云或一句总结语），打破纯粹等分的视觉单调
 
-  <!-- 卡片 3 -->
-  <div class="card" style="/* ← card_style CSS (见 blocks/card-styles.md) */
-       border-radius:12px;
-       padding:24px; display:flex; flex-direction:column; gap:16px; overflow:hidden;">
-    <div style="display:flex; align-items:center; gap:8px;">
-      <div style="width:3px; height:16px; border-radius:2px; background:var(--accent-3);"></div>
-      <h3 style="font-size:18px; font-weight:700; color:var(--text-primary);">项目 C</h3>
-    </div>
-    <!-- 内容 -->
-  </div>
-
-</div>
-```
-
-## 设计要点
-
-- 三张卡片内部结构保持对称（同样的标题位置、同样的内容排列）
-- 各卡片用不同 accent 色竖线区分
-- 387px 宽度下内容要紧凑，正文 13px、列表项控制在 4 条以内
-- 不需要 `grid-row` / `grid-column` 指定
+### 无需 Grid 定位
+三张卡片自动排列，不需要写 `grid-row` / `grid-column`。

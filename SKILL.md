@@ -71,13 +71,13 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 | 规模 | 页数 | 调研 | 搜索 | 策划 | 生成 |
 |------|------|------|------|------|------|
-| **轻量** | <= 8 页 | 3 题精简版（场景+受众+补充信息） | 3-5 个查询 | 整体生成（Step 3 可与 Step 4 合并） | 逐页生成 |
-| **标准** | 9-18 页 | 完整 7 题 | 8-12 个查询 | 逐页生成 | 逐页生成 |
-| **大型** | > 18 页 | 完整 7 题 | 10-15 个查询 | 逐页生成 | 逐页生成 |
+| **轻量** | <= 8 页 | 5 题精简版（Q1+Q2+Q7+Q8+Q12） | 3-5 个查询 | 整体生成（Step 3 可与 Step 4 合并） | 逐页生成 |
+| **标准** | 9-18 页 | 完整 12 题 + 动态追问 | 8-12 个查询 | 逐页生成 | 逐页生成 |
+| **大型** | > 18 页 | 完整 12 题 + 动态追问 | 10-15 个查询 | 逐页生成 | 逐页生成 |
 
 **复杂度判断时机**：
 1. **预判**（Step 1 开始前）：根据用户初始描述估算。若用户明确说了页数（如"做 5 页"）或暗示简短（如"简单介绍一下"），直接预判为轻量并精简提问
-2. **确认**（Step 1 结束后）：根据 Q7 回答的页数正式确认 `complexity_level`（light / standard / large），写入 `progress.json`
+2. **确认**（Step 1 结束后）：根据 Q8 回答的页数正式确认 `complexity_level`（light / standard / large），写入 `progress.json`
 3. **传递**：后续各步骤从 `progress.json` 读取 complexity_level，据此调整搜索查询数、策划深度等参数
 
 ---
@@ -89,24 +89,86 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 > **禁止跳过。** 无论主题多简单，都必须提问并等用户回复后才能继续。不替用户做决定。
 
 **执行**：使用 `references/prompts/prompt-1-research.md`
-1. 搜索主题背景资料（3-5 条）
-2. 根据复杂度选择完整 7 题或精简 3 题，一次性发给用户
+1. **有搜索能力时**：搜索主题背景资料（3-5 条），基于搜索结果动态生成问卷选项（Q2 受众画像、Q5 内容侧重、第五层动态追问）
+   **无搜索能力时**：基于 LLM 知识生成通用选项，跳过第五层动态追问
+2. 一次性发给用户全部问题（12 基础题 + 0-3 动态题）
 3. **等待用户回复**（阻断点）
-4. 整理为需求 JSON
+4. 整理为需求 JSON（结构见下方），**对照消费审查矩阵逐字段确认无遗漏**
 
-**7 题三层递进结构**（轻量模式只问第 1、2、7 题）：
+**五层递进结构**（每个问题标注下游消费节点，确保零废话）：
 
-| 层级 | 问题 | 决定什么 |
+| 层级 | 问题 | 消费节点 |
 |------|------|---------|
-| 场景层 | 1. 演示场景（现场/自阅/培训） | 信息密度和视觉风格 |
-| 场景层 | 2. 核心受众（动态生成画像） | 专业深度和说服策略 |
-| 场景层 | 3. 期望行动（决策/理解/执行/改变认知） | 内容编排的最终导向 |
-| 内容层 | 4. 叙事结构（问题->方案/科普/对比/时间线） | 大纲骨架逻辑 |
-| 内容层 | 5. 内容侧重（搜索结果动态生成，可多选） | 各 Part 主题权重 |
-| 内容层 | 6. 说服力要素（数据/案例/权威/方法，可多选） | 卡片内容类型偏好 |
-| 执行层 | 7. 补充信息（演讲人/品牌色/必含/必避/页数/配图偏好） | 具体执行细节 |
+| 场景层 | 1. 演示场景（现场/自阅/培训） | Step 3 信息密度 + Step 5a 视觉密度 |
+| 场景层 | 2. 核心受众（动态生成画像） | Step 3 每页论点设计 + Step 4 card_type |
+| 场景层 | 3. 期望行动（决策/理解/执行/改变认知） | Step 3 叙事弧线终点 + Step 4 结尾策略 |
+| 内容层 | 4. 叙事结构（问题->方案/科普/对比/时间线） | Step 3 Part 逻辑 + Step 4 card_type 倾向 |
+| 内容层 | 5. 内容侧重（搜索结果动态生成，可多选） | Step 3 页数权重 + Step 2 搜索维度 |
+| 内容层 | 6. 说服力要素（数据/案例/权威/方法，可多选） | Step 4 card_type 分布 + Step 2 搜索重心 |
+| 视觉层 | 7. **视觉风格**（展示完整 8 种预置风格列表 + AI 自动匹配 + 自定义） | Step 5a style.json + Step 4 decoration_hints |
+| 执行层 | 8. 信息密度与页数 | 复杂度分级 + Step 4 visual_weight |
+| 执行层 | 9. 品牌与身份信息 | Step 4 封面/结尾页内容 + Step 5a 品牌色覆盖 |
+| 执行层 | 10. 内容边界（必含/必避） | Step 2 搜索过滤 + Step 4 内容硬约束 |
+| 执行层 | 11. 语言偏好 | Step 5a font_family + Step 5c 排版 |
+| 执行层 | 12. AI 配图偏好 | Step 4 image 字段 + Step 5b 执行 |
+| 动态层 | 13-15. 主题专属追问（0-3 题，基于搜索结果动态生成） | Step 2-4 内容方向聚焦 |
 
-**产物**：需求 JSON（topic + requirements）
+> **Q7 风格选择的特殊要求**：必须以表格形式展示全部 8 种预置风格（蓝白商务/极简灰白/清新自然/暖色大地/朱红宫墙/暗黑科技/紫金奢华/活力彩虹），每种附一句话灵魂描述和适合场景。用户选编号即可，不需要自己描述"什么风格"。
+>
+> **轻量模式**（用户明确说了页数 <= 8 或暗示简短）：Q1 + Q2 + Q7 + Q8 + Q12（5 题精简版，跳过内容层和部分执行层，由 AI 根据搜索结果自行决策）。
+>
+> **动态追问**：仅在搜索结果揭示了主题特有的关键分歧（如技术路线分歧、阶段差异、视角选择）时才添加，不凑数。每个动态问题必须标注消费节点。
+
+**产物**：需求 JSON -- 结构如下，每个字段对应一个问题的答案，**必须完整填写所有字段**：
+
+```json
+{
+  "topic": "PPT 主题",
+  "scene": "Q1 演示场景（现场演讲/自阅文档/培训教学/其他）",
+  "audience": "Q2 核心受众画像",
+  "purpose": "Q3 期望观众做什么",
+  "narrative_structure": "Q4 叙事结构",
+  "emphasis": ["Q5 内容侧重（可多选）"],
+  "persuasion_style": ["Q6 说服力要素（可多选）"],
+  "style_choice": "Q7 风格选择（A-J）",
+  "style_detail": "Q7 附加信息（如选 J 时的自定义描述）",
+  "page_count": "Q8 页数（数字或 null=AI 决定）",
+  "info_density": "Q8 信息密度偏好（少而精/适中/信息量大）",
+  "brand_info": {
+    "presenter": "Q9 演讲人",
+    "date": "Q9 日期",
+    "company": "Q9 公司名",
+    "brand_color": "Q9 品牌色（如有，覆盖 style_choice）",
+    "logo_path": "Q9 Logo 路径"
+  },
+  "content_must_include": ["Q10 必须包含"],
+  "content_must_avoid": ["Q10 必须回避"],
+  "language": "Q11 语言偏好（中文/英文/中英混排/其他）",
+  "image_preference": "Q12 配图偏好（A-D）",
+  "dynamic_answers": {"问题文本": "用户回答"},
+  "complexity_level": "light | standard | large（根据 page_count 判定）"
+}
+```
+
+**消费审查矩阵** -- Step 1 完成后 LLM 必须对照此表自检，确认每个字段都有下游消费方：
+
+| 需求字段 | 下游 prompt 占位符 | 消费步骤 | 如果未消费会怎样 |
+|---------|-------------------|---------|----------------|
+| `scene` | `{{SCENE}}` (prompt-2) | Step 3 信息密度策略 | 自阅型 PPT 被做成演讲型，信息不完整 |
+| `audience` | `{{AUDIENCE}}` (prompt-2, prompt-3) | Step 3 论点设计 + Step 4 card_type | 专业深度失控 |
+| `purpose` | `{{PURPOSE}}` (prompt-2) | Step 3 叙事弧线终点 | 结尾没有 CTA |
+| `narrative_structure` | `{{NARRATIVE_STRUCTURE}}` (prompt-2) | Step 3 Part 逻辑 | 大纲缺乏骨架 |
+| `emphasis` | `{{EMPHASIS}}` (prompt-2) | Step 3 页数权重 | 重点被平均化 |
+| `persuasion_style` | `{{PERSUASION_STYLE}}` (prompt-2) | Step 4 card_type 分布 | data/quote 比例失调 |
+| `style_choice` | 资源加载决策树 | Step 5a 风格决策 | 用户选了暗黑科技结果生成蓝白商务 |
+| `page_count` + `info_density` | `{{PAGE_REQUIREMENTS}}` (prompt-2) | Step 3 页数 + Step 4 密度 | 页数偏离 |
+| `brand_info` | `{{BRAND_INFO}}` (prompt-2, prompt-3) | Step 4 封面/结尾内容 | 封面缺演讲人/公司名 |
+| `content_must_include` | `{{CONTENT_CONSTRAINTS}}` (prompt-2) | Step 2 搜索 + Step 4 内容 | 必含内容遗漏 |
+| `content_must_avoid` | `{{CONTENT_CONSTRAINTS}}` (prompt-2) | Step 2 搜索过滤 | 触及敏感内容 |
+| `language` | 资源加载决策树 | Step 5a 字体栈 | 英文 PPT 用中文字体 |
+| `image_preference` | 资源加载决策树 | Step 4-5b 配图 | 不需要配图但生成了 |
+
+> **审查规则**：Step 1 结束整理需求 JSON 后，逐行对照此矩阵。任何字段为空（且用户确实回答了对应问题），必须补全后才能进入 Step 2。
 
 ---
 
@@ -216,7 +278,7 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 > 第 0 项是整个策划阶段的**地基**。它将 6 大设计原则（CRAP/Miller's Law/60-30-10/格式塔/Tufte/金字塔原理）翻译为 planning JSON 的字段级操作指令 -- 每条原则直接告诉 LLM 操作哪个字段、填什么值、怎么判断对不对、不对怎么改。通过 `{{DESIGN_PRINCIPLES_CHEATSHEET}}` 占位符注入到 prompt-3 的上下文中。
 >
-> 第 7 项仅在 Q7 配图偏好 != A（不需要）时读取。策划师要写 `image.prompt`，就必须先掌握 prompt 构造方法、场景翻译技巧和各风格的关键词——没有这些上下文就是"没见过食材长什么样就要写菜谱"。
+> 第 7 项仅在 Q12 配图偏好 != A（不需要）时读取。策划师要写 `image.prompt`，就必须先掌握 prompt 构造方法、场景翻译技巧和各风格的关键词——没有这些上下文就是"没见过食材长什么样就要写菜谱"。
 >
 > 第 6 项的 `styles/README.md` 只读"装饰技法工具箱"章节（L100-141），**不读**风格决策流程和调色板信息（那些留给 Step 5a）。策划师需要知道"有哪些装饰手法可选"，但不需要此刻决定具体配色。
 
@@ -226,13 +288,21 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 **执行**：使用 `references/prompts/prompt-3-planning.md`（内容分配与策划稿）
 
-> **设计原则注入（核心机制）**：prompt-3 中的 `{{DESIGN_PRINCIPLES_CHEATSHEET}}` 占位符，必须替换为 4a 阶段读取的 `principles/design-principles-cheatsheet.md` 的完整内容。这确保策划师在设计每一页时，6 大黄金标准（CRAP/Miller's Law/60-30-10/格式塔/Tufte/金字塔原理）的核心决策点都在上下文中，而非"读过一遍就忘了"。同时 `{{USER_PREFERENCES}}` 替换为 Step 1 收集的用户喜好与风格偏好信息。
+> **持久上下文注入（核心机制，共 2 个占位符）**：
+> - `{{DESIGN_PRINCIPLES_CHEATSHEET}}` -- 替换为 4a 阶段读取的 `principles/design-principles-cheatsheet.md` 的完整内容。确保 6 大黄金标准的核心决策点在每页策划时始终在上下文中。
+> - `{{RESOURCE_MENU}}` -- 替换为 `resource-menu.md` 的完整内容。这是一张精简的资源菜单速查卡（布局/卡片/图表/card_style/装饰技法的完整选项列表），防止 LLM 在策划后半程因上下文衰减而退化为只用 text+data+list 三板斧。每次策划每页时 LLM 都能"翻看菜单"而不是靠记忆。
+> - 其他占位符（`{{SCENE}}`/`{{AUDIENCE}}`/`{{PERSUASION_STYLE}}`/`{{BRAND_INFO}}`/`{{CONTENT_CONSTRAINTS}}`/`{{IMAGE_PREFERENCE}}`）从 Step 1 需求 JSON 的对应字段填入。
+
+> **★ 设计感强制约束（灵魂级）**：
+> 1. **彻底拒绝千篇一律的普通前端排版**，策划的必须是**完完全全的 PPTX 演讲展示组合**。
+> 2. **单页组合极其要求随机但是灵动**：绝不能上下两页长得一模一样，通过极端反差、非对称策略打破死板。
+> 3. **高质量的设计上下文传递**：必须通过 `director_command` 填写极具张力和具体排版暗示（如出血、压盖、全屏文本）的指令，指引下游的 HTML 生成渲染出完美符合 PPTX 共识的画面效果！单页设计极其重要，必须给足高质量上游意图上下文。
 
 **要点**：
 - **逐页体检**：每页 planning JSON 完成后，按 cheatsheet 尾部的 8 项体检单逐条检查 -- 每项指明看 JSON 的哪个字段、不通过时做什么具体修改（如"goal 含'和'字 -> 拆页"、"accent card_style > 1 -> 改 filled"），不是笼统地"检查一下"
 - 将搜索素材精准映射到每页
 - 为每页设计多层次内容结构（主内容 40-100 字 + 数据亮点 + 辅助要点）
-- 每页选择布局（`layout_hint`，从预读的 10 种布局中选择）
+- 每页选择布局（`layout_hint`，从预读的 10 种布局中选择），必须保持**随机跳变与灵动感**。
 - 每个区域自由组合 14 种 card_type（从预读的 6 种基础 + 8 种复合中选择）
 - 复合类型卡片（timeline/diagram/quote/comparison/people/image_hero/matrix_chart）可跨列跨行，与基础卡片自由混搭
 - data 卡片需指定 `chart_type`（从预读的 13 种图表中选择）
@@ -294,13 +364,32 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 #### 5a. 风格决策
 
-**执行**：阅读 `references/styles/README.md`，按其决策流程选择或自创配色方案，然后只读对应参考调色板文件（如 `references/styles/blue-white.md`）。
+> **风格不是"选个调色板"，而是为这个特定项目调配独一无二的视觉灵魂。** style.json 影响全局每一页的视觉基调，生成质量绝不能马虎。
 
-> 风格的装饰工具箱已在 `styles/README.md` 中定义，首页生成前读取一次即可。**风格产物（style.json）只保存纯 CSS 变量**，不包含装饰描述，避免每页 Prompt 中重复注入相同的装饰指令导致千篇一律。
+**执行**：阅读 `references/styles/README.md`，按其**灵动创作方法论（四步法）**进行风格决策：
+
+**四步法概要**（详细指引见 `styles/README.md` 的"灵动创作方法论"章节）：
+
+1. **提炼情绪关键词**（3-5 个感性通感体验词，不是"蓝色""深色"这种色彩描述词。如"精密仪器""深空冷寂""微光脉搏"）
+2. **从情绪推导色彩**（情绪 -> 自然类比/场景联想/触觉通感 -> 色彩方案。选择一个最接近的预置调色板作为起点，可微调或完全自创）
+3. **写灵魂宣言**（一句话描述这套色彩要传达的画面感体验，将注入到每页 prompt 中作为设计师的情绪锚点）
+4. **设计变奏策略**（描述在统一基因下，页与页之间如何制造灵动变化的节奏型）
+
+只读对应参考调色板文件（如 `references/styles/blue-white.md`），获取装饰 DNA 和灵感。
+
+> 风格的装饰工具箱已在 `styles/README.md` 中定义，首页生成前读取一次即可。style.json 承载三层信息：**灵魂层**（mood_keywords / design_soul / variation_strategy）+ **装饰基因层**（decoration_dna）+ **色值层**（css_variables）。灵魂层和装饰基因层由 `prompt_assembler.py` 自动注入到每页 prompt 中，为设计师提供情绪锚点和变奏引导。
 
 8 种参考调色板及其文件路径见 `resource-registry.md` 第 1 节。
 
-**产物**：`OUTPUT_DIR/style.json`（纯 CSS 变量）
+**style.json 产物校验**（缺一不可）：
+- `mood_keywords`：3-5 个情绪关键词（不是色彩词）
+- `design_soul`：一句话灵魂宣言（有画面感、有通感）
+- `variation_strategy`：跨页变奏策略（描述节奏型，不是"每页用不同装饰"这种废话）
+- `decoration_dna`：标志手法 / 禁止手法 / 推荐组合
+- `css_variables`：完整的 CSS 变量集（必须覆盖全部 12 个变量）
+- `font_family`：字体栈
+
+**产物**：`OUTPUT_DIR/style.json`（灵魂描述 + 装饰基因 + CSS 变量，完整结构见 `styles/README.md` 的数据模型定义）
 
 #### 5b. 配图生成（可选）
 
@@ -330,15 +419,16 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 **第一层：采访后全局决策（Step 1 完成后立即执行，全流程只做一次）**
 
-根据 Step 1 的 7 题答案，确定整个 PPT 生命周期内的资源加载策略：
+根据 Step 1 的采访答案，确定整个 PPT 生命周期内的资源加载策略：
 
 | 采访答案 | 触发的加载决策 |
 |---------|--------------| 
-| Q7 配图偏好 = A（不需要） | 整个流程**跳过** `image-generation.md`，Step 5b 全部跳过 |
-| Q7 配图偏好 = B/C/D | 标记**需要配图**，4a 预读阶段读取 `image-generation.md`（prompt 构造公式 + 风格关键词表 + 构图自适应表），Step 4 每页策划时填写 `image` 字段，Step 5b 执行 |
-| Q7 风格偏好 = 明确指定 | Step 5a 直接读取对应 style_id 的文件（style_id -> 文件路径映射见 `resource-registry.md` 第 1 节），跳过其他风格 |
-| Q7 风格偏好 = 未指定 | 先读 `styles/README.md` 的决策规则，确定风格后只读命中风格的独立文件 |
-| Q7 语言偏好 = B/C/D（非纯中文） | 标记**多语言模式**，Step 5a 额外读取 `styles/README.md` 的"多语言排版优化"章节 |
+| Q12 配图偏好 = A（不需要） | 整个流程**跳过** `image-generation.md`，Step 5b 全部跳过 |
+| Q12 配图偏好 = B/C/D | 标记**需要配图**，4a 预读阶段读取 `image-generation.md`（prompt 构造公式 + 风格关键词表 + 构图自适应表），Step 4 每页策划时填写 `image` 字段，Step 5b 执行 |
+| Q7 风格选择 = A-H（明确选择预置风格） | Step 5a 直接读取对应 style_id 的文件（style_id -> 文件路径映射见 `resource-registry.md` 第 1 节），跳过其他风格 |
+| Q7 风格选择 = I（AI 自动匹配） | 先读 `styles/README.md` 的决策规则，确定风格后只读命中风格的独立文件 |
+| Q7 风格选择 = J（自定义） | 读 `styles/README.md` 的灵动创作方法论，基于用户描述自创配色方案 |
+| Q11 语言偏好 = B/C/D（非纯中文） | 标记**多语言模式**，Step 5a 额外读取 `styles/README.md` 的"多语言排版优化"章节 |
 | Q6 说服力要素 = 数据为主 | 标记**数据密集型**，Step 4 每页 data 卡片比例提高 |
 | Q4 叙事结构 = 时间线 | 标记**时间线叙事**，Step 4 中更倾向使用 timeline chart_type |
 
@@ -663,7 +753,8 @@ ppt-output/
 | `blocks/{type}.md` | Step 4 + 5c 按需 | 8 种复合区域展示组件 |
 | `principles/README.md` | Step 4 首页前 | 6 大设计原则索引 |
 | `principles/{name}.md` | 按需 | 视觉层级/认知负荷/构图/色彩/数据可视化/叙事 |
-| `principles/design-principles-cheatsheet.md` | Step 4 首页前（第 0 号必读项） | **6 大原则 -> JSON 字段操作手册 + 逐页体检单，注入 prompt-3 上下文** |
+| `principles/design-principles-cheatsheet.md` | Step 4 首页前（第 0 号必读项） | **6 大原则 -> JSON 字段操作手册 + 逐页体检单，通过 `{{DESIGN_PRINCIPLES_CHEATSHEET}}` 注入 prompt-3** |
+| `resource-menu.md` | Step 4 每页策划时（通过 `{{RESOURCE_MENU}}` 注入 prompt-3） | **资源菜单速查卡（布局/卡片/图表/card_style/装饰技法完整选项），防止后半程策划退化** |
 | `styles/README.md` | Step 5a + 5c 首页前 | 色彩原则 + 装饰工具箱 |
 | `styles/{id}.md` | Step 5a | 8 个参考调色板 |
 | `layouts/README.md` | Step 5c 首页前 | 骨架使用总则 |

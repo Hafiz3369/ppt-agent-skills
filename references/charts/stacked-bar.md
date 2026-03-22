@@ -2,46 +2,27 @@
 
 `chart_type: stacked_bar`
 
-用 CSS flex 横向堆叠，适合展示多个分类在总量中的占比。
+> **视觉灵魂**：一根柱子里的"成分分析" -- 不同颜色的色段长度直观展示各部分在总量中的占比。多根并排时可以快速对比"不同类别的成分构成差异"。
 
-```html
-<div style="display:flex; flex-direction:column; gap:12px;">
-  <!-- 条目1 -->
-  <div>
-    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-      <span style="color:var(--text-primary); font-weight:600;">GPU 集群</span>
-      <span style="color:var(--text-secondary);">$1,347B</span>
-    </div>
-    <div style="display:flex; height:16px; border-radius:4px; overflow:hidden;">
-      <div style="width:47%; background:var(--accent-1);"></div>
-      <div style="width:28%; background:var(--accent-2);"></div>
-      <div style="width:15%; background:var(--accent-3);"></div>
-      <div style="width:10%; background:rgba(255,255,255,0.1);"></div>
-    </div>
-  </div>
-  <!-- 条目2 -->
-  <div>
-    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-      <span style="color:var(--text-primary); font-weight:600;">训练平台</span>
-      <span style="color:var(--text-secondary);">$800B</span>
-    </div>
-    <div style="display:flex; height:16px; border-radius:4px; overflow:hidden;">
-      <div style="width:35%; background:var(--accent-1);"></div>
-      <div style="width:40%; background:var(--accent-2);"></div>
-      <div style="width:25%; background:var(--accent-3);"></div>
-    </div>
-  </div>
-  <!-- 图例 -->
-  <div style="display:flex; gap:16px; font-size:11px; color:var(--text-secondary); margin-top:4px;">
-    <div style="display:flex; align-items:center; gap:4px;">
-      <span style="width:10px; height:10px; border-radius:2px; background:var(--accent-1);"></span>北美
-    </div>
-    <div style="display:flex; align-items:center; gap:4px;">
-      <span style="width:10px; height:10px; border-radius:2px; background:var(--accent-2);"></span>亚太
-    </div>
-    <div style="display:flex; align-items:center; gap:4px;">
-      <span style="width:10px; height:10px; border-radius:2px; background:var(--accent-3);"></span>欧洲
-    </div>
-  </div>
-</div>
-```
+## 结构原理
+
+用 CSS flex 横向堆叠色段，每根堆叠条 = 一个数据类别的占比分解。
+
+- 每个色段的 width 百分比 = 该分类在总量中的实际占比
+- 色段颜色用 accent-1 到 accent-4 区分分类
+- 底部附图例行（色块 + 标签）
+
+## 关键规则
+
+- 色段宽度必须反映真实数据比例（不能为了好看而调整比例）
+- 每根堆叠条上方标注类别名和总值
+- 图例用 HTML flex 布局（禁止 SVG text）
+- 图例色块尺寸保持一致（视觉整齐）
+- 堆叠条高度统一（多根并排时整齐对比）
+
+## 灵动指引
+
+- 2-3 根堆叠条是最佳数量 -- 太多根观众来不及对比
+- 最大的色段放在最左边（视觉锚点，人眼从左往右扫描）
+- 如果某个分类的占比特别小（< 5%），考虑合并为"其他"
+- 条形高度可以根据卡片空间调整（12-24px 范围内），粗条更有存在感

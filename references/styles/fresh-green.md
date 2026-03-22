@@ -2,38 +2,38 @@
 
 适用场景：环保/可持续发展、健康/医疗/养生、食品/农业、美妆/护肤
 
-## JSON 定义
+## style.json 参考
 
 ```json
 {
-  "style_name": "清新自然 (Fresh Green)",
   "style_id": "fresh_green",
-  "background": { "primary": "#F0FDF4", "gradient_to": "#ECFDF5" },
-  "card": { "gradient_from": "#FFFFFF", "gradient_to": "#F0FDF4", "border": "rgba(22,163,74,0.12)", "border_radius": 16 },
-  "text": { "primary": "#14532D", "secondary": "#4B5563", "title_size": 28, "body_size": 14, "card_title_size": 20 },
-  "accent": { "primary": ["#16A34A", "#059669"], "secondary": ["#F59E0B", "#D97706"] },
-  "font_family": "PingFang SC, Microsoft YaHei, system-ui, sans-serif",
-  "grid_pattern": { "enabled": false },
-  "decorations": { "corner_lines": false, "glow_effects": false, "description": "轻柔圆角、叶片图标、自然渐变色块，清新透气感" }
-}
-```
-
-## CSS 变量
-
-```css
-:root {
-  --bg-primary: #F0FDF4;
-  --bg-secondary: #ECFDF5;
-  --card-bg-from: #FFFFFF;
-  --card-bg-to: #F0FDF4;
-  --card-border: rgba(22,163,74,0.12);
-  --card-radius: 16px;
-  --text-primary: #14532D;
-  --text-secondary: #4B5563;
-  --accent-1: #16A34A;
-  --accent-2: #059669;
-  --accent-3: #F59E0B;
-  --accent-4: #D97706;
+  "style_name": "清新自然 (Fresh Green)",
+  "mood_keywords": ["晨光透叶", "清泉细流", "有机呼吸", "温柔生长", "圆润柔和"],
+  "design_soul": "晨光透过嫩叶的筛孔，在白色桌面上投射出薄荷色的光斑 -- 空气里弥漫着泥土和新芽的味道，所有的线条都是圆弧的，所有的色彩都是温暖的低饱和度",
+  "variation_strategy": "数据页用白底+绿色波浪分隔线+叶片小装饰制造有机田园感（温柔信息），概念讲解页用大面积极浅绿背景+圆润大卡片+大号留白（呼吸），案例页用卡片内嵌配图+自然光晕渐变（生活场景），通过'密集圆润卡片'和'极简留白+单一叶片'交替形成'在花园中漫步'的从容节奏",
+  "decoration_dna": {
+    "signature_move": "波浪分隔线（SVG path 波浪替代直线）-- 自然界没有直线",
+    "forbidden": ["直角元素", "深色阴影", "冷色调装饰", "网格点阵", "角标装饰线"],
+    "recommended_combos": [
+      "叶片装饰 + 波浪分隔线 + 圆润大圆角卡片",
+      "极浅绿背景渐变 + 叶片编号 + 渐隐分隔线"
+    ]
+  },
+  "css_variables": {
+    "bg_primary": "#F0FDF4",
+    "bg_secondary": "#ECFDF5",
+    "card_bg_from": "#FFFFFF",
+    "card_bg_to": "#F0FDF4",
+    "card_border": "rgba(22,163,74,0.12)",
+    "card_radius": "16px",
+    "text_primary": "#14532D",
+    "text_secondary": "#4B5563",
+    "accent_1": "#16A34A",
+    "accent_2": "#059669",
+    "accent_3": "#F59E0B",
+    "accent_4": "#D97706"
+  },
+  "font_family": "PingFang SC, Microsoft YaHei, system-ui, sans-serif"
 }
 ```
 

@@ -2,8 +2,14 @@
 
 将搜索素材精准映射到大纲的每一页，同时生成可执行的策划稿结构。这一步将"内容填充"和"结构设计"合为一体 -- 在思考每页该放什么内容的同时，决定布局和卡片类型，既避免信息在传递中损耗，也减少一轮完整的 LLM 调用。
 
-```text
-你是一名资深PPT内容架构师兼策划师。你的任务是将搜索资料精准分配到PPT每一页，并同时设计出每页的结构化策划卡。
+你看过苹果发布会（Apple Keynote）或者顶级的 TED 演讲吗？你是一名顶级的演示文稿（PPTX）视效总监兼策划师。你的任务是彻底粉碎和打破常规的“网页前端排版”（无脑切分布局、死板的 padding、千篇一律的卡片陈列）这种低级思维。
+
+你需要使用纯正的【顶级PPT演讲设计语言】，它基于设计界公认的准则：**CRAP黄金法则（对比 Contrast、重复 Repetition、对齐 Alignment、亲密性 Proximity）与信噪比最大化原则**。你要将素材精准分配到每一页，设计出组合既充满随机反差，又极其灵动的高级单页。
+
+在这个过程中，你要将每一页视为一个具有绝对视觉张力的**独立电影画面**。单页设计极其重要，必须手段丰富多彩，同时又在这个体系下保持整体风格的统一：
+- 它需要有焦距（景深与层叠，不再是扁平的网页）
+- 它需要有情绪（通过色彩和排版留白传达：或是重磅数据压境的震撼，或是极简金句的静谧沉思）
+- 它不需要滑动（一次只渲染一屏，所有的信息爆炸必须在这一屏发生完毕）
 
 ## ★★★ 最高优先级：逐页生成（一页一文件） ★★★
 
@@ -21,12 +27,31 @@
 
 ## 输入
 - PPT主题：{{TOPIC}}
-- 受众：{{AUDIENCE}}
-- 用户喜好与风格偏好：{{USER_PREFERENCES}}
+- 演示场景：{{SCENE}}（Q1 -- 决定信息密度和单页内容量）
+- 受众：{{AUDIENCE}}（Q2 -- 决定 card_type 的专业深度）
+- 说服力要素偏好：{{PERSUASION_STYLE}}（Q6 -- 决定 data/quote/diagram 比例）
+- 品牌与身份信息：{{BRAND_INFO}}（Q9 -- 封面/结尾页内容）
+- 内容边界：{{CONTENT_CONSTRAINTS}}（Q10 -- 必含/必避硬约束）
+- 配图偏好：{{IMAGE_PREFERENCE}}（Q12 -- 决定每页 image 字段填写策略）
 - PPT大纲JSON：
 {{OUTLINE_JSON}}
 - 搜索资料集合：
 {{SEARCH_RESULTS}}
+
+## ★★★ 核心思维转换：纯正 PPTX 原则 vs 低级网页代码思维 ★★★
+
+你输出的虽然是会在 HTML 中渲染的 JSON，但**绝不能用网页设计的思维来做 PPT**。必须精准传达给下游，让下游实现单页组合高度随机但是极其灵动、丰富多彩的设计：
+
+| 维度（公认准则转化） | ❌ 典型的网页前端思维（千篇一律，必须摒弃） | ✅ 纯正的 PPT 演讲设计语言（完美符合业界共识） |
+|----------------|-------------------------------------|--------------------------------------------|
+| **视觉锚点 / 对比原则 (Contrast)** | 均匀的卡片网格（Bento Box式平铺），所有字号都在 14px~32px 之间徘徊，视线无处安放。 | **极端的视觉反差（Extreme Contrast）**。每页必须有一个刺破眼帘的视觉锚点（占据屏幕30%以上的大数字 120px+、冲破画布的主图）。重点与非重点的字号反差至少要达 5-10 倍。 |
+| **空间使用 / 格式塔破局** | 留白追求绝对对称、受限于外层的安全容器（Container）、规规矩矩的 margin 和 padding。 | **破界与出血（Bleed & Overlap）**。大胆的非对称（Asymmetry）！允许元素突破边界（如配图冲出画布）、元素绝对定位叠加交错排列（例如一张小卡片"挂"在图片边缘），充满张力。 |
+| **组合变幻与极致随机灵动** | 像排版流水线做 Web 页面一样，每页套用 "顶栏标题 + 下方弹性布局并列 3 个带同等圆角的白底灰边方块"。前后翻页如克隆版死板教条。 | **极其丰富多彩且绝对灵动跳脱的方法论（Vivid & Random Dynamic Composition）**。拒绝前端切图定势！页面排版组合必须高度随机反转：上一页是严肃压抑的暗影悬浮网格数据图表，这一页必须是剔透且大胆破界的巨大图景。靠随机却和谐的反差制造“每次翻页的感官抽泣”。 |
+| **无界张力与原生语言压迫**| 所有的内容被迫蜷缩进预设好的 `div` (Padding 24px) 框架当中，像被约束的表格一样不敢超越分毫。这是最劣质的前端思维。 | **完完全全的原生 PPTX 演讲设计语言**。坚决破界溢出！元素交底发生穿透错落、色块边缘大角度撕裂，甚至将极为宽广的数据折线直接裸露在原生页面空间上生长（强依靠 `transparent` 隐形手段及脱轨极端的比例反差），摒弃前端网格对思维的禁锢！ |
+| **单页独立但基因统一**| 每一个页面的骨架、颜色分发都千篇一律，没有个性。 | **手段丰富多彩，整体绝无跳戏**。虽然每一页的布局与形式极度随性张扬，但全都被死死锚定在一个统合全局的色彩变量族与字体视觉标识系内。 |
+
+### 【总监级灵魂连结】：通过 `director_command` 传递高质量的灵境上下文
+你规划出的不仅是数据结构，更是"这页幻灯片的灵魂氛围"。这是给 HTML 生成设计的最高质量上下文。你在输出 JSON 时，必须在 `director_command` 字段中，使用极度感性、有压迫感和多变张力的黑话指令，告知下游的 HTML 工程师不要按部就班地写代码，而是要按你的意境渲染画面。每页都要跟上一页截然不同，灵动且充满变数。
 
 ## ★★★ 设计原则操作手册（planning JSON 字段级指导） ★★★
 
@@ -36,6 +61,17 @@
 {{DESIGN_PRINCIPLES_CHEATSHEET}}
 
 > **重要**：操作手册尾部有 8 项体检单，每项都标明"看哪个 JSON 字段"和"不通过怎么改"。每页 JSON 完成后必须逐项检查。
+
+## ★★★ 资源菜单速查卡（每页策划时必须翻阅） ★★★
+
+> **防止上下文衰减导致后半程策划退化。** 以下是你的完整工具箱。每策划一页时，主动扫一遍菜单，选择最匹配内容特征的组件，而不是每次都用最熟悉的几种。
+
+{{RESOURCE_MENU}}
+
+> **使用规则**：
+> 1. 每策划一页前扫一遍菜单的 4 个分区（布局/卡片/图表/装饰），主动发现"这页内容能用什么不常用的组件"
+> 2. 每页策划完成后，对照菜单检查："我是否只用了三板斧（text+data+list + 英雄式/混合网格）？如果是，重新选择"
+> 3. 菜单中的每个选项都是同等优秀的工具 -- L 型、T 型、瀑布流、diagram、comparison 不是"备选"，是与 text/data 平级的一等公民
 
 ## 任务
 
@@ -207,7 +243,7 @@
     {
       "position": "位置描述（top-left / top-right / bottom-full 等）",
       "card_type": "text | data | list | process | tag_cloud | data_highlight | timeline | diagram | quote | comparison | people | image_hero | matrix_chart",
-      "card_style": "filled | transparent | outline | accent | glass | elevated（默认 filled，规则见 blocks/card-styles.md）",
+      "card_style": "filled | transparent | outline | accent | glass | elevated（无默认值，必须根据画面呼吸感与主次结构主动混合选择，规则见 blocks/card-styles.md）",
       "chart_type": "（仅 data/data_highlight）图表类型",
       "diagram_type": "（仅 diagram）pyramid | flowchart | hub-spoke | layers | cycle",
       "title": "卡片标题",
@@ -222,11 +258,11 @@
       }
     }
   ],
-  "visual_weight": "视觉重量分（2-9，参考 narrative-rhythm.md）",
-  "design_notes": "设计注意事项",
+  "visual_weight": "视觉重量分（2-9，参考 narrative-rhythm.md。连续多页的权重及构成必须产生剧烈跳变与随机分布，形成丰富多彩且灵动的节拍，绝对拒绝千篇一律的网格编排）",
+  "director_command": "【总监指令】用感性语言 + 技法牌编号描述本页的视觉灵魂。先用 1-2 句话描绘画面情绪，再指定 2-3 个技法牌（T1-T10，定义见 prompt-4-design.md）。举例：'【数据压境】70% 画布用深色留白制造窒息感（T7 留白压迫），左下角 160px 红色核心数据紧贴 12px 注解（T2 极致字号共生），底部贯穿半页的 GROWTH 水印 opacity 0.04（T1 破界水印）。辅助文字全部 12px 压入暗处，形成极端字号反差。'",
   "decoration_hints": {
     "background": "技法名 | CSS实现提示",
-    "card_style": "技法名 | CSS实现提示",
+    "card_accent": "技法名 | CSS实现提示",
     "page_accent": "技法名 | CSS实现提示"
   },
   "image": {
@@ -247,19 +283,20 @@
 > 1. 每个字段格式为 `技法名 | CSS 实现提示`，让设计阶段无需回忆工具箱即可直接执行
 > 2. 相邻内容页的 decoration_hints 至少有 **1 个维度不同**
 > 3. 技法选项参见 `styles/README.md` 的装饰技法工具箱，选择时将实现方式一并写入
+> 4. `director_command` 中可直接引用技法牌编号（如"用 T1 破界水印 + T2 极致字号共生"），设计师会在 `prompt-4-design.md` 中找到对应的 CSS 原子代码
 >
 > **示例**（第 5 页 vs 第 6 页的差异）：
 > ```json
 > // 第 5 页
 > "decoration_hints": {
 >   "background": "光晕 | radial-gradient(circle, accent色 6%, transparent 70%) + 500px圆 + 右上角",
->   "card_style": "左侧强调线 | div 3px宽 100%高 + accent渐变 + position:absolute left:0",
+>   "card_accent": "左侧强调线 | div 3px宽 100%高 + accent渐变 + position:absolute left:0",
 >   "page_accent": "大号水印 | div 140px数字 + accent色 opacity:0.04"
 > }
 > // 第 6 页（至少 1 个维度不同）
 > "decoration_hints": {
 >   "background": "网格点阵 | radial-gradient(circle, dot-color 1px, transparent 1px) + 40px间距",
->   "card_style": "顶部色带 | div 4px高 + accent渐变 + 卡片顶部",
+>   "card_accent": "顶部色带 | div 4px高 + accent渐变 + 卡片顶部",
 >   "page_accent": "分隔渐隐线 | div 1px + linear-gradient(90deg, accent 30%, transparent)"
 > }
 > ```

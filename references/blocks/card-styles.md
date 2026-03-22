@@ -1,101 +1,70 @@
-# 卡片视觉变体（card_style）
+# 卡片视觉变体（card_style）-- PPTX 演讲设计语言
 
 > card_type 决定卡片"内容做什么"，card_style 决定卡片"长什么样"。
 > 同一页必须使用至少 2 种 card_style，打破"一堆同色方块"的单调感。
 
-## 6 种变体
+## 设计哲学：每种变体是一种"空间存在感"
 
-### filled（默认）
-```css
-background: var(--card-bg);
-border-radius: 12px;
-padding: 24px;
-```
-- 标准卡片，大多数内容的默认选择
-- 不需要在策划稿中明确写出（省略 card_style 时默认为 filled）
+不要把 card_style 理解为"给 div 换个背景色"。在纯正的 PPTX 设计语言中，每种变体代表的是信息在画面中的**存在方式和呼吸方式**。它决定了这块内容是沉入底层、漂浮中层、还是跃出表面。
 
-### transparent（透明/裸露）
-```css
-background: transparent;
-border: none;
-padding: 24px;
-```
-- **无背景、无边框**，内容直接暴露在页面上
-- 适合：大号数据数字、标题区、引用金句、独立图标组
-- 视觉效果：内容"浮"在页面上，靠间距和对齐表达分组
-- 常搭配 card_type: `data_highlight` / `quote` / `image_hero`
+## 6 种变体的灵魂定义
 
-### outline（描边）
-```css
-background: transparent;
-border: 1px solid rgba(var(--accent-1-rgb), 0.2);
-border-radius: 12px;
-padding: 24px;
-```
-- 无背景，只有轻微描边暗示边界
-- 适合：辅助信息、次要内容、与 filled 卡片形成层次对比
-- 比 filled 更轻量，比 transparent 更有边界感
+### filled -- 沉稳的大地
+- **空间存在感**：扎实的基底层，是画面中最可靠的信息承载面
+- **本质**：有可感知边界的实体区域，用主色调填充
+- **设计思维**：想象一块打磨光滑的大理石台面。它不需要装饰自身，它存在的目的是让上面放置的内容看起来稳定、可信
+- **绝对禁止**：所有卡片都用 filled --「全是大理石台面」等于「没有主角」
 
-### accent（强调）
-```css
-background: linear-gradient(135deg, var(--accent-1), var(--accent-2, var(--accent-1)));
-border-radius: 12px;
-padding: 24px;
-color: #ffffff;
-```
-- accent 色渐变背景 + 白色文字
-- **一页最多 1 个**（否则强调效果失效）
-- 适合：核心数据、CTA、本页最重要的一个论点
-- 常搭配 card_type: `data` / `data_highlight` / `text`（核心论点）
+### transparent -- 无界之灵
+- **空间存在感**：幽灵般的存在，内容直接裸露在虚空中呼吸
+- **本质**：无背景、无边框、无痕迹。内容靠自身的视觉重力独立悬浮
+- **设计思维**：一句极致的金句、一个 120px 的核心数据 -- 它们不需要被方块收容，它们本身就是画面的视觉锚点。让它们直接"生长"在页面空间中
+- **黄金搭配**：data_highlight / quote / timeline / diagram -- 这些自带视觉骨架的组件，用方块包裹反而是视觉灾难
 
-### glass（毛玻璃）
-```css
-background: rgba(var(--card-bg-rgb), 0.4);
-backdrop-filter: blur(12px);
--webkit-backdrop-filter: blur(12px);
-border: 1px solid rgba(255, 255, 255, 0.08);
-border-radius: 12px;
-padding: 24px;
-```
-- 半透明毛玻璃效果
-- 适合：有底图/渐变背景的页面，卡片叠加在视觉层之上
-- 常搭配 card_type: `image_hero`（大图背景上叠加信息卡片）
-- 注意：backdrop-filter 在部分浏览器需要 -webkit- 前缀
+### outline -- 虚境描边
+- **空间存在感**：一层若有若无的气泡膜，暗示边界但不制造隔阂
+- **本质**：用极淡的描边（accent 色 20% 透明度）轻轻勾勒出存在面
+- **设计思维**：辅助信息、次要数据、补充说明 -- 它们需要有边界感但不能抢占视觉权重。像一个低声附和的旁白
 
-### elevated（悬浮）
-```css
-background: var(--card-bg);
-border-radius: 12px;
-padding: 24px;
-box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
-transform: translateY(-2px);
-```
-- 有明显阴影的悬浮卡片，视觉上"凸出"页面
-- 适合：页面的视觉锚点、最重要的一张卡片
-- **一页最多 1 个**（与 accent 同理）
-- 和 transparent/outline 卡片组合时形成强烈层次对比
+### accent -- 灼焰核心
+- **空间存在感**：画面中唯一燃烧的核心，从背景中灼然跃出
+- **本质**：用主题强调色渐变填充 + 反色文字，制造不可忽视的视觉爆裂
+- **设计思维**：这是你一页中最想让观众记住的那一块。它如同聚光灯下独自站立的主角。**一页最多 1 个** -- 两个聚光灯等于没有聚光灯
+- **视觉张力**：与 transparent 卡片放在一起时形成最极致的反差 -- 一个在燃烧，一个在虚空中呼吸
 
-## 使用规则
+### glass -- 雾中幻影
+- **空间存在感**：半透明的浮冰层，在底图/渐变之上制造朦胧的景深感
+- **本质**：毛玻璃质感，让底层视觉信息若隐若现地渗透
+- **设计思维**：当页面有配图或浓烈的渐变背景时，glass 让信息卡片像漂浮在雾气中的告示牌 -- 既能读取信息，又不破坏底层画面的氛围感
+- **注意**：glass 在 PPTX 导出中 backdrop-filter 可能不被支持，但 HTML 预览时它是最惊艳的层次手段
 
-1. **每页至少 2 种 card_style**（打破视觉单调是硬性要求）
-2. **accent 和 elevated 各最多 1 个/页**（强调过多 = 没有强调）
-3. 省略 card_style 时默认为 `filled`
-4. 推荐组合（层次感从强到弱）：
-   - `accent` + `transparent` + `filled`（最强对比）
-   - `elevated` + `outline` + `transparent`（层次丰富）
-   - `filled` + `outline`（温和对比）
-   - `glass` + `transparent`（有底图时）
+### elevated -- 悬崖浮岩
+- **空间存在感**：从画面中"顶"出来的浮岛，用阴影创造 Z 轴的物理凸起
+- **本质**：有实体背景 + 明显的投影 + 微妙的上移偏移，制造"这块内容在物理上更近"的错觉
+- **设计思维**：页面中最重要的那张卡片，它不仅内容重要，还要在空间上"更近"。**一页最多 1 个**
+- **极致搭配**：与 transparent 和 outline 同框时，elevated 像一座孤峰从平原中拔地而起
 
-## 与 card_type 的推荐搭配
+## 使用规则（灵动的本质在于反差和混合）
 
-| card_type | 推荐 card_style | 说明 |
-|----------|----------------|------|
-| data_highlight | `transparent` / `accent` | 大数字不需要方块包裹，或用 accent 强调 |
-| quote | `transparent` | 金句直接暴露在页面上更有力量感 |
-| image_hero | `transparent` / `glass` | 大图不需要卡片边框 |
-| timeline | `transparent` / `outline` | 时间线本身有线条结构，不需要额外方块 |
-| diagram | `transparent` | 图解自带视觉结构 |
-| comparison | `outline` | 描边区分两个面板 |
-| data | `filled` / `accent`（核心指标） | 数据卡片用标准或强调 |
-| text | `filled` / `outline` | 文本卡片用标准或描边 |
-| list | `filled` | 列表适合在明确边界内 |
+1. **每页至少 2 种 card_style** -- 这是制造层次感和灵动呼吸的最低门槛
+2. **accent 和 elevated 各最多 1 个/页** -- 强调过多 = 没有强调
+3. **没有默认值** -- 每张卡片的 card_style 都必须基于它在画面中的角色主动选择
+4. **推荐的灵动组合**（从张力最强到最柔和）：
+   - `accent` + `transparent` + `filled` -- 极致反差：燃烧 vs 虚空 vs 大地
+   - `elevated` + `outline` + `transparent` -- 层次纵深：浮岩 vs 气泡 vs 幽灵
+   - `glass` + `transparent` + `accent` -- 氛围沉浸：雾中 vs 裸露 vs 灼焰
+   - `filled` + `outline` -- 温和韵律：实体 vs 虚境（最低限度的层次）
+
+## 与 card_type 的内在共鸣
+
+| card_type | 最契合的存在感 | 为什么 |
+|----------|-------------|-------|
+| data_highlight | `transparent` / `accent` | 120px 的数字本身就是锚点，不需要方块；或用灼焰让它成为不可忽视的爆裂核心 |
+| quote | `transparent` | 金句裸露在虚空中，靠文字本身的重力撑住画面，这才是力量感 |
+| image_hero | `transparent` / `glass` | 大图不需要边框束缚；或用雾中幻影让文字浮在图上 |
+| timeline | `transparent` / `outline` | 时间线自带轴线骨架，方块包裹是多余的噪音 |
+| diagram | `transparent` | 图解/架构图自带节点连线的视觉结构，方块只会干扰 |
+| comparison | `outline` | 描边轻轻分隔两个面板，不占视觉权重 |
+| data | `filled` / `accent`（核心指标） | 数据卡片用实体承载，或用灼焰突出最关键的那个 |
+| text | `filled` / `outline` | 文本需要明确的阅读边界 |
+| list | `filled` / `outline` | 列表需要被收纳在可识别的区域内 |

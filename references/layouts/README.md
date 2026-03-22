@@ -1,146 +1,76 @@
-# Bento Grid 布局系统
+# 版式系统 -- PPTX 演讲空间设计语言
 
-## 画布参数
+## 画布：你的舞台物理约束
 
 ```
-固定画布: width=1280px, height=720px
-标题区: x=40, y=20, w=1200, h=50
-内容区: x=40, y=80, w=1200, h=580
-卡片间距: gap=20px
-卡片圆角: border-radius=12px
-卡片内边距: padding=24px
+固定画布: width=1280px, height=720px（16:9 投影比例）
+标题区: 左上 40px 起，高度 50px
+内容区: 可用空间 1200x580px
 ```
 
-## 骨架与 card_style 的职责分离
+> 这些是物理边界，不是设计边界。真正的 PPTX 设计应当让内容**与边界发生对话** -- 有时拥抱它，有时挑衅它，有时故意让元素与边界暧昧地擦身而过。
 
-> **骨架只管 Grid 位置和大小，不管卡片长什么样。**
+## 核心哲学：版式是重力场，不是牢笼
 
-每个布局文件的 HTML 骨架中，卡片的 `background` / `border` / `box-shadow` 留空为 `/* ← card_style CSS */` 注释。生成 HTML 时：
+每个布局文件定义的是一种**视觉重力的分布倾向**，而非像素级的铁栅栏。
 
-1. 复制骨架的 Grid 结构（grid-template-columns/rows、grid-column/row）
-2. 根据策划稿中每张卡片的 `card_style` 字段，从 `blocks/card-styles.md` 查找对应 CSS 填入
-3. **每页至少 2 种 card_style**（硬性要求）
+当你读到"主次结合（2fr : 1fr）"时，获取的信息应该是：
+- "左侧区域有更强的视觉引力，右侧更轻"
+- "信息的核心主体应该被吸引到左侧的引力场"
 
-`card_style` -> CSS 速查（完整定义见 `blocks/card-styles.md`）：
+而**绝不应该是**：
+- "左边 790px 放一个方块，右边 390px 放两个方块"
 
-| card_style | 填入位置 |
-|-----------|---------|
-| `filled` | `background:linear-gradient(135deg, var(--card-bg-from), var(--card-bg-to)); border:1px solid var(--card-border);` |
-| `transparent` | `background:transparent; border:none;` |
-| `outline` | `background:transparent; border:1px solid rgba(var(--accent-1-rgb), 0.2);` |
-| `accent` | `background:linear-gradient(135deg, var(--accent-1), var(--accent-2)); color:#fff;` |
-| `glass` | `background:rgba(var(--card-bg-rgb), 0.4); backdrop-filter:blur(12px);` |
-| `elevated` | `background:linear-gradient(135deg, var(--card-bg-from), var(--card-bg-to)); box-shadow:0 8px 32px rgba(0,0,0,0.12);` |
+### 版式文件提供什么
 
-## CSS Grid 实现
+每个版式文件描述的是：
 
-所有布局通过 CSS Grid 精确实现。内容区容器统一定义：
+1. **重力场哲学** -- 这种版式的视觉重力如何分布、信息如何流动
+2. **灵魂表达** -- 多种完全不同的变体（同一版式可以呈现截然不同的视觉面貌）
+3. **灵动构图指引** -- 如何在保持版式内核的前提下制造视觉惊喜
 
-```css
-.content-area {
-  position: absolute;
-  left: 40px; top: 80px;
-  width: 1200px; height: 580px;
-  display: grid;
-  gap: 20px;
-}
-```
+版式文件**不提供** HTML Grid 骨架代码。LLM 应基于重力场哲学自主构建 Grid 结构。
 
-### 骨架使用总则
+### card_style 让卡片"活"过来
 
-每个布局文件（如 `hero-top.md`、`primary-secondary.md`）都包含**完整的 HTML 骨架代码**，标注了每个卡片需要的 `grid-row` 和 `grid-column` 属性。生成 HTML 时：
+骨架只管空间分布，card_style 决定每张卡片的存在感（详见 `blocks/card-styles.md`）。**每页至少 2 种 card_style** -- 这是灵动的最低门槛。
 
-1. 读取对应布局文件的 HTML 骨架
-2. 以骨架为起点，只替换卡片内部内容（标题、正文、数据、图表）
-3. 跨行/跨列的 `grid-row: 1 / -1` 或 `grid-column: 1 / -1` 等属性不可删除
-4. 简单布局（对称、非对称、三栏、瀑布流）不需要额外的 grid 定位；复杂布局（主次、英雄、L型、T型、混合网格的跨列变体）需要严格按骨架标注
+## 非 content 页的自由度
 
-## 页面类型布局
+| 页面类型 | 设计自由度 | 核心要求 |
+|---------|-----------|---------| 
+| 封面页 (cover) | 最高 -- 不使用 Grid，完全自由编排 | 巨大的标题冲击力 + 配图/氛围 + 品牌印记 |
+| 章节封面 (section) | 高 -- 不使用 Grid，居中或偏心编排 | PART 编号 + 大面积留白制造呼吸转折 |
+| 目录页 (toc) | 中 -- 等分 Grid 但内容自由 | 章节标题清晰可辨，层次递进 |
+| 结束页 (end) | 高 -- 自由编排 | 核心回顾 + CTA + 与封面视觉呼应 |
 
-### 封面页 (cover)
-- 大标题居中或左对齐, font-size=48-56px, accent-primary 色
-- 副标题 font-size=24px
-- 演讲人/日期/公司 底部小号文字 font-size=16px
-- 装饰: 品牌色块、几何线条、配图（渐隐融合技法）
-- **不使用 Bento Grid**，自由排版
+## 版式决策矩阵（内容特征 -> 重力分布倾向）
 
-### 目录页 (toc)
-- 2-5 个等大卡片网格
+| 内容特征 | 推荐版式 | 重力场描述 |
+|---------|---------|-----------|
+| 1 个核心论点/数据独占全场 | 单一焦点 `single-focus.md` | 所有重力汇聚于画面中心或黄金分割点，四周悉数留白 |
+| 2 个对等概念碰撞 | 对称 `symmetric.md` | 左右等量的重力对峙，如天平两端 |
+| 主概念 + 补充注解 | 非对称 `asymmetric.md` | 重力明显偏向一侧（6:4），另一侧轻声附和 |
+| 3 个并列要素平等展示 | 三栏 `three-column.md` | 三个均衡的重力池横向排列 |
+| 1 核心 + 2 佐证 | 主次 `primary-secondary.md` | 一个贯穿式的重力深渊 + 两个悬浮的轻量卫星 |
+| 综述 + 3-4 子展开 | 英雄式 `hero-top.md` | 顶部横贯的重力大坝 + 底部分散的轻量溪流 |
+| 4-6 异构信息密集排布 | 混合网格 `mixed-grid.md` | 多个不同密度的重力点交错分布 |
+| 主论点 + 侧面佐证 + 底部总结 | L 型 `l-shape.md` | L 形的重力轨迹：从主体滑向侧面再沉入底部 |
+| 总览 + 展开 + 侧面数据 | T 型 `t-shape.md` | T 形悬臂：顶部横跨的总览 + 底部偏心的深潜 |
+| 多条不等高的信息瀑布 | 瀑布流 `waterfall.md` | 参差不齐的重力阶梯，制造自然的视觉节奏 |
 
-| 卡片数 | grid-template-columns | 单卡尺寸 |
-|-------|----------------------|---------|
-| 2 | 1fr 1fr | 590x540 |
-| 3 | repeat(3, 1fr) | 387x540 |
-| 4 | 1fr 1fr / 1fr 1fr (2x2) | 590x260 |
-| 5 | repeat(3, 1fr) / repeat(2, 1fr) (3+2) | 混合 |
+**硬性约束**：
+- **相邻 content 页禁止使用相同版式** -- 重力场重复 = 翻页如克隆
+- **全 PPT 任一版式占比不超过 30%** -- 10 种版式是工具箱，不是最爱的 3 个轮换
+- **每页策划时回顾已用版式** -- 主动选择未用过的，L 型和 T 型同样灵动
 
-### 章节封面 (section)
-- "PART 0X" font-size=20px, accent-primary, letter-spacing=2px
-- 标题 font-size=44px, font-weight=700
-- 导语 font-size=18px, color=text-secondary
-- 大量留白，营造呼吸感
-- **不使用 Bento Grid**，居中排版
+## 灵动法则：如何让同一版式看起来截然不同
 
-### 结束页 (end)
-- 标题 font-size=44px 居中
-- 核心要点 3-5 个, font-size=18px
-- 联系方式/CTA 底部
+即使两页都用了"主次结合"版式，它们也应该看起来完全不同。方法：
 
----
+1. **重力反转**：第一页主区域在左，第二页可以将 `grid-template-columns` 改为 `1fr 2fr` 让主区域在右
+2. **存在感变奏**：第一页主卡片用 `accent` + 辅助用 `transparent`，第二页主卡片用 `elevated` + 辅助用 `outline`
+3. **密度跳变**：第一页主区域塞满图表数据，第二页主区域只有一句巨大的金句 + 80% 留白
+4. **边界挑衅**：第一页所有元素老实待在格子里，第二页让某个装饰元素（大号水印/数据残影）故意溢出格子边界
 
-## 布局决策矩阵
-
-| 内容特征 | 推荐布局 | 文件 | 卡片数 |
-|---------|---------|------|-------|
-| 1 个核心论点/数据 | 单一焦点 | `single-focus.md` | 1 |
-| 2 个对比/并列 | 50/50 对称 | `symmetric.md` | 2 |
-| 主概念 + 补充 | 非对称两栏 | `asymmetric.md` | 2 |
-| 3 个并列要素 | 三栏等宽 | `three-column.md` | 3 |
-| 1 核心 + 2 辅助 | 主次结合 | `primary-secondary.md` | 3 |
-| 综述 + 3-4 子项 | 顶部英雄式 | `hero-top.md` | 4-5 |
-| 4-6 异构块 | 混合网格 | `mixed-grid.md` | 4-6 |
-| 主区 + 侧栏 + 底部总结 | L 型 | `l-shape.md` | 4 |
-| 总览 + 展开 + 侧面数据 | T 型 | `t-shape.md` | 4 |
-| 多条不等高信息 | 瀑布流 | `waterfall.md` | 4-6 |
-
-**选择原则**：根据内容特征平等选择，10 种布局都是工具箱里的工具而非装饰品。**相邻 content 页禁止使用相同布局，全 PPT 任一布局占比不超过 30%**。L 型、T 型、瀑布流对于有层次的内容同样优秀，不要只习惯用英雄式/主次结合/混合网格。
-
----
-
-## 6 种卡片内容类型
-
-### text（文本卡片）
-- 标题: h3, 18-20px, 700 weight
-- 正文: p, 13-14px, line-height 1.8
-- 关键词用 `<strong>` 或 `<span class="highlight">` 高亮
-- **最低要求**: 标题 + 至少 2 段正文（每段 30-50 字）
-
-### data（数据卡片）
-- 核心数字: 36-48px, 800 weight, accent 色
-- 单位/标签: 14-16px, text-secondary
-- 补充解读: 13px
-- 推荐搭配一个 CSS 可视化（进度条/对比柱/环形图）
-- **最低要求**: 核心数字 + 单位 + 趋势 + 解读 + 可视化
-
-### list（列表卡片）
-- 圆点: 6-8px 圆点, accent 色
-- 文字: 13px, line-height 1.6
-- 交替使用不同 accent 色圆点增加层次感
-- **最低要求**: 至少 4 条列表项，每条 15-30 字
-
-### tag_cloud（标签云）
-- 容器: flex-wrap, gap=8px
-- 标签: 圆角胶囊形, 12px, accent 色边框
-- **最低要求**: 至少 5 个标签
-
-### process（流程卡片）
-- 节点: 32px 圆形, accent 色, 居中步骤数字
-- 连线: **真实 `<div>` 元素**（禁止 ::before/::after）
-- 箭头: **内联 SVG `<polygon>`**（禁止 CSS border 三角形）
-- **最低要求**: 至少 3 个步骤，每步标题 + 一句描述
-
-### data_highlight（大数据高亮区）
-- 用于封面或重点页的超大数据展示
-- 数字: 64-80px, 900 weight, accent 色
-- 副标题 + 补充数据行
-- **最低要求**: 1 个超大数字 + 副标题 + 补充数据行
+> 灵动不是混乱。灵动是在同一套设计基因（色彩变量 + 字体系统）的约束下，让每一页的视觉编排都出人意料、令人屏息。

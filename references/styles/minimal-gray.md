@@ -2,38 +2,38 @@
 
 适用场景：学术/研究报告、法务/合规、咨询/顾问报告、数据分析
 
-## JSON 定义
+## style.json 参考
 
 ```json
 {
-  "style_name": "极简灰白 (Minimal Gray)",
   "style_id": "minimal_gray",
-  "background": { "primary": "#FAFAFA", "gradient_to": "#F5F5F5" },
-  "card": { "gradient_from": "#FFFFFF", "gradient_to": "#FAFAFA", "border": "rgba(0,0,0,0.08)", "border_radius": 8 },
-  "text": { "primary": "#171717", "secondary": "#737373", "title_size": 28, "body_size": 14, "card_title_size": 20 },
-  "accent": { "primary": ["#171717", "#404040"], "secondary": ["#DC2626", "#B91C1C"] },
-  "font_family": "'Inter', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif",
-  "grid_pattern": { "enabled": false },
-  "decorations": { "corner_lines": false, "glow_effects": false, "description": "纯净无装饰、大量留白、精确排版、红色仅用于关键数据强调" }
-}
-```
-
-## CSS 变量
-
-```css
-:root {
-  --bg-primary: #FAFAFA;
-  --bg-secondary: #F5F5F5;
-  --card-bg-from: #FFFFFF;
-  --card-bg-to: #FAFAFA;
-  --card-border: rgba(0,0,0,0.08);
-  --card-radius: 8px;
-  --text-primary: #171717;
-  --text-secondary: #737373;
-  --accent-1: #171717;
-  --accent-2: #404040;
-  --accent-3: #DC2626;
-  --accent-4: #B91C1C;
+  "style_name": "极简灰白 (Minimal Gray)",
+  "mood_keywords": ["Helvetica纯净", "手术室般精确", "零噪音", "信息至上", "冷调秩序"],
+  "design_soul": "一本 Dieter Rams 的工业设计图册翻到了空白页 -- 除了一行用 Helvetica Bold 排印的数据和一条红色下划线，整个页面只有纯净的白。每一像素的留白都在说：'信息本身就是装饰'",
+  "variation_strategy": "数据页用大面积留白+唯一的红色数字锚点（极简聚焦），文字密集页用极细灰色分隔线+严格的网格对齐（排字工坊），章节封面仅放编号和标题（空旷冷寂），变化不靠装饰而靠密度的剧烈反差 -- 上一页满满当当的信息阵列，下一页只有一句话浮在白色沙漠中",
+  "decoration_dna": {
+    "signature_move": "零装饰本身就是装饰 -- 靠字重/字号的极端反差和精准对齐制造高级感",
+    "forbidden": ["渐变色块", "光晕效果", "装饰SVG", "彩色标签", "角标装饰"],
+    "recommended_combos": [
+      "单线分隔 + 小圆点编号 + 大面积留白",
+      "红色关键数字 + 极细灰线 + 零装饰"
+    ]
+  },
+  "css_variables": {
+    "bg_primary": "#FAFAFA",
+    "bg_secondary": "#F5F5F5",
+    "card_bg_from": "#FFFFFF",
+    "card_bg_to": "#FAFAFA",
+    "card_border": "rgba(0,0,0,0.08)",
+    "card_radius": "8px",
+    "text_primary": "#171717",
+    "text_secondary": "#737373",
+    "accent_1": "#171717",
+    "accent_2": "#404040",
+    "accent_3": "#DC2626",
+    "accent_4": "#B91C1C"
+  },
+  "font_family": "'Inter', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif"
 }
 ```
 
