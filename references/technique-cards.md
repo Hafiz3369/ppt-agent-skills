@@ -114,18 +114,22 @@
 
 ---
 
-## T9. 脉冲锚点 -- accent 色的呼吸圆点标记关键位置
+## T9. 脉冲锚点 -- accent 色圆点标记关键位置
 
 ```html
-<div style="position:relative; display:inline-block;">
-  <div style="width:8px; height:8px; border-radius:50%;
-      background:var(--accent-1);"></div>
-  <div style="position:absolute; top:-4px; left:-4px;
-      width:16px; height:16px; border-radius:50%;
+<div style="position:relative; display:inline-flex; align-items:center; justify-content:center;
+    width:16px; height:16px;">
+  <!-- 外圈光晕（自动居中） -->
+  <div style="position:absolute; inset:0; border-radius:50%;
       background:var(--accent-1); opacity:0.15;"></div>
+  <!-- 内圈实心 -->
+  <div style="width:8px; height:8px; border-radius:50%;
+      background:var(--accent-1); position:relative; z-index:1;"></div>
 </div>
 ```
-**ADAPT**：内圈 6-10px 外圈 14-20px / 位置（时间线节点/卡片角标/标题旁） / 颜色用 accent-1 到 accent-4 轮换
+**ADAPT**：内圈 6-10px 外圈 14-20px / 位置（时间线节点/卡片角标/标题旁） / 颜色用 accent-1 到 accent-4 轮换 / 外圈也可改为 `border: 1px solid` 实现空心环效果
+
+> **居中原则**：外圈用 `position:absolute; inset:0` 自动撑满父容器居中，不要用手动 `top/left` 负偏移（计算错误会导致偏心）。父容器用 `inline-flex + align-items:center + justify-content:center` 确保内圈也居中。
 
 ---
 
