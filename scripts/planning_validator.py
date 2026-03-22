@@ -38,7 +38,7 @@ VALID_CARD_TYPES = {
     "text", "data", "list", "process", "tag_cloud", "data_highlight",
     # 复合
     "timeline", "diagram", "quote", "comparison", "people",
-    "icon_group", "image_hero", "matrix_chart",
+    "image_hero", "matrix_chart",
 }
 
 VALID_CARD_STYLES = {
@@ -63,7 +63,7 @@ VALID_LAYOUT_HINTS = {
 
 COMPLEX_CARD_TYPES = {
     "timeline", "diagram", "quote", "comparison", "people",
-    "icon_group", "image_hero", "matrix_chart",
+    "image_hero", "matrix_chart",
 }
 
 CHART_REQUIRING_TYPES = {"data", "data_highlight"}
@@ -168,7 +168,7 @@ def validate_single(planning: dict, refs_dir: Path | None) -> ValidationResult:
 
         # resource_ref 路径存在性检查
         if refs_dir and isinstance(ref, dict):
-            for key in ("block", "chart", "icon", "principle"):
+            for key in ("block", "chart", "principle"):
                 path = ref.get(key, "")
                 if path:
                     clean = path.removeprefix("references/")

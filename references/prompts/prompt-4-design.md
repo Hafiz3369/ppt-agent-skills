@@ -132,7 +132,6 @@
 - **LAYOUT**: 布局骨架的 HTML Grid 结构 -> **直接复制作为页面起点**，不要自己猜 Grid 参数
 - **BLOCKS**: 复合组件（timeline/diagram/quote 等）的结构和设计要点 -> **按其要点实现**，特别注意推荐的 card_style
 - **CHARTS**: 图表的 HTML/SVG 模板代码 -> **复制代码并填充实际数据**，不要凭空写图表
-- **ICONS**: SVG 图标代码 -> **直接内联使用**
 - **PRINCIPLES**: 本页相关的设计原则摘要 -> **设计决策时参考**，特别是自检项
 
 > 如果 RESOURCES 块中有内容，**必须使用**。忽略注入的参考资源 = 输出质量下降。
@@ -246,7 +245,6 @@
 | `quote` | 引用结构 + 来源格式 | `transparent` | 大号引号装饰 + 左侧 accent 竖线 |
 | `comparison` | 双面板结构 + VS 分隔符 | `outline` | 内部 grid 1fr 1fr，对比维度对齐 |
 | `people` | 成员结构 + 头像规范 | `transparent` | 内部 grid repeat(N,1fr)，圆形裁切头像 |
-| `icon_group` | 特性项结构 + 图标规格 | `filled` / `transparent` | 每格 icon + 标题 + 描述，统一大小 |
 | `image_hero` | 图层结构 + 遮罩规范 | `transparent` | object-fit:cover + 真实 div 遮罩（禁 mask-image） |
 | `matrix_chart` | 象限结构 + 轴标签 | `transparent` | 十字轴居中，highlight 象限 accent 色 |
 

@@ -8,7 +8,7 @@ LLM 只需 view_file 即可获得完整上下文。
 
 planning JSON 格式（两层资源绑定）:
   - 页面级: required_resources（layout / page_template / principles[]）
-  - 卡片级: cards[].resource_ref（block / chart / icon / principle）
+  - 卡片级: cards[].resource_ref（block / chart / principle）
 
 用法:
   # 单页模式（输出到 stdout）
@@ -120,7 +120,7 @@ def assemble_resources(planning_path: Path, refs_dir: Path) -> str:
 
         res_lines = []
 
-        for key in ("block", "chart", "icon", "principle"):
+        for key in ("block", "chart", "principle"):
             path = ref.get(key)
             if not path:
                 continue

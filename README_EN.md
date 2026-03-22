@@ -25,7 +25,7 @@ Requirements Interview → Research → Outline → Planning Draft (with Image S
 | **Typography System** | 7-level font scale + spacing hierarchy + CJK mixed typesetting rules |
 | **Color Proportion** | 60-30-10 rule enforcement + accent color constraints |
 | **Data Visualization** | 13 pure CSS/SVG chart types (progress bars, ring charts, sparklines, waffle, KPI, radar, funnel, etc.) |
-| **Building Blocks** | 9 reusable HTML blocks (timeline, people cards, comparison, matrix, quotes, icon groups, etc.) |
+| **Building Blocks** | 7 reusable HTML blocks (timeline, people cards, comparison, matrix, quotes, image hero, etc.) |
 | **Design Principles** | 6 design principle references (cognitive load, color psychology, composition, data viz, narrative arc, visual hierarchy) |
 | **Cross-page Narrative** | Density alternation, chapter color progression, cover-ending visual echo |
 | **Quality Baseline** | Independent quality checklist for consistent output |
@@ -77,8 +77,7 @@ ppt-agent-skill/
     styles/                   # 8 preset styles (individual files + README decision rules)
     layouts/                  # 10 layouts (individual files + README canvas params)
     charts/                   # 13 chart templates (individual files + README selection guide)
-    icons/                    # 4 SVG icon categories (individual files + README usage rules)
-    blocks/                   # 9 building blocks (timeline, people, comparison, matrix, etc.)
+    blocks/                   # 7 building blocks (timeline, people, comparison, matrix, etc.)
     page-templates/           # Cover/TOC/Section/End page templates
     principles/               # 6 design principles (cognitive load, color psychology, etc.)
   scripts/
@@ -131,9 +130,8 @@ HTML slides
 - **Quality Baseline**: New `quality-baseline.md` independent quality checklist
 
 **New Resource Libraries (6 modules):**
-- **Building Blocks** `blocks/`: 9 reusable HTML blocks (timeline, people cards, comparison, matrix, quotes, icon groups, etc.)
+- **Building Blocks** `blocks/`: 7 reusable HTML blocks (timeline, people cards, comparison, matrix, quotes, image hero, etc.)
 - **Design Principles** `principles/`: 6 design principle references (cognitive load, color psychology, composition, data visualization, narrative arc, visual hierarchy)
-- **Icon Reference** `icons/`: 4 SVG icon categories (content concepts, data analytics, industry scenarios, process structure)
 - **Chart Templates** `charts/`: 13 pure CSS/SVG chart individual template files
 - **Layout Reference** `layouts/`: 10 layout reference files (symmetric, asymmetric, L-shape, T-shape, hero, waterfall, etc.)
 - **Style System** `styles/`: 8 preset style individual files + README decision rules

@@ -1171,7 +1171,7 @@ def convert(svg_input, output_path, on_progress=None):
     if svg_input.is_file():
         svg_files = [svg_input]
     elif svg_input.is_dir():
-        svg_files = sorted(svg_input.glob('*.svg'))
+        svg_files = sorted(svg_input.glob('*.svg'), key=lambda p: [int(x) if x.isdigit() else x.lower() for x in re.split(r'(\d+)', p.stem)])
     else:
         print(f"Error: {svg_input} not found", file=sys.stderr)
         sys.exit(1)

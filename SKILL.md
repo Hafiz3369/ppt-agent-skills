@@ -205,18 +205,20 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 | # | 读取什么 | 获得什么 | 影响策划的什么决策 |
 |---|---------|---------|----------------|
+| **0** | **`principles/design-principles-cheatsheet.md`** | **6 大原则 -> planning JSON 字段操作手册 + 逐页 8 项体检单** | **不是告诉 LLM "什么是好设计"，而是告诉它 "JSON 的每个字段怎么填才对、不对怎么改"。策划阶段的地基，必须第一个读取。** |
 | 1 | `layouts/README.md` | 10 种布局骨架 + 决策矩阵 | 每页的 `layout_hint` 选择 |
 | 2 | `blocks/README.md` | 8 种复合组件 + 选择指南 | 每页的 `card_type` 组合方式 |
 | 3 | `blocks/card-styles.md` | 6 种卡片视觉变体 + 搭配规则 | 每张卡片的 `card_style` 选择 |
 | 4 | `charts/README.md` | 13 种图表 + 数据类型映射 | data 卡片的 `chart_type` 选择 |
-| 5 | `icons/README.md` | 4 类 SVG 图标 | 图标类卡片的 icon 选择 |
-| 6 | `principles/README.md` | 6 大设计原则索引 | 策划时就考虑原则 |
-| 7 | `styles/README.md` 的**装饰技法工具箱**章节 | 3 层装饰技法（背景层/卡片层/页面层各 5 种）+ 管线安全底线 | 每页 `decoration_hints` 的选择 |
-| 8 | `image-generation.md`（**需要配图时**） | prompt 6 维度构造公式 + 场景叙事翻译表 + 风格关键词表 + 构图自适应表 | 每页 `image.prompt` 的构造 + `image.usage` 的选择 |
+| 5 | `principles/README.md` | 6 大设计原则索引 | 策划时就考虑原则 |
+| 6 | `styles/README.md` 的**装饰技法工具箱**章节 | 3 层装饰技法（背景层/卡片层/页面层各 5 种）+ 管线安全底线 | 每页 `decoration_hints` 的选择 |
+| 7 | `image-generation.md`（**需要配图时**） | prompt 6 维度构造公式 + 场景叙事翻译表 + 风格关键词表 + 构图自适应表 | 每页 `image.prompt` 的构造 + `image.usage` 的选择 |
 
-> 第 8 项仅在 Q7 配图偏好 != A（不需要）时读取。策划师要写 `image.prompt`，就必须先掌握 prompt 构造方法、场景翻译技巧和各风格的关键词——没有这些上下文就是"没见过食材长什么样就要写菜谱"。
+> 第 0 项是整个策划阶段的**地基**。它将 6 大设计原则（CRAP/Miller's Law/60-30-10/格式塔/Tufte/金字塔原理）翻译为 planning JSON 的字段级操作指令 -- 每条原则直接告诉 LLM 操作哪个字段、填什么值、怎么判断对不对、不对怎么改。通过 `{{DESIGN_PRINCIPLES_CHEATSHEET}}` 占位符注入到 prompt-3 的上下文中。
 >
-> 第 7 项的 `styles/README.md` 只读"装饰技法工具箱"章节（L100-141），**不读**风格决策流程和调色板信息（那些留给 Step 5a）。策划师需要知道"有哪些装饰手法可选"，但不需要此刻决定具体配色。
+> 第 7 项仅在 Q7 配图偏好 != A（不需要）时读取。策划师要写 `image.prompt`，就必须先掌握 prompt 构造方法、场景翻译技巧和各风格的关键词——没有这些上下文就是"没见过食材长什么样就要写菜谱"。
+>
+> 第 6 项的 `styles/README.md` 只读"装饰技法工具箱"章节（L100-141），**不读**风格决策流程和调色板信息（那些留给 Step 5a）。策划师需要知道"有哪些装饰手法可选"，但不需要此刻决定具体配色。
 
 > 预读后，策划师就知道自己的"工具箱"里有什么。后续逐页策划时，根据内容特征从工具箱中选择最合适的组件，而非只用最熟悉的几种。
 
@@ -224,12 +226,15 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 **执行**：使用 `references/prompts/prompt-3-planning.md`（内容分配与策划稿）
 
+> **设计原则注入（核心机制）**：prompt-3 中的 `{{DESIGN_PRINCIPLES_CHEATSHEET}}` 占位符，必须替换为 4a 阶段读取的 `principles/design-principles-cheatsheet.md` 的完整内容。这确保策划师在设计每一页时，6 大黄金标准（CRAP/Miller's Law/60-30-10/格式塔/Tufte/金字塔原理）的核心决策点都在上下文中，而非"读过一遍就忘了"。同时 `{{USER_PREFERENCES}}` 替换为 Step 1 收集的用户喜好与风格偏好信息。
+
 **要点**：
+- **逐页体检**：每页 planning JSON 完成后，按 cheatsheet 尾部的 8 项体检单逐条检查 -- 每项指明看 JSON 的哪个字段、不通过时做什么具体修改（如"goal 含'和'字 -> 拆页"、"accent card_style > 1 -> 改 filled"），不是笼统地"检查一下"
 - 将搜索素材精准映射到每页
 - 为每页设计多层次内容结构（主内容 40-100 字 + 数据亮点 + 辅助要点）
 - 每页选择布局（`layout_hint`，从预读的 10 种布局中选择）
 - 每个区域自由组合 14 种 card_type（从预读的 6 种基础 + 8 种复合中选择）
-- 复合类型卡片（timeline/diagram/quote/comparison/people/icon_group/image_hero/matrix_chart）可跨列跨行，与基础卡片自由混搭
+- 复合类型卡片（timeline/diagram/quote/comparison/people/image_hero/matrix_chart）可跨列跨行，与基础卡片自由混搭
 - data 卡片需指定 `chart_type`（从预读的 13 种图表中选择）
 - 叙事节奏参考 `references/narrative-rhythm.md` 的视觉重量规则
 - 每页 planning JSON 带 `visual_weight` 分数
@@ -346,52 +351,57 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 | 总页数 >= 18 | 读取 `narrative-rhythm.md` 的 **20 页标准模板** |
 | Part 数量确定后 | 读取 `narrative-rhythm.md` 的**章节色彩递进规则** |
 
-**第三层：脚本自动组装资源（每页 HTML 生成前必须执行）**
+**第三层：prompt_assembler 自动组装完整 prompt（每页 HTML 生成前必须执行）**
 
-> **禁止手动逐个 view_file 资源文件，禁止跳过此步。** 资源组装已自动化为 `resource_assembler.py` 脚本，LLM 只需执行两个操作：运行脚本 + view_file 输出文件。这彻底消除了"偷懒不读资源自己瞎猜"的可能性。
+> **核心变化：LLM 不再需要自己拼装 prompt。** `prompt_assembler.py` 一次性完成所有占位符替换，输出一个开箱即用的完整 prompt 文件。LLM 只需 `view_file` 一个文件就获得全部上下文（设计模板 + CSS 变量 + 策划 JSON + 配图信息 + [RESOURCES] 资源块），从根本上消除"忘记读资源"的可能性。
 
-**原理**：`resource_assembler.py` 读取 `planning{n}.json`，自动提取两层资源声明——页面级 `required_resources`（layout / page_template / principles[]）和卡片级 `cards[].resource_ref`（block / chart / icon / principle），读取每个资源文件的完整内容，按 `[RESOURCES]` 块格式组装输出到文本文件。
+**原理**：`prompt_assembler.py` 读取 `prompt-4-design.md` 模板，替换其中 5 个占位符：
+- `{{STYLE_DEFINITION}}` <- `style.json` 的 CSS 变量定义
+- `{{PLANNING_JSON}}` <- `planning{n}.json` 的完整 JSON
+- `{{PAGE_CONTENT}}` <- 从 planning JSON 中提取的内容摘要
+- `{{IMAGE_INFO}}` <- 配图信息（usage + path + placement），无配图时自动省略
+- `{{RESOURCES}}` <- 内部调用 `resource_assembler.py` 组装的完整资源块（布局骨架 + 组件模板 + 图表模板 + 设计原则）
 
-**每页 HTML 生成前的强制执行流程**：
+**首页 HTML 生成前的强制执行流程（批量模式，推荐）**：
 
 ```bash
-# Step 1: 运行脚本组装资源（机械化，无需 LLM 判断）
-python3 SKILL_DIR/scripts/resource_assembler.py \
-  OUTPUT_DIR/planning/planning{n}.json \
+# 一次性为所有页面组装完整 prompt（执行一次，后续逐页 view_file）
+python3 SKILL_DIR/scripts/prompt_assembler.py \
+  OUTPUT_DIR/planning/ \
   --refs SKILL_DIR/references \
-  -o OUTPUT_DIR/resources/resources-{n}.txt
-
-# Step 2: 读取组装后的资源文件（view_file）
-view_file OUTPUT_DIR/resources/resources-{n}.txt
+  --style OUTPUT_DIR/style.json \
+  --image-dir OUTPUT_DIR/images/ \
+  -o OUTPUT_DIR/prompts-ready/
 ```
 
-> 首页 HTML 生成前，可选用批量模式一次性为所有页面组装资源：
+> 也支持单页模式：
 > ```bash
-> python3 SKILL_DIR/scripts/resource_assembler.py \
->   OUTPUT_DIR/planning/ \
+> python3 SKILL_DIR/scripts/prompt_assembler.py \
+>   OUTPUT_DIR/planning/planning{n}.json \
 >   --refs SKILL_DIR/references \
->   -o OUTPUT_DIR/resources/
+>   --style OUTPUT_DIR/style.json \
+>   --image-dir OUTPUT_DIR/images/ \
+>   -o OUTPUT_DIR/prompts-ready/prompt-ready-{n}.txt
 > ```
-> 之后每页生成前只需 `view_file OUTPUT_DIR/resources/resources-{n}.txt` 即可。
 
-**输出的 [RESOURCES] 块包含**（按两层分区组织，无内容的分区自动省略）：
+**每页 HTML 生成时只需一步**：
 
-| 分区 | 来源 | 内容 |
-|------|------|------|
-| `=== LAYOUT ===` | `required_resources.layout` | 布局文件的完整 HTML 骨架（Grid 结构 + card_style 映射表） |
-| `=== PAGE_TEMPLATE ===` | `required_resources.page_template` | 页面结构规范（封面/目录/章节/结束页） |
-| `=== PAGE_PRINCIPLES ===` | `required_resources.principles[]` | 页面级设计原则完整内容 |
-| `=== CARD_RESOURCES ===` | `cards[].resource_ref` | 按卡片序号分组：每个卡片的 [block]/[chart]/[icon]/[principle] 资源完整内容 |
+```
+view_file OUTPUT_DIR/prompts-ready/prompt-ready-{n}.txt
+```
+
+然后直接根据完整 prompt 生成 HTML，**不需要再手动读取任何资源文件**。
 
 > 脚本输出会显示资源统计和 WARNING（文件未找到时），方便快速发现 planning JSON 中的路径错误。
 
 **首页生成前必须完整读取的全局资源**（仅一次，全局生效）：
-- `references/prompts/prompt-4-design.md` -- 设计规则基础
 - `references/pipeline-compat.md` -- 管线约束硬性规则
 - `references/styles/README.md` -- 装饰技法工具箱 + 色彩原则
 - `references/blocks/card-styles.md` -- **6 种卡片视觉变体的 CSS 实现**（每页都用到）
 - `references/principles/README.md` -- 设计原则索引
 - `references/blocks/README.md` -- 复合组件索引
+
+> **注意**：`prompt-4-design.md` 不再需要手动读取，其内容已由 `prompt_assembler.py` 自动注入到每页的 `prompt-ready-{n}.txt` 中。
 
 > 页面类型专属规范：封面/目录/章节封面/结束页的结构规范已通过 `required_resources.page_template` 指定路径（如 `page-templates/cover.md`），无需另行查映射。**规范只定义"必须有哪些区域"，不提供具体 HTML 代码**。每次生成时，构图方式、排版比例、装饰元素必须根据所选风格的装饰 DNA 自由变化。
 
@@ -403,28 +413,18 @@ view_file OUTPUT_DIR/resources/resources-{n}.txt
 
 > **视觉完成度基准**：每页必须达到 `references/quality-baseline.md` 定义的视觉丰富度 checklist。每页最低标准 -- 必须包含：页面标题区、3-5 张混合类型卡片、至少 1 个数据可视化、装饰元素（至少 2 种，且匹配所选风格的装饰 DNA）、完整页脚。
 
-**每页 Prompt 组装公式**：
-```
-Prompt #4 模板
-+ CSS 变量定义（5a 产物）[必须]
-+ 该页策划稿 JSON（Step 4 产物，含 cards[]/card_type/chart_type/position/layout_hint）[必须]
-+ 该页内容文本（Step 4 产物）[必须]
-+ [RESOURCES] 块：view_file resources-{n}.txt 的完整内容（resource_assembler.py 自动组装）[必须]
-+ 配图信息（usage + 路径 + placement，来自 planning JSON 的 image 字段 + 5b 产物路径）[可选 -- usage=none 时省略 IMAGE_INFO 块]
-```
-
 > **装饰手法不在每页 Prompt 中重复注入。** 装饰工具箱（`styles/README.md`）在首页生成前读取一次，模型每页自由组合不同装饰技法，而不是被同一份装饰说明反复引导。
 
-**核心设计约束**（完整清单见 Prompt #4 内部）：
+**核心设计约束**（完整清单见 prompt-ready 文件内部）：
 - 画布 1280x720px，overflow:hidden
 - 所有颜色通过 CSS 变量引用，禁止硬编码
 - 凡视觉可见元素必须是真实 DOM 节点，图形优先用内联 SVG
 - 禁止 `::before`/`::after` 伪元素用于视觉装饰、禁止 `conic-gradient`、禁止 CSS border 三角形
 - 配图融入设计：按 `planning{n}.json` 的 `image.usage` 决定融入技法（7 种用法详见 `image-generation.md`）
 
-**布局骨架引用（防错位核心机制）**：每个布局文件（如 `layouts/hero-top.md`）包含完整的 HTML 骨架代码。生成 content 页时，`resources-{n}.txt` 的 LAYOUT 分区已包含完整骨架代码，以此为起点填充内容。跨行/跨列卡片的 `grid-row` / `grid-column` 属性必须与骨架保持一致。详见 Prompt #4 的"布局骨架使用方法"章节。
+**布局骨架引用（防错位核心机制）**：每个布局文件（如 `layouts/hero-top.md`）包含完整的 HTML 骨架代码。prompt-ready 文件的 [RESOURCES] 块中 LAYOUT 分区已包含完整骨架代码，以此为起点填充内容。跨行/跨列卡片的 `grid-row` / `grid-column` 属性必须与骨架保持一致。
 
-**逐页生成**：每次只读取 `OUTPUT_DIR/resources/resources-{n}.txt`（已包含该页所有资源），生成该页 HTML 后写入 `OUTPUT_DIR/slides/slide-{NN}.html`，再生成下一页。无需批量处理，每页都是轻量独立操作。
+**逐页生成**：每次只需 `view_file OUTPUT_DIR/prompts-ready/prompt-ready-{n}.txt`（已包含该页的完整 prompt），生成该页 HTML 后写入 `OUTPUT_DIR/slides/slide-{NN}.html`，再生成下一页。每页都是轻量独立操作。
 
 ##### 并行生成接口（subagent 预留）
 
@@ -435,14 +435,12 @@ Prompt #4 模板
 ```
 并行单元输入:
   page_number:       页码
-  planning_json:     OUTPUT_DIR/planning/planning{n}.json 的内容
-  style_json:        OUTPUT_DIR/style.json 的内容（全局共享，只读）
-  image_info:        该页配图信息（usage + path + placement，来自 planning JSON 的 image 字段 + 5b 产物路径，可为空）
-  global_resources:  首页前已读取的全局资源（prompt-4 / pipeline-compat / styles/README / principles/README / blocks/README / card-styles.md）
-  resources_txt:     resource_assembler.py 为该页生成的 resources-{n}.txt 完整内容（包含页面级+卡片级所有资源）
+  prompt_ready_txt:  prompt_assembler.py 为该页生成的 prompt-ready-{n}.txt 完整内容
+                     （已包含设计模板 + CSS 变量 + 策划 JSON + 配图信息 + [RESOURCES] 资源块）
+  global_resources:  首页前已读取的全局资源（pipeline-compat / styles/README / principles/README / blocks/README / card-styles.md）
 ```
 
-> **简化说明**：`resource_assembler.py` 已将资源组装完全自动化。调度者只需为每页运行一次脚本生成 `resources-{n}.txt`，然后将文件内容作为 `resources_txt` 字段注入即可。
+> **简化说明**：`prompt_assembler.py` 已将 prompt 组装完全自动化。调度者只需为每页运行一次脚本生成 `prompt-ready-{n}.txt`，然后将文件内容作为 `prompt_ready_txt` 字段注入即可。每个 prompt-ready 文件是完全自包含的。
 
 **并行策略**（subagent 可用时）：
 - 按 Part 分组（同一 Part 的页面分给同一 subagent，保证章节内视觉一致性）
@@ -460,7 +458,7 @@ Prompt #4 模板
 | 3 | **管线安全** | 无 `::before`/`::after` 装饰、无 `conic-gradient`、无 `-webkit-background-clip:text`、无 `mask-image`、无 `clip-path`、无 CSS border 三角形、无 `background-image:url()`；内联 SVG 中无 `<text>` 元素、无 `<use>`/`<symbol>`/`<clipPath>`/`<filter>` 元素；SVG path 只用 M/L/H/V/C/Z 命令（完整清单见 `pipeline-compat.md` 第 1、6 节） | 替换为管线安全写法（真实 DOM / 内联 SVG） |
 | 4 | **不溢出画布** | 内容区 `overflow:hidden`；每张卡片 `overflow:hidden`；图表容器有明确 `height`；正文有 `-webkit-line-clamp` 截断 | 缩减内容（缩短正文 > 减少列表项 > 移除装饰） |
 | 5 | **色彩规范** | 所有颜色通过 `var(--xxx)` 引用（除 transparent 和 rgba(255,255,255,0.x)）；accent 色不超过同页 2 种 | 替换硬编码颜色为 CSS 变量 |
-| 6 | **资源已消费** | `resources-{n}.txt` 中的资源已在 HTML 中体现：布局来自 LAYOUT 分区的骨架；每个卡片的复合组件/图表/图标符合 CARD_RESOURCES 分区中该卡片 [block]/[chart]/[icon] 的设计要点和模板；PAGE_PRINCIPLES 和卡片级 [principle] 在设计决策中被考虑 | 回读 `resources-{n}.txt` 对照修正 |
+| 6 | **资源已消费** | `prompt-ready-{n}.txt` 中 [RESOURCES] 块的资源已在 HTML 中体现：布局来自 LAYOUT 分区的骨架；每个卡片的复合组件/图表符合 CARD_RESOURCES 分区中该卡片 [block]/[chart] 的设计要点和模板；PAGE_PRINCIPLES 和卡片级 [principle] 在设计决策中被考虑 | 回读 `prompt-ready-{n}.txt` 的 [RESOURCES] 部分对照修正 |
 
 > 自检不是事后审查，而是生成流程的一部分。把 6 项检查融入"生成 -> 检查 -> 修正 -> 写入"的循环中。
 
@@ -625,7 +623,7 @@ slides/*.html --> svg/*.svg --> presentation.pptx
 ppt-output/
   progress.json        # 进度日志（中断恢复用）
   slides/              # 每页 HTML
-  resources/           # resource_assembler.py 组装的资源文本块（每页一个）
+  prompts-ready/       # prompt_assembler.py 组装的完整 prompt（每页一个）
   png/                 # PNG 截图（PNG 管线产物）
   svg/                 # 矢量 SVG（SVG 管线产物，可导入 PPT 编辑）
   images/              # AI 配图
@@ -660,21 +658,22 @@ ppt-output/
 | `prompts/prompt-1-research.md` | Step 1 | 需求调研 |
 | `prompts/prompt-2-outline.md` | Step 3 | 大纲架构 v3.0（叙事弧线 + 论证策略 + Part 逻辑关系） |
 | `prompts/prompt-3-planning.md` | Step 4 | 策划稿（含 14 种 card_type + decoration_hints） |
-| `prompts/prompt-4-design.md` | Step 5c 首页前 | HTML 设计稿 |
+| `prompts/prompt-4-design.md` | prompt_assembler.py 内部使用 | HTML 设计稿模板（不再需要手动读取） |
 | `blocks/README.md` | Step 4 首页前 | 复合组件选择指南 + 总表 |
 | `blocks/{type}.md` | Step 4 + 5c 按需 | 8 种复合区域展示组件 |
 | `principles/README.md` | Step 4 首页前 | 6 大设计原则索引 |
 | `principles/{name}.md` | 按需 | 视觉层级/认知负荷/构图/色彩/数据可视化/叙事 |
+| `principles/design-principles-cheatsheet.md` | Step 4 首页前（第 0 号必读项） | **6 大原则 -> JSON 字段操作手册 + 逐页体检单，注入 prompt-3 上下文** |
 | `styles/README.md` | Step 5a + 5c 首页前 | 色彩原则 + 装饰工具箱 |
 | `styles/{id}.md` | Step 5a | 8 个参考调色板 |
 | `layouts/README.md` | Step 5c 首页前 | 骨架使用总则 |
-| `layouts/{layout}.md` | Step 5c 按需 | 10 种布局骨架 |
-| `charts/{type}.md` | Step 5c 按需 | 13 种图表模板 |
-| `icons/{category}.md` | Step 5c 按需 | 4 类 SVG 图标 |
-| `page-templates/{type}.md` | Step 5c 按需 | 页面结构建议 |
-| `narrative-rhythm.md` | Step 3 后 | 节奏 + 色彩递进 + 规则冲稁优先级 + 边缘场景 |
+| `layouts/{layout}.md` | prompt_assembler.py 自动组装 | 10 种布局骨架 |
+| `charts/{type}.md` | prompt_assembler.py 自动组装 | 13 种图表模板 |
+| `page-templates/{type}.md` | prompt_assembler.py 自动组装 | 页面结构建议 |
+| `narrative-rhythm.md` | Step 3 后 | 节奏 + 色彩递进 + 规则冲突优先级 + 边缘场景 |
 | `pipeline-compat.md` | Step 5c 首页前 | CSS 禁止清单 |
 | `quality-baseline.md` | Step 5c 首页前 | 视觉完成度 checklist |
 | `resource-registry.md` | 维护时 | **全局映射唯一权威源** |
-| `scripts/resource_assembler.py` | Step 5c 每页生成前 | 自动组装 [RESOURCES] 文本块 |
+| `scripts/prompt_assembler.py` | Step 5c 首页生成前 | **自动组装完整 prompt**（模板+风格+策划+资源+配图，一次性替换所有占位符） |
+| `scripts/resource_assembler.py` | prompt_assembler.py 内部依赖 | 组装 [RESOURCES] 文本块（不再需要手动调用） |
 | `scripts/planning_validator.py` | Step 4 每页写入后 + 全量验证 | 策划稿 JSON 格式与规则验证（单页+跨页） |

@@ -11,14 +11,13 @@
 | `quote` | 引用/金句块 | `quote.md` | 跨列 |
 | `comparison` | 对比块 | `comparison.md` | 跨列 |
 | `people` | 人物组块 | `people.md` | 跨列 |
-| `icon_group` | 图标组块 | `icon-group.md` | 跨列 |
 | `image_hero` | 大图+叠加文字块 | `image-hero.md` | 跨列或跨行 |
 | `matrix_chart` | 象限矩阵块 | `matrix-chart.md` | 跨列跨行 |
 
 ## 与基础 card_type 的关系
 
 基础类型（text/data/list/process/tag_cloud/data_highlight）在 prompt-4 中内联定义。
-复合类型（上表 8 种）从本目录按需加载。两者在 cards[] 中平等共存，可自由组合。
+复合类型（上表 7 种）从本目录按需加载。两者在 cards[] 中平等共存，可自由组合。
 
 ## 选择指南
 
@@ -34,7 +33,6 @@
 | 权威引用/核心观点/金句 | **quote** |
 | A vs B 对比 | **comparison**（推荐跨列） |
 | 团队/人物介绍（3-8人） | **people**（推荐跨列） |
-| 产品特性/服务项目（4-9个） | **icon_group**（推荐跨列） |
 | 配图+叠加文字（情感冲击） | **image_hero**（推荐跨列/跨行） |
 | 2x2象限/定位分析 | **matrix_chart**（推荐跨列跨行） |
 

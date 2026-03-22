@@ -64,20 +64,7 @@
 
 ---
 
-## 4. 图标（icons/）
-
-| 分类 | 文件路径 | 包含图标 |
-|------|---------|---------|
-| 数据 & 分析 | `icons/data-analytics.md` | TrendingUp, TrendingDown, BarChart3, LineChart, PieChart, Database |
-| 内容 & 概念 | `icons/content-concepts.md` | Lightbulb, Target, CircleCheck, AlertTriangle, Star, Rocket, Shield |
-| 流程 & 结构 | `icons/process-structure.md` | Workflow, Layers, Settings, Network |
-| 行业 & 场景 | `icons/industry-scenarios.md` | Building, FlaskConical, Code, Globe, Users, DollarSign, HeartPulse, Clock, Trophy |
-
-**使用规则**：`icons/README.md`
-
----
-
-## 5. 页面结构规范（page-templates/）
+## 4. 页面结构规范（page-templates/）
 
 | page_type 值 | 文件路径 | 说明 |
 |-------------|---------|------|
@@ -88,7 +75,7 @@
 
 ---
 
-## 6. Prompt 文件（prompts/）
+## 5. Prompt 文件（prompts/）
 
 | Step | 文件路径 | 用途 |
 |------|---------|------|
@@ -101,7 +88,7 @@
 
 ---
 
-## 7. 区域展示组件（blocks/）
+## 6. 区域展示组件（blocks/）
 
 | card_type 值 | 中文名 | 文件路径 | 推荐跨度 |
 |-------------|-------|---------|---------|
@@ -110,7 +97,6 @@
 | `quote` | 引用/金句块 | `blocks/quote.md` | 跨列 |
 | `comparison` | 对比块 | `blocks/comparison.md` | 跨列 |
 | `people` | 人物组块 | `blocks/people.md` | 跨列 |
-| `icon_group` | 图标组块 | `blocks/icon-group.md` | 跨列 |
 | `image_hero` | 大图+叠加文字块 | `blocks/image-hero.md` | 跨列或跨行 |
 | `matrix_chart` | 象限矩阵块 | `blocks/matrix-chart.md` | 跨列跨行 |
 
@@ -119,10 +105,11 @@
 
 ---
 
-## 8. 设计原则（principles/）
+## 7. 设计原则（principles/）
 
 | 文件路径 | 原则领域 | 核心理论 |
 |---------|---------|---------|
+| **`principles/design-principles-cheatsheet.md`** | **6 大原则 -> JSON 字段操作手册 + 逐页 8 项体检单** | **Step 4 第 0 号必读项。通过 `{{DESIGN_PRINCIPLES_CHEATSHEET}}` 注入 prompt-3 上下文** |
 | `principles/visual-hierarchy.md` | 视觉层级 | CRAP 四原则 / 视觉重量阶梯 |
 | `principles/cognitive-load.md` | 认知负荷 | Miller's Law / 信噪比 / 一页一观点 |
 | `principles/composition.md` | 构图与留白 | 格式塔原则 / 三分法 / 三层级留白 |
@@ -130,11 +117,11 @@
 | `principles/data-visualization.md` | 数据可视化 | Tufte 数据墨水比 / Few 仪表盘原则 |
 | `principles/narrative-arc.md` | 叙事结构 | 金字塔原理 / SCQA / 注意力曲线 |
 
-**总览**：`principles/README.md`（原则索引 + 读取时机 + 与规则层的关系）
+**总览**：`principles/README.md`（原则索引 + 操作手册定位 + 读取时机 + 与规则层的关系）
 
 ---
 
-## 9. 顶层资源
+## 8. 顶层资源
 
 | 文件路径 | 何时读取 | 内容 |
 |---------|---------|------|

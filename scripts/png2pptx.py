@@ -12,6 +12,7 @@
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -23,13 +24,19 @@ SLIDE_W = 12192000
 SLIDE_H = 6858000
 
 
+def _natural_key(p):
+    """自然排序 key：slide2 排在 slide10 前面。"""
+    parts = re.split(r'(\d+)', p.stem)
+    return [int(x) if x.isdigit() else x.lower() for x in parts]
+
+
 def convert(png_input, output_path, on_progress=None):
     """PNG 文件 -> PPTX 幻灯片。"""
     png_input = Path(png_input)
     if png_input.is_file():
         png_files = [png_input]
     elif png_input.is_dir():
-        png_files = sorted(png_input.glob('*.png'))
+        png_files = sorted(png_input.glob('*.png'), key=_natural_key)
     else:
         print(f"Error: {png_input} not found", file=sys.stderr)
         sys.exit(1)

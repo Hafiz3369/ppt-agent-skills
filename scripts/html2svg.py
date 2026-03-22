@@ -16,6 +16,7 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -747,7 +748,7 @@ def convert(html_dir: Path, output_dir: Path) -> bool:
         html_files = [html_dir]
         work_dir = html_dir.parent.parent
     else:
-        html_files = sorted(html_dir.glob("*.html"))
+        html_files = sorted(html_dir.glob("*.html"), key=lambda p: [int(x) if x.isdigit() else x.lower() for x in re.split(r'(\d+)', p.stem)])
         work_dir = html_dir.parent
 
     if not html_files:
