@@ -11,6 +11,27 @@
 卡片内边距: padding=24px
 ```
 
+## 骨架与 card_style 的职责分离
+
+> **骨架只管 Grid 位置和大小，不管卡片长什么样。**
+
+每个布局文件的 HTML 骨架中，卡片的 `background` / `border` / `box-shadow` 留空为 `/* ← card_style CSS */` 注释。生成 HTML 时：
+
+1. 复制骨架的 Grid 结构（grid-template-columns/rows、grid-column/row）
+2. 根据策划稿中每张卡片的 `card_style` 字段，从 `blocks/card-styles.md` 查找对应 CSS 填入
+3. **每页至少 2 种 card_style**（硬性要求）
+
+`card_style` -> CSS 速查（完整定义见 `blocks/card-styles.md`）：
+
+| card_style | 填入位置 |
+|-----------|---------|
+| `filled` | `background:linear-gradient(135deg, var(--card-bg-from), var(--card-bg-to)); border:1px solid var(--card-border);` |
+| `transparent` | `background:transparent; border:none;` |
+| `outline` | `background:transparent; border:1px solid rgba(var(--accent-1-rgb), 0.2);` |
+| `accent` | `background:linear-gradient(135deg, var(--accent-1), var(--accent-2)); color:#fff;` |
+| `glass` | `background:rgba(var(--card-bg-rgb), 0.4); backdrop-filter:blur(12px);` |
+| `elevated` | `background:linear-gradient(135deg, var(--card-bg-from), var(--card-bg-to)); box-shadow:0 8px 32px rgba(0,0,0,0.12);` |
+
 ## CSS Grid 实现
 
 所有布局通过 CSS Grid 精确实现。内容区容器统一定义：
@@ -24,6 +45,15 @@
   gap: 20px;
 }
 ```
+
+### 骨架使用总则
+
+每个布局文件（如 `hero-top.md`、`primary-secondary.md`）都包含**完整的 HTML 骨架代码**，标注了每个卡片需要的 `grid-row` 和 `grid-column` 属性。生成 HTML 时：
+
+1. 读取对应布局文件的 HTML 骨架
+2. 以骨架为起点，只替换卡片内部内容（标题、正文、数据、图表）
+3. 跨行/跨列的 `grid-row: 1 / -1` 或 `grid-column: 1 / -1` 等属性不可删除
+4. 简单布局（对称、非对称、三栏、瀑布流）不需要额外的 grid 定位；复杂布局（主次、英雄、L型、T型、混合网格的跨列变体）需要严格按骨架标注
 
 ## 页面类型布局
 
@@ -58,108 +88,20 @@
 
 ---
 
-## 7 种内容页布局
-
-所有基于内容区 (1200x580px, 起始坐标 40,80)。
-
-### 1. 单一焦点
-
-适用: 1个核心论点/大数据全屏展示
-
-```css
-.content-area { grid-template: 1fr / 1fr; }
-/* 卡片: 1200x580 */
-```
-
-### 2. 50/50 对称
-
-适用: 对比、并列概念
-
-```css
-.content-area { grid-template: 1fr / 1fr 1fr; }
-/* 左: 590x580 | 右: 590x580 */
-```
-
-### 3. 非对称两栏 (2/3 + 1/3)
-
-适用: 主次关系。**最常用的布局。**
-
-```css
-.content-area { grid-template: 1fr / 2fr 1fr; }
-/* 主: 790x580 | 辅: 390x580 */
-```
-
-### 4. 三栏等宽
-
-适用: 3个并列比较
-
-```css
-.content-area { grid-template: 1fr / repeat(3, 1fr); }
-/* 卡1: 387x580 | 卡2: 387x580 | 卡3: 386x580 */
-```
-
-### 5. 主次结合 (大 + 两小)
-
-适用: 层级关系。**推荐：信息层次丰富时优先选择。**
-
-```css
-.content-area { grid-template: 1fr 1fr / 2fr 1fr; }
-/* 主: 790x580 (span 2 rows) | 辅1: 390x280 | 辅2: 390x280 */
-```
-
-主卡片需设置 `grid-row: 1 / -1;` 跨两行。
-
-### 6. 顶部英雄式
-
-适用: 总分关系。**推荐：总分结构清晰时优先选择。**
-
-**3子项版（最常用）**：
-```css
-.content-area { grid-template: auto 1fr / repeat(3, 1fr); }
-/* 英雄: 1200x260 (span 3 cols) | 子1-3: 387x300 */
-```
-
-**4子项版**：
-```css
-.content-area { grid-template: auto 1fr / repeat(4, 1fr); }
-/* 英雄: 1200x260 (span 4 cols) | 子1-4: 285x300 */
-```
-
-**2子项版**：
-```css
-.content-area { grid-template: auto 1fr / 1fr 1fr; }
-/* 英雄: 1200x280 (span 2 cols) | 子1-2: 590x280 */
-```
-
-英雄卡片需设置 `grid-column: 1 / -1;` 跨所有列。
-
-### 7. 混合网格
-
-适用: 高信息密度, 4-6个异构块。**推荐：信息密度最高时优先选择。**
-
-**2x3 网格**：
-```css
-.content-area { grid-template: repeat(3, 1fr) / 1fr 1fr; }
-/* 6个卡片: 各 590x180 */
-```
-
-可通过 `grid-row`/`grid-column` 的 span 让个别卡片跨行/跨列，形成大小混搭效果。
-
-**关键约束**: 所有卡片不得超出内容区边界（x+w<=1240, y+h<=660），间距>=20px，禁止重叠。
-
----
-
 ## 布局决策矩阵
 
-| 内容特征 | 推荐布局 | 卡片数 |
-|---------|---------|-------|
-| 1 个核心论点/数据 | 单一焦点 | 1 |
-| 2 个对比/并列 | 50/50 对称 | 2 |
-| 主概念 + 补充 | 非对称两栏 | 2 |
-| 3 个并列要素 | 三栏等宽 | 3 |
-| 1 核心 + 2 辅助 | 主次结合 | 3 |
-| 综述 + 3-4 子项 | 顶部英雄式 | 4-5 |
-| 4-6 异构块 | 混合网格 | 4-6 |
+| 内容特征 | 推荐布局 | 文件 | 卡片数 |
+|---------|---------|------|-------|
+| 1 个核心论点/数据 | 单一焦点 | `single-focus.md` | 1 |
+| 2 个对比/并列 | 50/50 对称 | `symmetric.md` | 2 |
+| 主概念 + 补充 | 非对称两栏 | `asymmetric.md` | 2 |
+| 3 个并列要素 | 三栏等宽 | `three-column.md` | 3 |
+| 1 核心 + 2 辅助 | 主次结合 | `primary-secondary.md` | 3 |
+| 综述 + 3-4 子项 | 顶部英雄式 | `hero-top.md` | 4-5 |
+| 4-6 异构块 | 混合网格 | `mixed-grid.md` | 4-6 |
+| 主区 + 侧栏 + 底部总结 | L 型 | `l-shape.md` | 4 |
+| 总览 + 展开 + 侧面数据 | T 型 | `t-shape.md` | 4 |
+| 多条不等高信息 | 瀑布流 | `waterfall.md` | 4-6 |
 
 **选择优先级**：避免"单一焦点"（除非确实只有一个全屏内容）。内容>=3块时，优先选择主次结合/英雄式/混合网格。
 

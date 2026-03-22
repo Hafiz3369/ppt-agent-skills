@@ -16,11 +16,11 @@ Requirements Interview → Research → Outline → Planning Draft → Style + I
 |---------|-------------|
 | **6-Step Pipeline** | Requirements → Research → Outline → Planning → Design → Post-processing |
 | **8 Preset Styles** | Dark Tech / Xiaomi Orange / Blue White / Royal Red / Fresh Green / Luxury Purple / Minimal Gray / Vibrant Rainbow |
-| **Bento Grid Layout** | 7 flexible card-based layouts driven by content, not templates |
+| **Bento Grid Layout** | 10 flexible card-based layouts driven by content, not templates |
 | **Smart Illustrations** | AI-generated images with 5 visual fusion techniques (fade blend, tinted overlay, ambient background, etc.) |
 | **Typography System** | 7-level font scale + spacing hierarchy + CJK mixed typesetting rules |
 | **Color Proportion** | 60-30-10 rule enforcement + accent color constraints |
-| **Data Visualization** | 8 pure CSS/SVG chart types (progress bars, ring charts, sparklines, waffle charts, KPI cards, etc.) |
+| **Data Visualization** | 13 pure CSS/SVG chart types (progress bars, ring charts, sparklines, waffle charts, KPI cards, radar, funnel, etc.) |
 | **Cross-page Narrative** | Density alternation, chapter color progression, cover-ending visual echo |
 | **Footer System** | Unified footer with chapter info + page numbers across all slides |
 | **PPTX Compatible** | HTML → SVG → PPTX pipeline, right-click "Convert to Shape" in PPT 365 for full editing |
@@ -55,14 +55,21 @@ ppt-agent-skill/
   README.md                   # Chinese documentation (default)
   README_EN.md                # This file
   references/
-    prompts.md                # 5 Prompt templates
-    style-system.md           # 8 preset styles + CSS variables
-    bento-grid.md             # 7 layout specs + card types
+    prompts.md                # Prompt + resource index
+    prompts/                  # 6 Prompt templates
+    styles/                   # 8 preset styles (individual files + README decision rules)
+    layouts/                  # 10 layouts (individual files + README canvas params)
+    charts/                   # 13 chart templates (individual files + README selection guide)
+    icons/                    # 4 SVG icon categories (individual files + README usage rules)
+    page-templates/           # Cover/TOC/Section/End page HTML skeletons
+    narrative-rhythm.md       # Narrative rhythm & visual weight
+    image-generation.md       # Image prompt + fusion techniques
+    pipeline-compat.md        # Pipeline compatibility constraints
     method.md                 # Core methodology
   scripts/
     html_packager.py          # Merge multi-page HTML into paginated preview
-    html2svg.py               # HTML → SVG (dom-to-svg, preserves editable text)
-    svg2pptx.py               # SVG → PPTX (OOXML native SVG embedding)
+    html2svg.py               # HTML -> SVG (dom-to-svg, preserves editable text)
+    svg2pptx.py               # SVG -> PPTX (OOXML native SVG embedding)
 ```
 
 ## Usage

@@ -71,9 +71,14 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 | 规模 | 页数 | 调研 | 搜索 | 策划 | 生成 |
 |------|------|------|------|------|------|
-| **轻量** | <= 8 页 | 3 题精简版（场景+受众+补充信息） | 3-5 个查询 | Step 3 可与 Step 4 合并一步完成 | 逐页生成 |
-| **标准** | 9-18 页 | 完整 7 题 | 8-12 个查询 | 完整流程 | 按 Part 分批，每批 3-5 页 |
-| **大型** | > 18 页 | 完整 7 题 | 10-15 个查询 | 完整流程 | 按 Part 分批，每批 3-5 页，批间确认 |
+| **轻量** | <= 8 页 | 3 题精简版（场景+受众+补充信息） | 3-5 个查询 | 整体生成（Step 3 可与 Step 4 合并） | 逐页生成 |
+| **标准** | 9-18 页 | 完整 7 题 | 8-12 个查询 | 逐页生成 | 逐页生成 |
+| **大型** | > 18 页 | 完整 7 题 | 10-15 个查询 | 逐页生成 | 逐页生成 |
+
+**复杂度判断时机**：
+1. **预判**（Step 1 开始前）：根据用户初始描述估算。若用户明确说了页数（如"做 5 页"）或暗示简短（如"简单介绍一下"），直接预判为轻量并精简提问
+2. **确认**（Step 1 结束后）：根据 Q7 回答的页数正式确认 `complexity_level`（light / standard / large），写入 `progress.json`
+3. **传递**：后续各步骤从 `progress.json` 读取 complexity_level，据此调整搜索查询数、策划深度等参数
 
 ---
 
@@ -83,7 +88,7 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 > **禁止跳过。** 无论主题多简单，都必须提问并等用户回复后才能继续。不替用户做决定。
 
-**执行**：使用 `references/prompts.md` Prompt #1
+**执行**：使用 `references/prompts/prompt-1-research.md`
 1. 搜索主题背景资料（3-5 条）
 2. 根据复杂度选择完整 7 题或精简 3 题，一次性发给用户
 3. **等待用户回复**（阻断点）
@@ -107,12 +112,54 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 ### Step 2: 资料搜集
 
-> 盘点所有信息获取能力，全部用上。
+> 盘点所有信息获取能力，全部用上。搜索质量直接决定后续内容是"言之有物"还是"空洞废话"。
 
 **执行**：
-1. 根据主题规划查询（数量参考复杂度表）
-2. 用所有可用的信息获取工具并行搜索
-3. 每组结果摘要总结
+
+**2a. 查询规划**
+
+根据主题和用户需求，规划多维度搜索查询（数量参考复杂度表）：
+
+| 查询维度 | 示例 | 目的 |
+|---------|------|------|
+| 核心定义 | "{主题} 是什么 / 定义 / 核心概念" | 确保基础事实准确 |
+| 市场数据 | "{主题} 市场规模 / 增长率 / 行业报告 2024-2026" | 数据卡片填充 |
+| 竞品/对比 | "{主题} vs {竞品} / 对比分析 / 优劣势" | 对比论证素材 |
+| 案例/应用 | "{主题} 客户案例 / 应用场景 / 成功案例" | 故事化说服 |
+| 趋势/展望 | "{主题} 发展趋势 / 未来展望 / 技术路线图" | 结尾展望素材 |
+| 权威观点 | "{主题} 专家评价 / 行业报告 / 白皮书" | 权威背书 |
+
+> 不要所有查询都是同一个维度的换词。每个维度至少 1 个查询，核心维度可多个。
+
+**2b. 并行搜索**
+
+用所有可用的信息获取工具并行搜索，包括但不限于：搜索引擎、URL 读取、文档解析、知识库查询。
+
+**2c. 结果整理**
+
+每组搜索结果必须结构化整理为以下格式，不要只贴原文：
+
+```json
+{
+  "query": "搜索查询",
+  "findings": [
+    {
+      "fact": "一句话核心发现",
+      "data": "具体数据/数字（如有）",
+      "source": "来源（网站/报告名/作者）",
+      "reliability": "high | medium | low",
+      "relevance": "与大纲哪个 Part 最相关"
+    }
+  ]
+}
+```
+
+**可信度判定**：
+- **high**：权威机构报告（Gartner/IDC/政府统计）、学术论文、官方文档
+- **medium**：行业媒体报道、企业博客、分析师个人观点
+- **low**：论坛讨论、自媒体、无来源数据
+
+> 只有 high/medium 的数据才能进入策划稿的 data_highlights。low 可信度数据仅作参考，不用于关键数据展示。
 
 **产物**：搜索结果集合 JSON
 
@@ -120,7 +167,7 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 ### Step 3: 大纲策划
 
-**执行**：使用 `references/prompts.md` Prompt #2（大纲架构师 v2.0）
+**执行**：使用 `references/prompts/prompt-2-outline.md`（大纲架构师 v2.0）
 
 **方法论**：金字塔原理 -- 结论先行、以上统下、归类分组、逻辑递进
 
@@ -133,19 +180,78 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 ### Step 4: 内容分配 + 策划稿 [建议等用户确认]
 
 > 将内容分配和策划稿生成合为一步。在思考每页应该放什么内容的同时，决定布局和卡片类型，更自然高效。
+> 策划稿必须是 AI 逐页思考的内容创作产物。
 
-**执行**：使用 `references/prompts.md` Prompt #3（内容分配与策划稿）
+#### 4a. 资源菜单预读（首页策划前强制执行，仅一次）
+
+> **先看菜单才能点菜。** 不知道有哪些组件/图表/布局/原则可选，策划时就只会用最基础的 text/data/list，浪费了丰富的设计能力。
+
+策划第一页前，必须读取以下索引文件（每份只需读 README，不读具体文件）：
+
+| # | 读取什么 | 获得什么 | 影响策划的什么决策 |
+|---|---------|---------|----------------|
+| 1 | `layouts/README.md` | 10 种布局骨架 + 决策矩阵 | 每页的 `layout_hint` 选择 |
+| 2 | `blocks/README.md` | 8 种复合组件 + 选择指南 | 每页的 `card_type` 组合方式 |
+| 3 | `blocks/card-styles.md` | 6 种卡片视觉变体 + 搭配规则 | 每张卡片的 `card_style` 选择 |
+| 4 | `charts/README.md` | 13 种图表 + 数据类型映射 | data 卡片的 `chart_type` 选择 |
+| 5 | `icons/README.md` | 4 类 SVG 图标 | 图标类卡片的 icon 选择 |
+| 6 | `principles/README.md` | 6 大设计原则索引 | 策划时就考虑原则 |
+| 7 | `image-generation.md`（**需要配图时**） | prompt 6 维度构造公式 + 场景叙事翻译表 + 风格关键词表 + 构图自适应表 | 每页 `image.prompt` 的构造 + `image.usage` 的选择 |
+
+> 第 7 项仅在 Q7 配图偏好 != A（不需要）时读取。策划师要写 `image.prompt`，就必须先掌握 prompt 构造方法、场景翻译技巧和各风格的关键词——没有这些上下文就是"没见过食材长什么样就要写菜谱"。
+
+> 预读后，策划师就知道自己的"工具箱"里有什么。后续逐页策划时，根据内容特征从工具箱中选择最合适的组件，而非只用最熟悉的几种。
+
+#### 4b. 逐页策划
+
+**执行**：使用 `references/prompts/prompt-3-planning.md`（内容分配与策划稿）
 
 **要点**：
 - 将搜索素材精准映射到每页
-- 为每页设计多层次内容结构（主卡片 40-100 字 + 数据亮点 + 辅助要点）
-- 同时确定 page_type / layout_hint / cards[] 结构
-- **每个内容页至少 3 张卡片 + 2 种 card_type + 1 张 data 卡片**
-- 布局选择参考 `references/bento-grid.md` 的决策矩阵
+- 为每页设计多层次内容结构（主内容 40-100 字 + 数据亮点 + 辅助要点）
+- 每页选择布局（`layout_hint`，从预读的 10 种布局中选择）
+- 每个区域自由组合 14 种 card_type（从预读的 6 种基础 + 8 种复合中选择）
+- 复合类型卡片（timeline/diagram/quote/comparison/people/icon_group/image_hero/matrix_chart）可跨列跨行，与基础卡片自由混搭
+- data 卡片需指定 `chart_type`（从预读的 13 种图表中选择）
+- 叙事节奏参考 `references/narrative-rhythm.md` 的视觉重量规则
+- 每页 planning JSON 带 `visual_weight` 分数
+- **每页必须填写 `required_resources`**：将 layout_hint / card_type / chart_type / page_type 翻译为具体文件路径（映射关系已在 4a 预读阶段掌握），供 Step 5c 按清单加载
+- **每页必须填写 `image`**：选择配图用法（`usage`）、构造图片生成 prompt、指定放置位置。策划阶段上下文最丰富，配图决策必须在此完成。整个 PPT 中 `split-content` 和 `card-inset` 各至少使用 1 次（总页数 >= 8 时）
 
-向用户展示策划稿概览，建议等用户确认后再进入 Step 5。
+#### 逐页生成策划稿（一页一文件）
 
-**产物**：每页策划卡 JSON 数组 -> 保存为 `OUTPUT_DIR/planning.json`
+> **核心原则：一个 planning JSON 对应一个 HTML。** 每页策划稿写入 `planning/planning{n}.json`（n = 页码），轻量独立，便于用户逐页编辑和 Step 5c 按需读取。
+
+**生成节奏**：
+
+```
+── 第 1 页 ──────────────────────────────
+生成：用 Prompt #3 为第 1 页生成策划 JSON
+写入：write_to_file -> OUTPUT_DIR/planning/planning1.json
+
+── 第 2 页 ──────────────────────────────
+生成：用 Prompt #3 为第 2 页生成策划 JSON
+      注入上下文：上一页 JSON（保证衔接）
+写入：write_to_file -> OUTPUT_DIR/planning/planning2.json
+
+── 第 3, 4, 5... 页 重复 ──────────────
+每页都是：生成该页 JSON -> write_to_file -> planning/planning{n}.json
+```
+
+**操作边界**：
+1. 每次只在 Prompt #3 中请求**一页**的策划（封面/目录/章节封面等极简页可 2-3 页一起，但仍然每页独立文件）
+2. 每页生成后**必须**立即写入 `planning/planning{n}.json`
+3. 写入完成后才开始下一页
+4. 不要用 Python 脚本操作 JSON 文件
+5. 不要尝试一次输出全部页面
+
+**上下文传递**：每页生成时注入上一页的完整 JSON，保证内容衔接和节奏递进。
+
+所有策划稿完成后：
+1. 向用户展示策划稿概览
+2. **[STOP -- 等待用户确认]**：告知用户可以直接编辑对应的 `planning/planning{n}.json` 修改任意页面的内容/布局/卡片结构。修改完成后回复确认，再进入 Step 5。
+
+**产物**：每页独立的策划 JSON -> `OUTPUT_DIR/planning/planning{n}.json`（n = 1, 2, 3...）
 
 ---
 
@@ -155,143 +261,334 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 #### 5a. 风格决策
 
-**执行**：阅读 `references/style-system.md`，选择或推断风格
+**执行**：阅读 `references/styles/README.md`，按其决策流程选择或自创配色方案，然后只读对应参考调色板文件（如 `references/styles/blue-white.md`）。
 
-根据主题关键词匹配 8 种预置风格之一（暗黑科技 / 小米橙 / 蓝白商务 / 朱红宫墙 / 清新自然 / 紫金奢华 / 极简灰白 / 活力彩虹），详细匹配规则和完整 JSON 定义见 `references/style-system.md`。
+> 风格的装饰工具箱已在 `styles/README.md` 中定义，首页生成前读取一次即可。**风格产物（style.json）只保存纯 CSS 变量**，不包含装饰描述，避免每页 Prompt 中重复注入相同的装饰指令导致千篇一律。
 
-**产物**：风格定义 JSON -> 保存为 `OUTPUT_DIR/style.json`
+8 种参考调色板及其文件路径见 `resource-registry.md` 第 1 节。
 
-#### 5b. 智能配图（根据用户偏好）
+**产物**：`OUTPUT_DIR/style.json`（纯 CSS 变量）
 
-> 在需求调研（Step 1 第 7 题）中确认用户的配图偏好后执行。如果用户选择"不需要配图"则跳过。
+#### 5b. 配图生成（可选）
 
-##### 配图时机
+> **prompt 已由 Step 4 策划阶段生成**，写入 `planning{n}.json` 的 `image.prompt` 字段。Step 5b 只需读取并调用 `generate_image`。
 
-在生成每页 HTML **之前**，先为该页生成配图。每页至少 1 张（封面页、章节封面必须有），生成后保存到 `OUTPUT_DIR/images/`。
+**执行流程**：
 
-##### generate_image 提示词构造公式
+1. 读取 `planning{n}.json` 的 `image` 对象
+2. 如果 `image.usage` = `none`，跳过该页
+3. 调用 `generate_image`：Prompt = `image.prompt`，ImageName = 基于页码和 `image.alt` 生成描述性命名
+4. 保存到 `OUTPUT_DIR/images/`
 
-提示词必须同时满足 **4 个维度**，按以下公式组装：
-
-```
-[内容主题] + [视觉风格] + [画面构图] + [技术约束]
-```
-
-| 维度 | 说明 | 示例 |
-|------|------|------|
-| 内容主题 | 从该页策划稿 JSON 的核心概念提炼，具体到场景/对象 | "DMSO molecular purification process, crystallization flask with clear liquid" |
-| 视觉风格 | 与 style.json 的配色方案和情感基调对齐 | 暗黑科技 -> "deep blue dark tech background, subtle cyan glow, futuristic" |
-| 画面构图 | 根据图片在页面中的放置方式决定 | 右侧半透明 -> "clean composition, main subject on left, fade to transparent on right" |
-| 技术约束 | 固定后缀，确保输出质量 | "no text, no watermark, high quality, professional illustration" |
-
-##### 风格与配图关键词对应
-
-| PPT 风格 | 配图风格关键词 |
-|---------|--------------|
-| 暗黑科技 | dark tech background, neon glow, futuristic, digital, cyber |
-| 小米橙 | minimal dark background, warm orange accent, clean product shot, modern |
-| 蓝白商务 | clean professional, light blue, corporate, minimal, bright |
-| 朱红宫墙 | traditional Chinese, elegant red gold, ink painting, cultural |
-| 清新自然 | fresh green, organic, nature, soft light, watercolor |
-| 紫金奢华 | luxury, purple gold, premium, elegant, metallic |
-| 极简灰白 | minimal, grayscale, clean, geometric, academic |
-| 活力彩虹 | colorful, vibrant, energetic, playful, gradient, pop art |
-
-##### 按页面类型调整
-
-| 页面类型 | 图片特征 | Prompt 额外关键词 |
-|---------|---------|-----------------|
-| 封面页 | 主题概览，视觉冲击 | "hero image, wide composition, dramatic lighting" |
-| 章节封面 | 该章主题的象征性视觉 | "symbolic, conceptual, centered composition" |
-| 内容页 | 辅助说明，不喧宾夺主 | "supporting illustration, subtle, background-suitable" |
-| 数据页 | 抽象数据可视化氛围 | "abstract data visualization, flowing lines, tech" |
-
-##### 禁止事项
-- 禁止图片中出现文字（AI 生成的文字质量差）
-- 禁止与页面配色冲突的颜色（暗色主题配暗色图，亮色主题配亮色图）
-- 禁止与内容无关的装饰图（每张图必须与该页内容有语义关联）
-- 禁止重复使用相同 prompt（每页图片必须独特）
+**关键要点**：
+- 配图时机：在生成每页 HTML **之前**先生成该页配图
+- `image-generation.md` 的融入技法和 HTML 模板已在 4a 预读阶段读取（供 Step 5c 使用）
+- 所有融入技法均为管线安全（禁止 CSS mask-image）
 
 **产物**：`OUTPUT_DIR/images/` 下的配图文件
 
-#### 5c. 逐页 HTML 设计稿生成
+#### 5c. 逐页 HTML 设计稿生成（一个 planning 对应一个 HTML）
 
-**执行**：使用 `references/prompts.md` Prompt #4 + `references/bento-grid.md`
+> 每页 HTML 都从对应的 `planning{n}.json` 生成。读取 `OUTPUT_DIR/planning/planning{n}.json` -> 生成 `OUTPUT_DIR/slides/slide-{NN}.html`，一对一消费，无上下文负担。
+
+##### 资源按需加载决策树
+
+> **核心理念：用户采访后获得的信息已经足以确定后续需要读取哪些资源。** 不要一口气读完所有参考文件，按以下三层决策树精确加载。
+
+**第一层：采访后全局决策（Step 1 完成后立即执行，全流程只做一次）**
+
+根据 Step 1 的 7 题答案，确定整个 PPT 生命周期内的资源加载策略：
+
+| 采访答案 | 触发的加载决策 |
+|---------|--------------| 
+| Q7 配图偏好 = A（不需要） | 整个流程**跳过** `image-generation.md`，Step 5b 全部跳过 |
+| Q7 配图偏好 = B/C/D | 标记**需要配图**，4a 预读阶段读取 `image-generation.md`（prompt 构造公式 + 风格关键词表 + 构图自适应表），Step 4 每页策划时填写 `image` 字段，Step 5b 执行 |
+| Q7 风格偏好 = 明确指定 | Step 5a 直接读取对应 style_id 的文件（style_id -> 文件路径映射见 `resource-registry.md` 第 1 节），跳过其他风格 |
+| Q7 风格偏好 = 未指定 | 先读 `styles/README.md` 的决策规则，确定风格后只读命中风格的独立文件 |
+| Q7 语言偏好 = B/C/D（非纯中文） | 标记**多语言模式**，Step 5a 额外读取 `styles/README.md` 的"多语言排版优化"章节 |
+| Q6 说服力要素 = 数据为主 | 标记**数据密集型**，Step 4 每页 data 卡片比例提高 |
+| Q4 叙事结构 = 时间线 | 标记**时间线叙事**，Step 4 中更倾向使用 timeline chart_type |
+
+**第二层：大纲后节奏决策（Step 3 完成后执行，全流程只做一次）**
+
+| 大纲信息 | 触发的加载决策 |
+|---------|------|
+| 总页数 <= 12 | 读取 `narrative-rhythm.md` 的 **10 页标准模板** |
+| 总页数 13-17 | 读取 `narrative-rhythm.md` 的 **15 页标准模板** |
+| 总页数 >= 18 | 读取 `narrative-rhythm.md` 的 **20 页标准模板** |
+| Part 数量确定后 | 读取 `narrative-rhythm.md` 的**章节色彩递进规则** |
+
+**第三层：按 planning JSON 的 required_resources 清单加载（每页 HTML 生成前必须完成）**
+
+> **禁止跳过。** 生成每页 HTML 前，必须读取该页 `planning{n}.json` 中 `required_resources` 字段列出的**全部资源路径**。未读取的资源 = 未利用的设计能力 = 输出质量下降。
+
+> **核心变化**：资源路径不再由消费者自行推断（如猜测"英雄式"对应哪个文件），而是由 Step 4 策划阶段（已预读所有 README，掌握完整映射关系）直接写入 `required_resources`。消费者只需"按清单取货"。
+
+每页生成前，读取 `planning{n}.json` 的 `required_resources` 对象，按字段逐一加载：
+
+| required_resources 字段 | 读取什么 | 如何使用 |
+|------------------------|---------|--------|
+| `layout` | `references/{路径}`（如 `layouts/hero-top.md`） | 复制 Grid 结构作为 HTML 起点 |
+| `page_template` | `references/{路径}`（如 `page-templates/cover.md`） | 按结构规范设计 |
+| `blocks[]` | `references/{路径}`（如 `blocks/timeline.md`） | 按组件的 JSON 结构和设计要点实现 |
+| `charts[]` | `references/{路径}`（如 `charts/kpi.md`） | 复制图表 HTML/SVG 代码并填充实际数据 |
+| `icons[]` | `references/{路径}`（如 `icons/data-analytics.md`） | 复制对应 SVG 代码 |
+| `principles[]` | `references/{路径}`（如 `principles/visual-hierarchy.md`） | 作为设计决策的判断依据 |
+
+> 值为 `null` 或空数组 `[]` 的字段跳过。每个非空路径都必须实际读取并注入 `[RESOURCES]` 块。
+
+**首页生成前必须完整读取的资源**（仅一次，全局生效）：
+- `references/prompts/prompt-4-design.md` -- 设计规则基础
+- `references/pipeline-compat.md` -- 管线约束硬性规则
+- `references/styles/README.md` -- 装饰技法工具箱 + 色彩原则
+- `references/blocks/card-styles.md` -- **6 种卡片视觉变体的 CSS 实现**（每页都用到）
+- `references/principles/README.md` -- 设计原则索引
+- `references/blocks/README.md` -- 复合组件索引
+
+> 页面类型专属规范：封面/目录/章节封面/结束页的结构规范已通过 `required_resources.page_template` 指定路径（如 `page-templates/cover.md`），无需另行查映射。**规范只定义"必须有哪些区域"，不提供具体 HTML 代码**。每次生成时，构图方式、排版比例、装饰元素必须根据所选风格的装饰 DNA 自由变化。
+
+> 叙事节奏：整体 PPT 的视觉密度起伏须遵循 `references/narrative-rhythm.md` 的节奏规则和标准模板。
+
+> CSS 动画（可选）：HTML 预览可嵌入渐入/计数/填充/描边动画，见 `references/prompts/animations.md`。不影响 PPTX 输出。
 
 > **禁止跳过策划稿直接生成。** 每页必须先有 Step 4 的结构 JSON。
+
+> **视觉完成度基准**：每页必须达到 `references/quality-baseline.md` 定义的视觉丰富度 checklist。每页最低标准 -- 必须包含：页面标题区、3-5 张混合类型卡片、至少 1 个数据可视化、装饰元素（至少 2 种，且匹配所选风格的装饰 DNA）、完整页脚。
 
 **每页 Prompt 组装公式**：
 ```
 Prompt #4 模板
-+ 风格定义 JSON（5a 产物）[必须]
-+ 该页策划稿 JSON（Step 4 产物，含 cards[]/card_type/position/layout_hint）[必须]
++ CSS 变量定义（5a 产物）[必须]
++ 该页策划稿 JSON（Step 4 产物，含 cards[]/card_type/chart_type/position/layout_hint）[必须]
 + 该页内容文本（Step 4 产物）[必须]
++ [RESOURCES] 块：按 required_resources 清单读取的全部资源（布局骨架 + 复合组件 + 图表模板 + 图标 + 页面模板 + 原则摘要）[必须]
 + 配图路径（5b 产物）[可选 -- 无配图时省略 IMAGE_INFO 块]
 ```
+
+**[RESOURCES] 块格式**（每个分区对应 `required_resources` 的一个字段，无内容的分区省略）：
+```
+=== LAYOUT ===
+（required_resources.layout 指定文件的 HTML 骨架部分）
+
+=== PAGE_TEMPLATE ===
+（required_resources.page_template 指定文件的结构规范）
+
+=== BLOCKS ===
+（required_resources.blocks[] 中每个文件的 JSON 结构 + 设计要点）
+
+=== CHARTS ===
+（required_resources.charts[] 中每个文件的 HTML/SVG 代码）
+
+=== ICONS ===
+（required_resources.icons[] 中每个文件的 SVG 图标代码）
+
+=== PRINCIPLES ===
+（required_resources.principles[] 中每个文件的核心原理 + 在PPT中的应用 + 自检项）
+```
+
+> **装饰手法不在每页 Prompt 中重复注入。** 装饰工具箱（`styles/README.md`）在首页生成前读取一次，模型每页自由组合不同装饰技法，而不是被同一份装饰说明反复引导。
 
 **核心设计约束**（完整清单见 Prompt #4 内部）：
 - 画布 1280x720px，overflow:hidden
 - 所有颜色通过 CSS 变量引用，禁止硬编码
 - 凡视觉可见元素必须是真实 DOM 节点，图形优先用内联 SVG
 - 禁止 `::before`/`::after` 伪元素用于视觉装饰、禁止 `conic-gradient`、禁止 CSS border 三角形
-- 配图融入设计：渐隐融合/色调蒙版/氛围底图/裁切视窗/圆形裁切（技法详见 Prompt #4）
+- 配图融入设计：按 `planning{n}.json` 的 `image.usage` 决定融入技法（7 种用法详见 `image-generation.md`）
 
-**分批策略**：按 Part 为单位分批生成，每批 3-5 页。每批完成后将 HTML 写入 `OUTPUT_DIR/slides/` 目录，再开始下一批。避免上下文爆炸的同时保证同一 Part 内的风格一致性。
+**布局骨架引用（防错位核心机制）**：每个布局文件（如 `layouts/hero-top.md`）包含完整的 HTML 骨架代码。生成 content 页时，先读取对应布局文件的骨架，以此为起点填充内容。跨行/跨列卡片的 `grid-row` / `grid-column` 属性必须与骨架保持一致。详见 Prompt #4 的"布局骨架使用方法"章节。
 
-**跨页视觉叙事**（让 PPT 有节奏感，不只是独立页面的堆砌）：
+**逐页生成**：每次只读取 `OUTPUT_DIR/planning/planning{n}.json`，生成该页 HTML 后写入 `OUTPUT_DIR/slides/slide-{NN}.html`，再生成下一页。无需批量处理，每页都是轻量独立操作。
 
-| 策略 | 规则 | 原因 |
-|------|------|------|
-| **密度交替** | 高密度页（混合网格/英雄式）后面跟低密度页（章节封面/单一焦点），形成张弛有度的节奏 | 连续 3+ 页高密度内容会导致观众视觉疲劳 |
-| **章节色彩递进** | Part 1 卡片主用 accent-1，Part 2 用 accent-2，Part 3 用 accent-3 ... 每章换一种 accent 主色 | 通过颜色让受众无意识感知章节切换 |
-| **封面-结尾呼应** | 结束页的视觉元素与封面页形成呼应（相同装饰图案、对称布局），给出完整闭环感 | 首尾呼应是最基本的叙事美学 |
-| **渐进揭示** | 同一概念跨多页展开时，视觉复杂度应递增（第1页简单色块 -> 第2页加数据 -> 第3页完整图表） | 引导观众逐步深入理解 |
+##### 并行生成接口（subagent 预留）
+
+> 当前单 agent 环境下仍逐页串行。此接口定义了并行生成的输入契约，以便将来有 subagent 能力时可直接分发。
+
+每页 HTML 的生成输入**完全自包含**，页面之间无运行时依赖：
+
+```
+并行单元输入:
+  page_number:       页码
+  planning_json:     OUTPUT_DIR/planning/planning{n}.json 的内容
+  style_json:        OUTPUT_DIR/style.json 的内容（全局共享，只读）
+  image_paths:       该页配图路径列表（可为空）
+  global_resources:  首页前已读取的全局资源（prompt-4 / pipeline-compat / styles/README / principles/README / blocks/README / card-styles.md）
+  per_page_resources: required_resources 字段列出的全部资源内容（由调度者按路径读取后注入）
+```
+
+> **简化说明**：旧版需要调度者自行推断 layout_hint/card_type/chart_type -> 文件路径，现在 `required_resources` 已包含完整路径，调度者只需遍历路径列表读取内容即可。
+
+**并行策略**（subagent 可用时）：
+- 按 Part 分组（同一 Part 的页面分给同一 subagent，保证章节内视觉一致性）
+- 每个 subagent 接收该组所有页面的上述输入，串行生成组内页面
+- 不同 Part 的 subagent 可并行执行
+
+##### 每页生成后 6 项自检（必做 -- 写入文件前对照）
+
+每页 HTML 生成后、写入文件前，快速过一遍以下 6 项。如有不通过项，立即修正后再写入：
+
+| # | 检查项 | 判定标准 | 不通过时的修正动作 |
+|---|--------|---------|------------------|
+| 1 | **内容完整** | 每张卡片有标题 + 正文/数据/列表（无空卡）；data 卡片有可视化元素 | 补充缺失内容，空卡填满 |
+| 2 | **布局无重叠** | 所有卡片通过 CSS Grid 自动排列或明确 grid-row/grid-column 定位；跨行/跨列卡片的 span 属性与布局文件一致 | 对照所选布局的 HTML 骨架修正 grid 定位 |
+| 3 | **管线安全** | 无 `::before`/`::after` 装饰、无 `conic-gradient`、无 `-webkit-background-clip:text`、无 `mask-image`、无 CSS border 三角形、无 `background-image:url()`；内联 SVG 中无 `<text>` 元素 | 替换为管线安全写法（真实 DOM / 内联 SVG） |
+| 4 | **不溢出画布** | 内容区 `overflow:hidden`；每张卡片 `overflow:hidden`；图表容器有明确 `height`；正文有 `-webkit-line-clamp` 截断 | 缩减内容（缩短正文 > 减少列表项 > 移除装饰） |
+| 5 | **色彩规范** | 所有颜色通过 `var(--xxx)` 引用（除 transparent 和 rgba(255,255,255,0.x)）；accent 色不超过同页 2 种 | 替换硬编码颜色为 CSS 变量 |
+| 6 | **资源已消费** | `required_resources` 中列出的每个路径都已实际读取并在 HTML 中体现：布局来自 `layout` 指定骨架、复合组件符合 `blocks[]` 设计要点、图表来自 `charts[]` 模板、原则在设计决策中被考虑 | 回读 `required_resources` 中指定的资源文件修正 |
+
+> 自检不是事后审查，而是生成流程的一部分。把 6 项检查融入"生成 -> 检查 -> 修正 -> 写入"的循环中。
+
+**跨页视觉叙事**：按 `references/narrative-rhythm.md` 的节奏规则和章节色彩递进规则执行，确保密度交替、章节色彩递进、封面-结尾呼应。
 
 **产物**：每页一个 HTML 文件 -> `OUTPUT_DIR/slides/`
 
+##### HTML 自检中断点 [STOP -- 等待用户确认]
+
+> **所有页面 HTML 生成完毕后，暂停等用户自检。** 出错概率低，因此统一自检而非逐页中断。
+
+所有 `slide-XX.html` 写入完成后：
+
+1. 运行 `html_packager.py` 生成 `preview.html`（合并预览，方便用户一次性审阅）
+   ```bash
+   python3 SKILL_DIR/scripts/html_packager.py OUTPUT_DIR/slides/ -o OUTPUT_DIR/preview.html
+   ```
+2. **通知用户**：告知用户打开 `preview.html` 翻页审阅所有页面
+3. **等待用户反馈**（阻断点），用户可以：
+   - **A) 直接确认**：回复"OK"或"没问题"，进入 Step 6
+   - **B) 自行编辑 HTML**：直接修改 `slides/slide-XX.html` 文件，改完后回复确认
+   - **C) 指示 agent 修改**：告诉 agent 哪些页面需要改什么（如"第 3 页标题颜色太淡"、"第 7 页布局太空"），agent 修改后重新生成 `preview.html` 供再次审阅
+4. 确认通过后，进入 Step 6
+
+> 如果用户选择 C，agent 修改 HTML 后必须重新运行 `html_packager.py` 更新预览，然后再次等用户确认。循环直到用户满意。
+
 ---
 
-### Step 6: 后处理 [必做 -- HTML 生成完后立即执行]
+### Step 6: 管线选择 + 后处理 [必做 -- 用户确认 HTML 后立即执行]
 
-> **禁止跳过。** HTML 生成完后必须自动执行以下四步，不要停在 preview.html 就结束。
+> **禁止跳过。** 用户确认 HTML 后必须执行完整的转换管线，不要停在 preview.html 就结束。
 
-```
-slides/*.html --> preview.html --> svg/*.svg --> presentation.pptx
-```
+#### 6a. 管线选择 [STOP -- 等待用户选择]
+
+> 两条管线各有优劣，**必须让用户选择**，不要替用户做决定。
+
+向用户展示以下选项：
+
+| 管线 | 路径 | 优势 | 劣势 |
+|------|------|------|------|
+| **A) PNG 管线** | HTML -> PNG -> PPTX | 兼容性极好（任何版本 PPT / WPS / Keynote / Google Slides）；所有 CSS 效果完美保留 | 文字不可编辑（成为像素） |
+| **B) SVG 管线** | HTML -> SVG -> PPTX | 文字可编辑（右键"转换为形状"）；矢量无损缩放 | 需要 Microsoft 365 / PPT 2021+；复杂 CSS 可能转换失真 |
+
+**等待用户回复**（阻断点）。
+
+#### 6b. 执行转换
 
 **依赖检查**（首次运行自动执行）：
 ```bash
 pip install python-pptx lxml Pillow 2>/dev/null
 ```
 
-**依次执行**：
+##### 管线 A：PNG 管线（HTML -> PNG -> PPTX）
 
-1. **合并预览** -- 运行 `html_packager.py`
+```
+slides/*.html --> png/*.png --> presentation.pptx
+```
+
+1. **PNG 截图** -- 运行 `html2png.py`（Puppeteer 截图，2x 高清）
    ```bash
-   python3 SKILL_DIR/scripts/html_packager.py OUTPUT_DIR/slides/ -o OUTPUT_DIR/preview.html
+   python3 SKILL_DIR/scripts/html2png.py OUTPUT_DIR/slides/ -o OUTPUT_DIR/png/ --scale 2
+   ```
+   **降级**：如果 Node.js 不可用或 Puppeteer 安装失败，跳过并告知用户手动安装 Node.js。
+
+2. **PPTX 生成** -- 运行 `png2pptx.py`（全屏图片嵌入）
+   ```bash
+   python3 SKILL_DIR/scripts/png2pptx.py OUTPUT_DIR/png/ -o OUTPUT_DIR/presentation.pptx
    ```
 
-2. **SVG 转换** -- 运行 `html2svg.py`（DOM 直接转 SVG，保留 `<text>` 可编辑）
+##### 管线 B：SVG 管线（HTML -> SVG -> PPTX）
+
+```
+slides/*.html --> svg/*.svg --> presentation.pptx
+```
+
+1. **SVG 转换** -- 运行 `html2svg.py`（DOM 直接转 SVG，保留 `<text>` 可编辑）
    > **重要**：HTML 设计稿必须遵守 `references/pipeline-compat.md` 中的管线兼容性规则，否则转换后会出现元素丢失、位置错位等问题。
    ```bash
    python3 SKILL_DIR/scripts/html2svg.py OUTPUT_DIR/slides/ -o OUTPUT_DIR/svg/
    ```
    底层用 dom-to-svg（自动安装），首次运行会 esbuild 打包。
-   **降级**：如果 Node.js 不可用或 dom-to-svg 安装失败，跳过此步和步骤 3，只输出 preview.html。
+   **降级**：如果 Node.js 不可用或 dom-to-svg 安装失败，告知用户并建议改用 PNG 管线。
 
-3. **PPTX 生成** -- 运行 `svg2pptx.py`（OOXML 原生 SVG 嵌入，PPT 365 可编辑）
+2. **PPTX 生成** -- 运行 `svg2pptx.py`（OOXML 原生形状解析，PPT 365 可编辑）
    ```bash
    python3 SKILL_DIR/scripts/svg2pptx.py OUTPUT_DIR/svg/ -o OUTPUT_DIR/presentation.pptx --html-dir OUTPUT_DIR/slides/
    ```
-   PPT 365 中右键图片 -> "转换为形状" 即可编辑文字和形状。
 
-4. **通知用户** -- 告知产物位置和使用方式：
-   - `preview.html` -- 浏览器打开即可翻页预览
-   - `presentation.pptx` -- PPTX（右键 -> "转换为形状" 可编辑）
-   - `svg/` -- 每个 SVG 也可单独拖入 PPT
-   - **如果步骤 2-3 被降级跳过**，说明原因并告知用户手动安装 Node.js 后可重新运行
+#### 6c. 通知用户
 
-**产物**：preview.html + svg/*.svg + presentation.pptx
+告知产物位置和使用方式：
+- `preview.html` -- 浏览器打开即可翻页预览（Step 5c 自检阶段已生成）
+- `presentation.pptx` -- 最终 PPTX 文件
+- **PNG 管线产物**：
+  - `png/` -- 每页截图，可直接插入任何演示软件
+  - 文字为像素，不可在 PPT 中直接编辑
+- **SVG 管线产物**：
+  - `svg/` -- 每个 SVG 也可单独拖入 PPT
+  - 右键 -> "转换为形状" 即可编辑文字和形状
+  - **版本要求**："转换为形状"功能需要 **Microsoft 365 / PowerPoint 2021+**。较低版本（2019 及以下）只能将 SVG 作为不可编辑的图片显示
+- **如果转换被降级跳过**，说明原因并告知用户手动安装 Node.js 后可重新运行
+
+**产物**：preview.html + (png/*.png 或 svg/*.svg) + presentation.pptx
+
+---
+
+## 中断恢复机制
+
+> 长流程（15+ 页 PPT）中途中断时，通过 `progress.json` 记录进度，下次从中断点继续。
+
+### progress.json 结构
+
+```json
+{
+  "version": "1.0",
+  "topic": "PPT 主题",
+  "complexity": "light | standard | large",
+  "total_pages": 15,
+  "started_at": "ISO 时间戳",
+  "last_updated": "ISO 时间戳",
+  "steps": {
+    "step_1": {"status": "done | in_progress | pending"},
+    "step_2": {"status": "done"},
+    "step_3": {"status": "done"},
+    "step_4": {"status": "in_progress", "completed_pages": [1,2,3,4,5], "current_page": 6},
+    "step_5a": {"status": "pending"},
+    "step_5b": {"status": "pending", "completed_pages": []},
+    "step_5c": {"status": "pending", "completed_pages": []},
+    "step_6": {"status": "pending", "pipeline": null}
+  }
+}
+```
+
+### 写入时机
+
+| 事件 | 更新内容 |
+|------|--------|
+| Step 1 完成 | 创建 `progress.json`，写入 topic + complexity + step_1=done |
+| Step 2 完成 | step_2=done |
+| Step 3 完成 | step_3=done, total_pages |
+| Step 4 每页写入 | step_4.completed_pages 追加页码 |
+| Step 5a 完成 | step_5a=done |
+| Step 5b/5c 每页完成 | 对应 completed_pages 追加页码 |
+| Step 6a 用户选择管线 | step_6.pipeline = "png" 或 "svg" |
+| Step 6 完成 | step_6=done |
+
+### 恢复流程
+
+流程开始时检查 `OUTPUT_DIR/progress.json` 是否存在：
+1. 不存在 -> 全新开始
+2. 存在 -> 读取并展示当前进度，询问用户"继续"或"重新开始"
+3. 用户选择继续 -> 跳到第一个非 done 的步骤，补全缺失产物
+4. 用户选择重新开始 -> 删除 progress.json，全新开始
+
+**恢复时的产物校验**：跳到中断步骤前，检查前序步骤的产物文件是否存在（如 outline.json、planning/*.json、style.json）。缺失则回退到该步骤重新生成。
 
 ---
 
@@ -299,34 +596,55 @@ pip install python-pptx lxml Pillow 2>/dev/null
 
 ```
 ppt-output/
+  progress.json        # 进度日志（中断恢复用）
   slides/              # 每页 HTML
-  svg/                 # 矢量 SVG（可导入 PPT 编辑）
+  png/                 # PNG 截图（PNG 管线产物）
+  svg/                 # 矢量 SVG（SVG 管线产物，可导入 PPT 编辑）
   images/              # AI 配图
   preview.html         # 可翻页预览
-  presentation.pptx    # 可编辑 PPTX（右键"转换为形状"）
+  presentation.pptx    # 最终 PPTX
   outline.json         # 大纲
-  planning.json        # 策划稿
   style.json           # 风格定义
+  planning/            # 策划稿目录
+    planning1.json     # 第 1 页策划稿
+    planning2.json     # 第 2 页策划稿
+    planning{n}.json   # 第 n 页策划稿（每页独立文件）
 ```
 
 ---
 
-## 质量自检
+## 质量自检（全局级 -- 与 Step 5c 逐页自检互补）
 
 | 维度 | 检查项 |
 |------|-------|
-| 内容 | 每页 >= 2 信息卡片 / >= 60% 内容页含数据 / 章节有递进 |
-| 视觉 | 全局风格一致 / 配图风格统一 / 卡片不重叠 / 文字不溢出 |
-| 技术 | CSS 变量统一 / SVG 友好约束遵守 / HTML 可被 Puppeteer 渲染 / `pipeline-compat.md` 禁止清单检查 |
+| 全局一致 | CSS 变量跨页一致 / 配色统一 / 配图风格统一 |
+| 叙事节奏 | 相邻页 visual_weight 差 <= 3 / 不连续 3 页高密度 |
+| 管线安全 | 所有 HTML 无 `pipeline-compat.md` 禁止清单中的 CSS |
 
 ---
 
 ## Reference 文件索引
 
-| 文件 | 何时阅读 | 关键内容 |
-|------|---------|---------|
-| `references/prompts.md` | 每步生成前 | 5 套 Prompt 模板（调研/大纲/策划/设计/备注）|
-| `references/style-system.md` | Step 5a | 8 种预置风格 + CSS 变量 + 风格 JSON 模型 |
-| `references/bento-grid.md` | Step 5c | 7 种布局精确坐标 + 5 种卡片类型 + 决策矩阵 |
-| `references/method.md` | 初次了解 | 核心理念与方法论 |
-| `references/pipeline-compat.md` | **Step 5c 设计稿生成时** | CSS 禁止清单 + 图片路径 + 字号混排 + SVG text + 环形图 + svg2pptx 注意事项 |
+> 完整映射见 `resource-registry.md`。
+
+| 文件 | 何时读 | 内容 |
+|------|-------|------|
+| `prompts/prompt-1-research.md` | Step 1 | 需求调研 |
+| `prompts/prompt-2-outline.md` | Step 3 | 大纲架构 |
+| `prompts/prompt-3-planning.md` | Step 4 | 策划稿（含 14 种 card_type + decoration_hints） |
+| `prompts/prompt-4-design.md` | Step 5c 首页前 | HTML 设计稿 |
+| `blocks/README.md` | Step 4 首页前 | 复合组件选择指南 + 总表 |
+| `blocks/{type}.md` | Step 4 + 5c 按需 | 8 种复合区域展示组件 |
+| `principles/README.md` | Step 4 首页前 | 6 大设计原则索引 |
+| `principles/{name}.md` | 按需 | 视觉层级/认知负荷/构图/色彩/数据可视化/叙事 |
+| `styles/README.md` | Step 5a + 5c 首页前 | 色彩原则 + 装饰工具箱 |
+| `styles/{id}.md` | Step 5a | 8 个参考调色板 |
+| `layouts/README.md` | Step 5c 首页前 | 骨架使用总则 |
+| `layouts/{layout}.md` | Step 5c 按需 | 10 种布局骨架 |
+| `charts/{type}.md` | Step 5c 按需 | 13 种图表模板 |
+| `icons/{category}.md` | Step 5c 按需 | 4 类 SVG 图标 |
+| `page-templates/{type}.md` | Step 5c 按需 | 页面结构建议 |
+| `narrative-rhythm.md` | Step 3 后 | 节奏 + 色彩递进 |
+| `pipeline-compat.md` | Step 5c 首页前 | CSS 禁止清单 |
+| `quality-baseline.md` | Step 5c 首页前 | 视觉完成度 checklist |
+| `resource-registry.md` | 维护时 | **全局映射唯一权威源** |

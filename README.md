@@ -33,11 +33,11 @@
 |------|------|
 | **6步Pipeline** | 需求 → 搜索 → 大纲 → 策划 → 设计 → 后处理，模拟专业 PPT 公司工作流 |
 | **8种预置风格** | 暗黑科技 / 小米橙 / 蓝白商务 / 朱红宫墙 / 清新自然 / 紫金奢华 / 极简灰白 / 活力彩虹 |
-| **Bento Grid 布局** | 7 种卡片式灵活布局，内容驱动版式 |
+| **Bento Grid 布局** | 10 种卡片式灵活布局，内容驱动版式 |
 | **智能配图** | AI 生成配图 + 5 种视觉融入技法（渐隐融合/色调蒙版/氛围底图等） |
 | **排版系统** | 7 级字号阶梯 + 间距层级 + 中英文混排规则 |
 | **色彩比例** | 60-30-10 法则 + accent 色使用约束 |
-| **数据可视化** | 8 种纯 CSS/SVG 图表（进度条/环形图/迷你折线/点阵图/KPI 卡等） |
+| **数据可视化** | 13 种纯 CSS/SVG 图表（进度条/环形图/迷你折线/点阵图/KPI 卡/雷达图/漏斗图等） |
 | **跨页叙事** | 密度交替节奏 / 章节色彩递进 / 封面-结尾呼应 / 渐进揭示 |
 | **页脚系统** | 统一页脚（章节信息 + 页码），跨页导航 |
 | **PPTX 兼容** | HTML → SVG → PPTX 管线，PPT 365 中右键"转换为形状"即可编辑 |
@@ -72,9 +72,16 @@ ppt-agent-skill/
   README.md                   # 本文件
   README_EN.md                # English documentation
   references/
-    prompts.md                # 5 套 Prompt 模板
-    style-system.md           # 8 种预置风格 + CSS 变量
-    bento-grid.md             # 7 种布局规格 + 卡片类型
+    prompts.md                # Prompt + 资源索引
+    prompts/                  # 6 个 Prompt 模板
+    styles/                   # 8 种预置风格（每种独立文件 + README 决策规则）
+    layouts/                  # 10 种布局（每种独立文件 + README 画布参数）
+    charts/                   # 13 种图表模板（每种独立文件 + README 选择指南）
+    icons/                    # 4 类 SVG 图标（每类独立文件 + README 使用规则）
+    page-templates/           # 封面/目录/章节封面/结束页 HTML 骨架
+    narrative-rhythm.md       # 叙事节奏与视觉重量
+    image-generation.md       # 配图 Prompt + 融入技法
+    pipeline-compat.md        # 管线兼容性约束
     method.md                 # 核心方法论
   scripts/
     html_packager.py          # 多页 HTML 合并为翻页预览

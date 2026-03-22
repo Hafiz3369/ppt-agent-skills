@@ -241,8 +241,10 @@ def make_shape(sid, name, x, y, cx, cy, preset='rect',
     sp.append(sp_pr)
     return sp
 
-def make_textbox(sid, name, x, y, cx, cy, paragraphs):
-    """paragraphs = [[{text,sz,bold,hex,alpha,font}, ...], ...]"""
+def make_textbox(sid, name, x, y, cx, cy, paragraphs, anchor='t'):
+    """paragraphs = [[{text,sz,bold,hex,alpha,font}, ...], ...]
+    anchor: 't'=top, 'ctr'=center, 'b'=bottom
+    """
     sp = _el('p:sp')
     sp.append(_el('p:nvSpPr', children=[
         _el('p:cNvPr', {'id': str(sid), 'name': name}),
@@ -258,11 +260,17 @@ def make_textbox(sid, name, x, y, cx, cy, paragraphs):
     ]))
     tx = _el('p:txBody', children=[
         _el('a:bodyPr', {'wrap': 'none', 'lIns': '0', 'tIns': '0',
-                         'rIns': '0', 'bIns': '0', 'anchor': 't'}),
+                         'rIns': '0', 'bIns': '0', 'anchor': anchor}),
         _el('a:lstStyle'),
     ])
     for runs in paragraphs:
         p_el = _el('a:p')
+        # 段落属性: 行距=90%, 段前距=0, 段后距=0
+        p_pr = _el('a:pPr')
+        p_pr.append(_el('a:lnSpc', children=[_el('a:spcPct', {'val': '90000'})]))
+        p_pr.append(_el('a:spcBef', children=[_el('a:spcPts', {'val': '0'})]))
+        p_pr.append(_el('a:spcAft', children=[_el('a:spcPts', {'val': '0'})]))
+        p_el.append(p_pr)
         for run in runs:
             rpr_a = {'lang': 'zh-CN', 'dirty': '0'}
             if run.get('sz'):
@@ -598,17 +606,37 @@ class SvgConverter:
                 ts_fill = ts.get('fill', fill_s)
                 ts_ff = ts.get('font-family', ff)
                 fh = float(ts_fsz)
-                # baseline偏移: text-after-edge -> y是底部减全高; auto -> y是baseline减85%
+                # 字号分段的 ascent 补偿系数（大字号 ascent 占比更低）
+                ascent_ratio = 0.80 if fh >= 32 else (0.85 if fh >= 16 else 0.88)
+                # text-after-edge: y是文字底边 -> anchor='b', textbox底边=y
+                # central/middle: y是文字中线 -> anchor='ctr', textbox中线=y
+                # 普通 baseline: y是baseline -> anchor='t', textbox顶边=y-fh*ascent_ratio
                 if 'after-edge' in baseline:
-                    y -= fh
+                    text_anchor_v = 'b'
+                    y = y  # 底边不变
+                elif baseline in ('central', 'middle'):
+                    text_anchor_v = 'ctr'
+                    # central baseline: y 是文字中线，不需要额外偏移
                 else:
-                    y -= fh * 0.85
+                    text_anchor_v = 't'
+                    y -= fh * ascent_ratio
                 c = parse_color(ts_fill)
                 hex6 = c[0] if c and c[0] != 'grad' else '000000'
                 alpha = c[1] if c and c[0] != 'grad' else 100000
                 alpha = int(alpha * opacity)
-                cx_v = px(tlen) if tlen > 0 else px(len(txt) * float(ts_fsz) * 0.7)
+                # CJK 字符宽度约等于字号，拉丁字符约 0.6 倍
+                def _char_width_ratio(ch):
+                    return 0.95 if ord(ch) > 0x2E7F else 0.6
+                est_width = sum(_char_width_ratio(ch) * float(ts_fsz) for ch in txt.strip())
+                cx_v = px(tlen) if tlen > 0 else px(est_width)
                 cy_v = px(fh * 1.5)
+                # text-after-edge: textbox底边=y, 所以 textbox_y = y - cy_v(EMU)
+                if text_anchor_v == 'b':
+                    tb_y = px(y) - cy_v
+                elif text_anchor_v == 'ctr':
+                    tb_y = px(y) - cy_v // 2
+                else:
+                    tb_y = px(y)
                 # text-anchor 偏移: middle -> x减半宽, end -> x减全宽
                 if anchor == 'middle':
                     x -= cx_v / EMU_PX / 2
@@ -621,7 +649,8 @@ class SvgConverter:
                     'font': resolve_font(ts_ff),
                 }
                 shape = make_textbox(self._id(), f'T{self.sid}',
-                                     px(x), px(y), cx_v, cy_v, [[run]])
+                                     px(x), tb_y, cx_v, cy_v, [[run]],
+                                     anchor=text_anchor_v)
                 sp.append(shape)
                 self.stats['shapes'] += 1
 
@@ -629,31 +658,42 @@ class SvgConverter:
             x = float(el.get('x', 0)) * scale + ox
             y = float(el.get('y', 0)) * scale + oy
             fh = float(fsz)
-            # baseline偏移
+            ascent_ratio = 0.80 if fh >= 32 else (0.85 if fh >= 16 else 0.88)
+            # 同上: 根据 baseline 类型选择 anchor
             if 'after-edge' in baseline:
-                y -= fh
+                text_anchor_v = 'b'
+            elif baseline in ('central', 'middle'):
+                text_anchor_v = 'ctr'
             else:
-                y -= fh * 0.85
+                text_anchor_v = 't'
+                y -= fh * ascent_ratio
             c = parse_color(fill_s)
             hex6 = c[0] if c and c[0] != 'grad' else '000000'
             alpha = c[1] if c and c[0] != 'grad' else 100000
             alpha = int(alpha * opacity)
             txt = el.text.strip()
-            txt_w = len(txt) * float(fsz) * 0.7
+            txt_w = sum((0.95 if ord(ch) > 0x2E7F else 0.6) * float(fsz) for ch in txt)
             # text-anchor 偏移
             if anchor == 'middle':
                 x -= txt_w / 2
             elif anchor == 'end':
                 x -= txt_w
+            cx_v = px(txt_w)
+            cy_v = px(fh * 1.5)
+            if text_anchor_v == 'b':
+                tb_y = px(y) - cy_v
+            elif text_anchor_v == 'ctr':
+                tb_y = px(y) - cy_v // 2
+            else:
+                tb_y = px(y)
             run = {
                 'text': txt, 'sz': font_sz(fsz),
                 'bold': fw in ('bold', '700', '800', '900'),
                 'hex': hex6, 'alpha': alpha, 'font': resolve_font(ff),
             }
             shape = make_textbox(self._id(), f'T{self.sid}',
-                                 px(x), px(y),
-                                 px(len(txt) * float(fsz) * 0.7),
-                                 px(fh * 1.5), [[run]])
+                                 px(x), tb_y, cx_v, cy_v, [[run]],
+                                 anchor=text_anchor_v)
             sp.append(shape)
             self.stats['shapes'] += 1
 
@@ -895,37 +935,44 @@ class SvgConverter:
             self.stats['shapes'] += 1
             return
 
-        # object-fit: cover -- 按比例放大到覆盖容器，然后裁剪
+        # object-fit: cover -- 容器尺寸放置 + srcRect 源裁剪
         container_w = px(w)
         container_h = px(h)
         img_ratio = img_w / img_h
         container_ratio = container_w / container_h
 
+        # 计算源裁剪区域 (srcRect, 百分比 0-100000)
         if img_ratio > container_ratio:
             # 图片更宽 -> 按高度填满，裁剪左右
-            scale_h = container_h
-            scale_w = int(scale_h * img_ratio)
+            visible_w_pct = container_ratio / img_ratio  # 0~1
+            crop_lr = int((1 - visible_w_pct) / 2 * 100000)
+            crop_tb = 0
         else:
             # 图片更高 -> 按宽度填满，裁剪上下
-            scale_w = container_w
-            scale_h = int(scale_w / img_ratio)
+            visible_h_pct = img_ratio / container_ratio  # 0~1
+            crop_lr = 0
+            crop_tb = int((1 - visible_h_pct) / 2 * 100000)
 
-        # 放置缩放后的图片（居中裁剪）
-        offset_x = (scale_w - container_w) / 2
-        offset_y = (scale_h - container_h) / 2
-
+        # 以容器尺寸放置图片（不放大）
         pic = slide.shapes.add_picture(img_source,
                                        Emu(px(x)), Emu(px(y)),
-                                       Emu(scale_w), Emu(scale_h))
+                                       Emu(container_w), Emu(container_h))
 
-        # 用 crop 实现裁剪（值为比例 0.0-1.0）
-        if scale_w > 0 and scale_h > 0:
-            crop_lr = offset_x / scale_w  # 左右各裁多少比例
-            crop_tb = offset_y / scale_h  # 上下各裁多少比例
-            pic.crop_left = crop_lr
-            pic.crop_right = crop_lr
-            pic.crop_top = crop_tb
-            pic.crop_bottom = crop_tb
+        # 用 srcRect 在 blipFill 内定义源裁剪区域（等效 object-fit: cover）
+        if crop_lr > 0 or crop_tb > 0:
+            from pptx.oxml.ns import qn
+            blip_fill = pic._element.find(qn('p:blipFill'))
+            if blip_fill is not None:
+                src_rect = _el('a:srcRect', {
+                    'l': str(crop_lr), 't': str(crop_tb),
+                    'r': str(crop_lr), 'b': str(crop_tb)
+                })
+                # stretch 前面插入 srcRect
+                stretch = blip_fill.find(qn('a:stretch'))
+                if stretch is not None:
+                    blip_fill.insert(list(blip_fill).index(stretch), src_rect)
+                else:
+                    blip_fill.append(src_rect)
 
         # 应用透明度（通过 OOXML alphaModFix）
         if el_opacity < 0.99:
