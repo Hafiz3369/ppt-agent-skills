@@ -20,6 +20,21 @@ PLAYBOOKS = REFS / "playbooks"
 RUNTIME = REFS / "runtime"
 
 
+RESEARCH_CODENAMES = {
+    "presearch": "ScoutFerret",
+    "full": "IntelHound",
+}
+CODENAMES = {
+    "material-prep": "SortRaccoon",
+    "outline": "StorySquid",
+    "outline-review": "CriticCat",
+    "planning": "TacticFox",
+    "style": "PalettePeacock",
+    "image": "DreamOtter",
+    "html": "PageBeaver",
+}
+
+
 def append_extra_context(lines: list[str], args: argparse.Namespace) -> list[str]:
     extra_notes = list(getattr(args, "extra_note", []) or [])
     notes_file = getattr(args, "extra_notes_file", None)
@@ -56,33 +71,71 @@ def write_prompt(output: Path, lines: list[str], args: argparse.Namespace) -> in
 
 
 def cmd_research(args: argparse.Namespace) -> int:
+    mode = str(getattr(args, "mode", "full") or "full").strip().lower()
+    if mode not in {"full", "presearch"}:
+        print(f"ERROR: unsupported research mode: {mode}")
+        return 1
+
+    codename = RESEARCH_CODENAMES.get(mode, "IntelHound")
     lines = [
-        "# Research Sub-agent Prompt",
+        f"# Research Sub-agent Prompt ({codename})",
         "",
-        "你是隔离资料收集 sub-agent。",
+        f"你是隔离资料收集 sub-agent（代号：{codename}）。",
         f"先读取 playbook：`{PLAYBOOKS / 'research-subagent-playbook.md'}`",
         "",
         "只做搜索与原始素材收集，不做可信度评估，不做结构化打包。",
         "",
+        f"当前运行模式：`{mode}`",
+        "",
         "读取输入：",
-        f"- requirements: `{Path(args.requirements).resolve()}`",
+    ]
+
+    if mode == "presearch":
+        if not getattr(args, "topic", None):
+            print("ERROR: --topic is required when --mode=presearch")
+            return 1
+        lines += [
+            f"- topic: `{str(args.topic).strip()}`",
+            "",
+            "预检索目标：",
+            "- 在需求问卷前提供初级背景与候选提问线索",
+            "- 查询数量控制在 3-5，覆盖核心定义/市场数据/案例应用/趋势中的关键维度",
+            "- 产物会在 Step 2 被合并复用，不做一次性废文件",
+        ]
+    else:
+        if not getattr(args, "requirements", None):
+            print("ERROR: --requirements is required when --mode=full")
+            return 1
+        lines.append(f"- requirements: `{Path(args.requirements).resolve()}`")
+        if args.seed_raw_research:
+            lines.append(f"- seed raw research: `{Path(args.seed_raw_research).resolve()}`")
+        lines += [
+            "",
+            "全量搜索目标：",
+            "- 基于 requirements 执行完整维度搜索",
+            "- 如果提供 seed raw research，必须合并并去重，不得丢弃已搜到的有效素材",
+        ]
+
+    lines += [
         "",
         "写出产物：",
         f"- raw research: `{Path(args.output).resolve()}`",
         "",
         "硬规则：",
         "- 只负责 research，不兼任 material-prep",
-        "- 如果 requirements 缺字段，直接报缺口，不要脑补",
+        "- presearch 模式不得伪造 requirements 约束",
+        "- full 模式如果 requirements 缺字段，直接报缺口，不要脑补",
         "- 完成后立即交回主链，由主 agent 回收并关闭你",
     ]
     return write_prompt(Path(args.prompt), lines, args)
 
 
 def cmd_material_prep(args: argparse.Namespace) -> int:
+    codename = CODENAMES["material-prep"]
     lines = [
-        "# Material Prep Sub-agent Prompt",
+        f"# Material Prep Sub-agent Prompt ({codename})",
         "",
-        "你是隔离资料整理 sub-agent。",
+        f"你是隔离资料整理 sub-agent（代号：{codename}）。",
         f"先读取 playbook：`{PLAYBOOKS / 'material-prep-subagent-playbook.md'}`",
         "",
         "只做清洗、分类、可信度评估和缺口打包，不做搜索。",
@@ -102,10 +155,11 @@ def cmd_material_prep(args: argparse.Namespace) -> int:
 
 
 def cmd_outline(args: argparse.Namespace) -> int:
+    codename = CODENAMES["outline"]
     lines = [
-        "# Outline Sub-agent Prompt",
+        f"# Outline Sub-agent Prompt ({codename})",
         "",
-        "你是隔离大纲编写 sub-agent。",
+        f"你是隔离大纲编写 sub-agent（代号：{codename}）。",
         f"先读取 playbook：`{PLAYBOOKS / 'outline-subagent-playbook.md'}`",
         f"再读取 prompt：`{PROMPTS / 'prompt-2-outline.md'}`",
         "",
@@ -130,10 +184,11 @@ def cmd_outline(args: argparse.Namespace) -> int:
 
 
 def cmd_outline_review(args: argparse.Namespace) -> int:
+    codename = CODENAMES["outline-review"]
     lines = [
-        "# Outline Review Sub-agent Prompt",
+        f"# Outline Review Sub-agent Prompt ({codename})",
         "",
-        "你是隔离大纲审查 sub-agent。",
+        f"你是隔离大纲审查 sub-agent（代号：{codename}）。",
         f"先读取 playbook：`{PLAYBOOKS / 'outline-review-subagent-playbook.md'}`",
         "",
         "只负责评分和输出修改指令，不直接修改 outline.json。",
@@ -154,10 +209,11 @@ def cmd_outline_review(args: argparse.Namespace) -> int:
 
 
 def cmd_planning(args: argparse.Namespace) -> int:
+    codename = CODENAMES["planning"]
     lines = [
-        "# Planning Sub-agent Prompt",
+        f"# Planning Sub-agent Prompt ({codename})",
         "",
-        "你是隔离策划 sub-agent。",
+        f"你是隔离策划 sub-agent（代号：{codename}）。",
         f"先读取 playbook：`{PLAYBOOKS / 'planning-subagent-playbook.md'}`",
         f"再读取 prompt：`{PROMPTS / 'prompt-3-planning.md'}`",
         "",
@@ -188,10 +244,11 @@ def cmd_planning(args: argparse.Namespace) -> int:
 
 
 def cmd_style(args: argparse.Namespace) -> int:
+    codename = CODENAMES["style"]
     lines = [
-        "# Style Sub-agent Prompt",
+        f"# Style Sub-agent Prompt ({codename})",
         "",
-        "你是隔离风格决策 sub-agent。",
+        f"你是隔离风格决策 sub-agent（代号：{codename}）。",
         f"先读取资料：`{REFS / 'styles' / 'README.md'}`",
         "",
         "只负责生成 style.json，不负责 planning、HTML、review。",
@@ -214,10 +271,11 @@ def cmd_style(args: argparse.Namespace) -> int:
 
 
 def cmd_image(args: argparse.Namespace) -> int:
+    codename = CODENAMES["image"]
     lines = [
-        "# Image Sub-agent Prompt",
+        f"# Image Sub-agent Prompt ({codename})",
         "",
-        "你是隔离配图 sub-agent。",
+        f"你是隔离配图 sub-agent（代号：{codename}）。",
         f"先读取资料：`{RUNTIME / 'image-generation.md'}`",
         "",
         "只负责读取 planning 中的 image 合同、生成图片、回填 image.path。",
@@ -241,10 +299,11 @@ def cmd_image(args: argparse.Namespace) -> int:
 
 
 def cmd_html(args: argparse.Namespace) -> int:
+    codename = CODENAMES["html"]
     lines = [
-        "# HTML Sub-agent Prompt",
+        f"# HTML Sub-agent Prompt ({codename})",
         "",
-        "你是隔离 HTML sub-agent。",
+        f"你是隔离 HTML sub-agent（代号：{codename}）。",
         f"先读取 playbook：`{PLAYBOOKS / 'html-subagent-playbook.md'}`",
         "",
         f"只负责第 {args.page} 页 HTML，不负责其他页面。",
@@ -274,7 +333,10 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="command")
 
     research = subparsers.add_parser("research", help="Assemble research sub-agent prompt")
-    research.add_argument("--requirements", required=True)
+    research.add_argument("--mode", choices=("full", "presearch"), default="full")
+    research.add_argument("--requirements")
+    research.add_argument("--topic")
+    research.add_argument("--seed-raw-research")
     research.add_argument("--output", required=True)
     research.add_argument("--prompt", required=True)
     add_common_prompt_args(research)

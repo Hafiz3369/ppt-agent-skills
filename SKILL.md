@@ -50,6 +50,20 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
   - 可以补充运行信息，不能覆盖正式文件真源
   - 不能口头改写 `requirements / outline / planning / style` 合同
   - 不能用追加信息替代节点校验
+- sub-agent 同步纪律（强制）：
+  - 拉起 sub-agent 后，主 agent 必须等待其返回（final 状态）再继续
+  - 未收到返回前，主 agent 不得自行代写该节点产物，不得提前推进下一节点
+  - 并行批次场景下，必须等待该批次全部返回并完成回收校验后再放行
+- sub-agent 销毁纪律（强制）：
+  - sub-agent 完成且后续不再复用时，主 agent 必须立即执行 `close_agent`
+  - `wait_agent` 仅代表“已完成”，不代表“已销毁”；未 `close_agent` 不得放行下一节点
+  - 并行批次必须逐个 `close_agent`（含子孙会话），确认无残留后再继续
+- 状态播报纪律（强制）：
+  - 进度播报只允许通过主 agent 正常消息通道发送；禁止通过 shell `echo` / `printf` / `true` 等命令伪造播报
+  - 同一阶段、同一含义的进度文案不得重复发送；状态未变化时不重复播报
+  - 遇到会话重放 / 恢复时，只发送一条“已恢复到当前阶段”的合并播报，不重放历史播报文本
+  - 每次拉起 sub-agent 后，必须发送一次映射播报：`业务代号 -> 平台昵称 [agent_type] (agent_id=...)`
+  - 同一次会话中，后续进度沟通统一使用业务代号（如 `TacticFox`），不再混用平台昵称（如 `Einstein`）
 - `SKILL.md` 不再承载 sub-agent prompt 正文
 
 ---
@@ -74,8 +88,23 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 **授权口径**：
 
-- 只有同时满足“环境可调 sub-agent” + “用户明确授权 delegation / subagent / 并行代理”，Step 2 / Step 3 / Step 4 / Step 5a / Step 5b / Step 5c / Step 5d 才能按标准工作流执行。
+- 只有同时满足“环境可调 sub-agent” + “用户明确授权 delegation / subagent / 并行代理”，Step 1a / Step 2 / Step 3 / Step 4 / Step 5a / Step 5b / Step 5c / Step 5d 才能按标准工作流执行。
 - 一旦满足授权，返工必须新开干净 sub-agent，不复用旧会话。
+
+**Sub-agent 代号**：
+
+| 职责 | 命令 / 模式 | 代号 |
+|------|-------------|------|
+| 预检索 | `research --mode presearch` | `ScoutFerret` |
+| 全量资料搜集 | `research --mode full` | `IntelHound` |
+| 资料整理 | `material-prep` | `SortRaccoon` |
+| 大纲编写 | `outline` | `StorySquid` |
+| 大纲审查 | `outline-review` | `CriticCat` |
+| 策划分配 | `planning` | `TacticFox` |
+| 风格决策 | `style` | `PalettePeacock` |
+| 配图生成 | `image` | `DreamOtter` |
+| HTML 设计稿 | `html` | `PageBeaver` |
+| 强制终审 | `reviewer` | `NightOwl` |
 
 ---
 
@@ -116,6 +145,10 @@ requirements.json
 `progress.json` 是必需运行账本：Step 1 开始前必须存在并通过 `scripts/progress_validator.py --require-pre-step1`。
 它用于恢复与进度审计；是否放行下一节点仍以正式产物 + validator / harness 结果为准，不替代主链真源。
 
+运行期中间件（非正式产物）允许放在：
+
+- `OUTPUT_DIR/runtime/presearch-raw-research.json`（Step 1 预检索产物，Step 2 合并复用）
+
 ---
 
 ## 4. 计划工具
@@ -126,27 +159,32 @@ requirements.json
 
 1. `Step -1 获取用户 sub-agent 使用授权`
 2. `Step 0 生成 RUN_ID / 初始化 progress.json 并校验`
-3. `Step 1 搜索准备与需求问卷生成`
-4. `等待用户回复需求问卷`
-5. `写入 requirements.json`
-6. `Step 2 research sub-agent -> raw-research.json`
-7. `Step 2 material-prep sub-agent -> research-package.json`
-8. `Step 3 outline sub-agent -> outline.json`
-9. `Step 3 outline-review sub-agent -> outline-review-round-{n}.json`
-10. `Step 4 planning sub-agent -> planning/*.json`
-11. `等待用户确认 / 修改 planning`
-12. `Step 5a 风格决策 -> style.json`
-13. `Step 5b 配图生成（如需要）`
-14. `Step 5c html sub-agent -> slides/*.html`
-15. `Step 5d reviewer sub-agent -> reviews/final-review-round-{n}.json`
-16. `生成 preview.html 并等待用户确认`
-17. `Step 6 管线选择与导出交付`
+3. `Step 1a presearch sub-agent（ScoutFerret） -> runtime/presearch-raw-research.json`
+4. `Step 1b 需求问卷生成`
+5. `等待用户回复需求问卷`
+6. `写入 requirements.json`
+7. `Step 2 research sub-agent（IntelHound，合并 presearch） -> raw-research.json`
+8. `Step 2 material-prep sub-agent（SortRaccoon） -> research-package.json`
+9. `Step 3 outline sub-agent（StorySquid） -> outline.json`
+10. `Step 3 outline-review sub-agent（CriticCat） -> outline-review-round-{n}.json`
+11. `Step 4 planning sub-agent（TacticFox） -> planning/*.json`
+12. `等待用户确认 / 修改 planning`
+13. `Step 5a 风格决策 sub-agent（PalettePeacock） -> style.json`
+14. `Step 5b 配图 sub-agent（DreamOtter，如需要）`
+15. `Step 5c html sub-agent（PageBeaver） -> slides/*.html`
+16. `Step 5d reviewer sub-agent（NightOwl） -> reviews/final-review-round-{n}.json`
+17. `生成 preview.html 并等待用户确认`
+18. `Step 6 管线选择与导出交付`
 
 规则：
 
 - 不得合并步骤，不得删除前序步骤
 - 同一时刻只能有一个 `in_progress`
 - 拉起 sub-agent 前，先把对应 step 标成 `in_progress`
+- 拉起 sub-agent 后，必须等待返回并完成回收校验，才允许继续
+- 对后续不再使用的 sub-agent，必须在当前 step 内完成 `close_agent`，不得挂起到下一 step
+- `update_plan` 只在状态变化时更新；禁止在等待同一 sub-agent 时反复写等价 plan 文案
+- 每次拉起后必须立刻记录映射：`业务代号 -> 平台昵称/agent_type/agent_id`；缺映射视为当前 step 未完成启动记录
 
 ---
 
@@ -217,13 +255,19 @@ python3 SKILL_DIR/scripts/progress_validator.py \
 
 ---
 
-### Step 1: 需求调研
+### Step 1: 需求调研（先预检索再提问）
 
-**目标**：产出 `OUTPUT_DIR/requirements.json`
+**目标**：
+
+- `OUTPUT_DIR/runtime/presearch-raw-research.json`
+- `OUTPUT_DIR/requirements.json`
 
 **执行**：
 
+- Step 1a：先组装并拉起 `research` sub-agent（`mode=presearch`，代号 `ScoutFerret`），只做初级背景检索
+- Step 1a 拉起后，必须等待 `ScoutFerret` 返回并完成回收，不得由主 agent 代做预检索
 - 必须读取 `references/prompts/prompt-1-research.md`
+- Step 1b：基于 presearch 结果生成问题包，再提问
 - 必须提问并等待用户回复
 - 问题包必须覆盖：
   - 场景
@@ -244,20 +288,34 @@ python3 SKILL_DIR/scripts/progress_validator.py \
 
 - 只问 `Q1 + Q2 + Q7 + Q8 + Q12`
 
+**组装入口（Step 1a）**：
+
+```bash
+python3 SKILL_DIR/scripts/subagent_prompt_assembler.py research \
+  --mode presearch \
+  --topic "USER_TOPIC" \
+  --output OUTPUT_DIR/runtime/presearch-raw-research.json \
+  --prompt OUTPUT_DIR/runtime/presearch-research-prompt.txt
+```
+
 **硬门槛**：
 
 ```bash
+test -s OUTPUT_DIR/runtime/presearch-raw-research.json
 python3 SKILL_DIR/scripts/contract_validator.py requirements OUTPUT_DIR/requirements.json
 ```
 
 通过条件：
 
+- `runtime/presearch-raw-research.json` 存在且非空
 - `requirements.json` 存在
 - validator exit code = 0
 
 失败回退：
 
-- 留在 Step 1，补问或补字段，不得进入 Step 2
+- 预检索缺失或为空 -> 回退到 Step 1a research sub-agent
+- 问卷字段不完整 -> 留在 Step 1b，补问或补字段
+- 不得进入 Step 2
 
 ---
 
@@ -272,19 +330,21 @@ python3 SKILL_DIR/scripts/contract_validator.py requirements OUTPUT_DIR/requirem
 
 1. 先验证 Step 1 已通过
 2. 用脚本组装 research sub-agent prompt
-3. 拉起 `research` sub-agent
-4. 回收并关闭
-5. 校验 `raw-research.json`
+3. 拉起 `research` sub-agent（代号 `IntelHound`）
+4. 等待 `IntelHound` 返回后执行 `close_agent` 回收并关闭
+5. 校验 `raw-research.json`（必须覆盖并合并 presearch 结果）
 6. 用脚本组装 material-prep sub-agent prompt
-7. 拉起 `material-prep` sub-agent
-8. 回收并关闭
+7. 拉起 `material-prep` sub-agent（代号 `SortRaccoon`）
+8. 等待 `SortRaccoon` 返回后执行 `close_agent` 回收并关闭
 9. 校验 `research-package.json`
 
 **组装入口**：
 
 ```bash
 python3 SKILL_DIR/scripts/subagent_prompt_assembler.py research \
+  --mode full \
   --requirements OUTPUT_DIR/requirements.json \
+  --seed-raw-research OUTPUT_DIR/runtime/presearch-raw-research.json \
   --output OUTPUT_DIR/raw-research.json \
   --prompt OUTPUT_DIR/runtime/research-prompt.txt
 
@@ -325,11 +385,11 @@ python3 SKILL_DIR/scripts/contract_validator.py research-package OUTPUT_DIR/rese
 
 1. 先验证 Step 2 已通过
 2. 组装 outline sub-agent prompt
-3. 拉起 `outline` sub-agent，生成 `outline.json`
-4. 回收并关闭
+3. 拉起 `outline` sub-agent（代号 `StorySquid`），生成 `outline.json`
+4. 等待 `StorySquid` 返回后执行 `close_agent` 回收并关闭
 5. 组装 outline-review sub-agent prompt
-6. 拉起 `outline-review` sub-agent
-7. 回收并关闭
+6. 拉起 `outline-review` sub-agent（代号 `CriticCat`）
+7. 等待 `CriticCat` 返回后执行 `close_agent` 回收并关闭
 8. 校验 review 结果
 9. 不通过则新开 outline / outline-review 回路
 
@@ -388,8 +448,8 @@ python3 SKILL_DIR/scripts/contract_validator.py outline-review \
 1. 验证 Step 3 已通过
 2. 按复杂度决定页范围与批次数
 3. 用脚本组装 planning sub-agent prompt
-4. 若拆成多个页范围批次，批次之间并行拉起 planning sub-agent
-5. 回收并关闭
+4. 若拆成多个页范围批次，批次之间并行拉起 planning sub-agent（代号 `TacticFox`）
+5. 等待全部 `TacticFox` 批次返回后逐个执行 `close_agent` 回收并关闭
 6. 运行单页 / 全量 validator
 7. 展示 planning 给用户确认
 
@@ -436,8 +496,8 @@ python3 SKILL_DIR/scripts/contract_validator.py images OUTPUT_DIR/planning
 
 1. 验证 Step 4 已通过
 2. 组装 style sub-agent prompt
-3. 拉起 style sub-agent
-4. 回收并关闭
+3. 拉起 style sub-agent（代号 `PalettePeacock`）
+4. 等待 `PalettePeacock` 返回后执行 `close_agent` 回收并关闭
 5. 校验 `style.json`
 
 **组装入口**：
@@ -478,8 +538,8 @@ python3 SKILL_DIR/scripts/contract_validator.py style OUTPUT_DIR/style.json
 - 只在 `image_preference != none / 不需要` 时执行
 - 先检查 planning 中的 image contract
 - 组装 image sub-agent prompt
-- 拉起 image sub-agent
-- 回收并关闭
+- 拉起 image sub-agent（代号 `DreamOtter`）
+- 等待 `DreamOtter` 返回后执行 `close_agent` 回收并关闭
 - 生成后再检查 path 是否已回填且文件存在
 
 **组装入口**：
@@ -524,8 +584,8 @@ python3 SKILL_DIR/scripts/contract_validator.py images OUTPUT_DIR/planning --req
 2. 运行 `scripts/prompt_assembler.py design`
 3. 检查 `prompt-ready` 数量是否与 planning 页数一致
 4. 用脚本组装 HTML sub-agent prompt
-5. 若拆成多个 HTML 批次，批次之间并行拉起 HTML sub-agent
-6. 回收并关闭
+5. 若拆成多个 HTML 批次，批次之间并行拉起 HTML sub-agent（代号 `PageBeaver`）
+6. 等待全部 `PageBeaver` 批次返回后逐个执行 `close_agent` 回收并关闭
 7. 检查 `slides` 数量是否与 planning 页数一致
 
 **组装入口**：
@@ -573,8 +633,8 @@ python3 SKILL_DIR/scripts/subagent_prompt_assembler.py html \
 
 1. 尽量先生成 PNG
 2. 用 harness 组装 reviewer prompt
-3. 拉起 reviewer sub-agent
-4. 回收并关闭
+3. 拉起 reviewer sub-agent（代号 `NightOwl`）
+4. 等待 `NightOwl` 返回后执行 `close_agent` 回收并关闭
 5. 用 harness validate
 6. 若需修复则重新 assemble，换新 reviewer
 
@@ -662,8 +722,10 @@ python3 SKILL_DIR/scripts/svg2pptx.py OUTPUT_DIR/svg -o OUTPUT_DIR/presentation.
 | 当前节点 | 检查方式 | 失败回退 |
 |---------|---------|---------|
 | sub-agent 授权 | 用户明确同意 | Step -1 |
+| sub-agent 会话残留 | 已完成会话均已 `close_agent` | 当前 step（先清理） |
 | 运行目录隔离 | `OUTPUT_DIR` 与 `RUN_ID` 一一对应 | Step 0 |
 | `progress.json` | `scripts/progress_validator.py --require-pre-step1` | Step 0 |
+| `runtime/presearch-raw-research.json` | 文件存在且非空 | Step 1a |
 | `requirements.json` | `scripts/contract_validator.py requirements` | Step 1 |
 | `raw-research.json` | `scripts/contract_validator.py raw-research` | research sub-agent |
 | `research-package.json` | `scripts/contract_validator.py research-package` | material-prep sub-agent |
@@ -704,17 +766,18 @@ python3 SKILL_DIR/scripts/svg2pptx.py OUTPUT_DIR/svg -o OUTPUT_DIR/presentation.
 主控制台常用入口只保留这些：
 
 - 用户问卷：`references/prompts/prompt-1-research.md`
-- research prompt 组装：`scripts/subagent_prompt_assembler.py` 的 `research` 子命令
-- material-prep prompt 组装：`scripts/subagent_prompt_assembler.py` 的 `material-prep` 子命令
-- outline / outline-review prompt 组装：`scripts/subagent_prompt_assembler.py` 的 `outline` / `outline-review` 子命令
-- planning prompt 组装：`scripts/subagent_prompt_assembler.py` 的 `planning` 子命令
-- style / image prompt 组装：`scripts/subagent_prompt_assembler.py` 的 `style` / `image` 子命令
+- presearch prompt 组装（`ScoutFerret`）：`scripts/subagent_prompt_assembler.py research --mode presearch`
+- research prompt 组装（`IntelHound`）：`scripts/subagent_prompt_assembler.py research --mode full`
+- material-prep prompt 组装（`SortRaccoon`）：`scripts/subagent_prompt_assembler.py` 的 `material-prep` 子命令
+- outline / outline-review prompt 组装（`StorySquid` / `CriticCat`）：`scripts/subagent_prompt_assembler.py` 的 `outline` / `outline-review` 子命令
+- planning prompt 组装（`TacticFox`）：`scripts/subagent_prompt_assembler.py` 的 `planning` 子命令
+- style / image prompt 组装（`PalettePeacock` / `DreamOtter`）：`scripts/subagent_prompt_assembler.py` 的 `style` / `image` 子命令
 - planning 合法性：`scripts/planning_validator.py`
 - progress 合法性：`scripts/progress_validator.py`
 - requirements / research / style / image / outline-review 合法性：`scripts/contract_validator.py`
 - design prompt 组装：`scripts/prompt_assembler.py` 的 `design` 子命令
-- html sub-agent prompt 组装：`scripts/subagent_prompt_assembler.py` 的 `html` 子命令
-- reviewer packet：`scripts/final_review_harness.py` 的 `assemble` / `validate` 子命令
+- html sub-agent prompt 组装（`PageBeaver`）：`scripts/subagent_prompt_assembler.py` 的 `html` 子命令
+- reviewer packet（`NightOwl`）：`scripts/final_review_harness.py` 的 `assemble` / `validate` 子命令
 - preview 打包：`scripts/html_packager.py`
 - 导出：`scripts/html2png.py` / `scripts/html2svg.py` / `scripts/png2pptx.py` / `scripts/svg2pptx.py`
 

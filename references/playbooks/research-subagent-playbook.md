@@ -3,15 +3,26 @@
 ## 何时读取
 
 - 当你被主 agent 指派为资料收集 sub-agent 时必读
-- Step 1 需求调研完成后触发
+- Step 1 需求问卷前的预检索触发（`mode=presearch`）
+- Step 2 正式资料搜集触发（`mode=full`）
 
 ## 目标
 
-基于 `OUTPUT_DIR/requirements.json` 规划并执行多维度搜索，最大化搜集与主题相关的高质量原始信息。
+在不同模式下执行搜索并沉淀可复用原始素材：
+
+- `presearch`：基于主题做初级背景检索，服务 Step 1 提问设计
+- `full`：基于 `requirements.json` 做完整资料搜集，并合并 presearch 结果
 
 你是信息猎人，不是分析师。职责是**尽可能多地搜回有价值的原始素材**，不做可信度评估和结构化整理（那是资料准备 sub-agent 的工作）。宁可多搜一条没用的，不可漏掉一条有用的。
 
-## 输入包
+## 运行模式
+
+| 模式 | 触发阶段 | 输入 | 输出 |
+|------|----------|------|------|
+| `presearch` | Step 1 问卷前 | `topic`（必填） | `OUTPUT_DIR/runtime/presearch-raw-research.json` |
+| `full` | Step 2 正式搜集 | `requirements.json`（必填），可选 `seed raw research` | `OUTPUT_DIR/raw-research.json` |
+
+## 输入包（full 模式）
 
 主 agent 提供（从 `requirements.json` 中提取）：
 
@@ -50,6 +61,8 @@
 | light（<= 8 页） | 3-5 |
 | standard（9-18 页） | 8-12 |
 | large（> 18 页） | 10-15 |
+
+`presearch` 模式查询数量固定为 3-5（用于生成问卷线索，不追求 full 覆盖）。
 
 ### 维度权重分配（根据 persuasion_style）
 
@@ -92,7 +105,7 @@
 
 ## 产物格式
 
-写入 `OUTPUT_DIR/raw-research.json`：
+写入 `OUTPUT_DIR/raw-research.json`（presearch 模式写入 `OUTPUT_DIR/runtime/presearch-raw-research.json`，结构相同）：
 
 ```json
 {
@@ -134,12 +147,18 @@
 
 | 检查项 | 标准 |
 |--------|------|
-| 查询数量 | >= complexity_level 对应下限 |
-| 维度覆盖 | 6 个维度各至少 1 个查询 |
-| 必含内容 | content_must_include 每项至少 1 个专门查询 |
+| 查询数量 | full: >= complexity_level 对应下限；presearch: 3-5 |
+| 维度覆盖 | full: 6 个维度各至少 1 个查询；presearch: 覆盖关键维度即可 |
+| 必含内容 | full 模式下 content_must_include 每项至少 1 个专门查询 |
 | 内容质量 | 每条 finding 有 content，不只是 URL |
 | 数据精确 | 数字精确记录 |
-| 过滤 | 不含 content_must_avoid 的内容 |
+| 过滤 | full 模式不含 content_must_avoid 的内容 |
+
+## presearch 合并规则（Step 2）
+
+- `full` 模式若收到 `seed raw research`，必须先读取并合并。
+- 合并时对 `query + source_url + content` 做去重，避免重复素材污染统计。
+- 不得覆盖掉 seed 中已有的高价值条目；只允许补充与去重。
 
 ## Sub-agent Prompt 模板
 

@@ -46,6 +46,7 @@ def resolve_review_mode(requested: str, has_png: bool) -> str:
 # ── assemble: 精简 prompt（路径清单 + 评分标准，不内联大文件）───
 
 def cmd_assemble(args):
+    reviewer_codename = "NightOwl"
     out_dir = pathlib.Path(args.output_dir)
     out_file = pathlib.Path(args.output) if args.output else out_dir / "reviews" / "reviewer-prompt.txt"
     out_file.parent.mkdir(parents=True, exist_ok=True)
@@ -97,9 +98,9 @@ def cmd_assemble(args):
     # ── 组装精简 prompt ──
     parts = []
 
-    parts.append("# Final Review -- Reviewer Sub-agent Prompt")
+    parts.append(f"# Final Review -- Reviewer Sub-agent Prompt ({reviewer_codename})")
     parts.append("")
-    parts.append("你是严格的 PPT 质量审查员。你与生成者完全隔离，从零审查。")
+    parts.append(f"你是严格的 PPT 质量审查员（代号：{reviewer_codename}）。你与生成者完全隔离，从零审查。")
     parts.append("这是 SKILL.md Step 5d 的强制终审回路，发生在 HTML 生成之后、用户预览与导出之前。")
     parts.append("只有当主 agent 明确把当前产物送入该终审回路时，你才接管评分与修复。")
     parts.append("一旦进入该回路，终审必须由隔离 reviewer sub-agent 执行；主 agent 不得自己兼任 reviewer。")
