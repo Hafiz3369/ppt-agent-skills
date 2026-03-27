@@ -4,83 +4,82 @@
 每页 HTML 放在独立的 iframe srcdoc 中，CSS 完全隔离，零冲突。
 
 用法:
-  python html_packager.py <slides_directory> [-o output.html] [--title "Title"]
-  python html_packager.py ppt-output/slides/ -o ppt-output/preview.html
+  python3 scripts/html_packager.py <slides_directory> [-o output.html] [--title "Title"]
+  python3 scripts/html_packager.py ppt-output/slides/ -o ppt-output/preview.html
 """
 
 import argparse
 import base64
 import html as html_module
-import os
 import re
 import sys
 from pathlib import Path
 
 
+def natural_sort_key(path: Path) -> tuple[object, ...]:
+    parts = re.split(r"(\d+)", path.name)
+    key: list[object] = []
+    for part in parts:
+        key.append(int(part) if part.isdigit() else part.lower())
+    return tuple(key)
+
+
 def inline_images(html_content: str, html_dir: Path) -> str:
     """将 HTML 中引用的本地图片转为 base64 内联。"""
-    def replace_src(match):
-        attr = match.group(1)  # src= or url(
-        path_str = match.group(2)
-        closing = match.group(3)  # " or )
 
-        # 处理绝对路径和相对路径
+    def replace_src(match):
+        attr = match.group(1)
+        path_str = match.group(2)
+        closing = match.group(3)
+
         img_path = Path(path_str)
         if not img_path.is_absolute():
             img_path = html_dir / path_str
 
         if img_path.exists() and img_path.is_file():
-            ext = img_path.suffix.lower().lstrip('.')
-            mime = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
-                    'png': 'image/png', 'gif': 'image/gif',
-                    'svg': 'image/svg+xml', 'webp': 'image/webp'
-                    }.get(ext, f'image/{ext}')
+            ext = img_path.suffix.lower().lstrip(".")
+            mime = {
+                "jpg": "image/jpeg",
+                "jpeg": "image/jpeg",
+                "png": "image/png",
+                "gif": "image/gif",
+                "svg": "image/svg+xml",
+                "webp": "image/webp",
+            }.get(ext, f"image/{ext}")
             data = base64.b64encode(img_path.read_bytes()).decode()
-            return f'{attr}data:{mime};base64,{data}{closing}'
+            return f"{attr}data:{mime};base64,{data}{closing}"
         return match.group(0)
 
-    # 匹配 src="..." 和 url(...)
-    html_content = re.sub(
-        r'(src=["\'])([^"\']+?)(["\'])',
-        replace_src, html_content)
-    html_content = re.sub(
-        r'(url\(["\']?)([^"\')\s]+?)(["\']?\))',
-        replace_src, html_content)
+    html_content = re.sub(r'(src=["\'])([^"\']+?)(["\'])', replace_src, html_content)
+    html_content = re.sub(r'(url\(["\']?)([^"\')\s]+?)(["\']?\))', replace_src, html_content)
     return html_content
 
 
-def build_preview(slide_files: list, title: str = "PPT Preview") -> str:
+def build_preview(slide_files: list[Path], title: str = "PPT Preview") -> str:
     """构建可翻页的预览 HTML，每页用独立 iframe 实现 CSS 隔离。"""
-    slides_srcdoc = []
+    slides_srcdoc: list[str] = []
 
-    for f in slide_files:
-        html_dir = Path(f).parent
-        with open(f, "r", encoding="utf-8") as fh:
-            content = fh.read()
-
-        # 内联图片为 base64
+    for file_path in slide_files:
+        html_dir = file_path.parent
+        content = file_path.read_text(encoding="utf-8")
         content = inline_images(content, html_dir)
-
-        # 转义为 srcdoc 安全内容（& -> &amp;  " -> &quot;）
-        escaped = html_module.escape(content, quote=True)
-        slides_srcdoc.append(escaped)
+        slides_srcdoc.append(html_module.escape(content, quote=True))
 
     total = len(slides_srcdoc)
     escaped_title = html_module.escape(title)
 
-    # 生成 iframe 列表
     iframes = []
-    for i, srcdoc in enumerate(slides_srcdoc):
-        display = "block" if i == 0 else "none"
+    for idx, srcdoc in enumerate(slides_srcdoc):
+        display = "block" if idx == 0 else "none"
         iframes.append(
-            f'<iframe class="slide-frame" id="slide-{i}" '
+            f'<iframe class="slide-frame" id="slide-{idx}" '
             f'style="display:{display}" '
             f'srcdoc="{srcdoc}" '
             f'sandbox="allow-same-origin" '
             f'frameborder="0" scrolling="no"></iframe>'
         )
 
-    iframes_block = '\n'.join(iframes)
+    iframes_block = "\n".join(iframes)
 
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -154,7 +153,7 @@ function resize() {{
 }}
 function show(i) {{
   frames.forEach((f, idx) => f.style.display = idx === i ? 'block' : 'none');
-  info.textContent = (i+1) + ' / ' + total;
+  info.textContent = (i + 1) + ' / ' + total;
   document.getElementById('btn-prev').disabled = i === 0;
   document.getElementById('btn-next').disabled = i === total - 1;
 }}
@@ -163,8 +162,8 @@ function nav(d) {{
   if (n >= 0 && n < total) {{ cur = n; show(cur); }}
 }}
 document.addEventListener('keydown', e => {{
-  if (e.key==='ArrowLeft'||e.key==='ArrowUp') nav(-1);
-  if (e.key==='ArrowRight'||e.key==='ArrowDown'||e.key===' ') nav(1);
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') nav(-1);
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') nav(1);
 }});
 window.addEventListener('resize', resize);
 resize();
@@ -174,7 +173,7 @@ show(0);
 </html>"""
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="HTML Packager for PPT Agent")
     parser.add_argument("path", help="Directory containing slide HTML files")
     parser.add_argument("-o", "--output", default=None, help="Output HTML file")
@@ -184,20 +183,16 @@ def main():
     slides_dir = Path(args.path)
     if not slides_dir.is_dir():
         print(f"Error: {slides_dir} is not a directory", file=sys.stderr)
-        sys.exit(1)
+        raise SystemExit(1)
 
-    html_files = sorted(slides_dir.glob("*.html"))
+    html_files = sorted(slides_dir.glob("*.html"), key=natural_sort_key)
     if not html_files:
         print(f"Error: No HTML files in {slides_dir}", file=sys.stderr)
-        sys.exit(1)
+        raise SystemExit(1)
 
     output_path = args.output or str(slides_dir.parent / "preview.html")
-
     result = build_preview(html_files, title=args.title)
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(result)
-
+    Path(output_path).write_text(result, encoding="utf-8")
     print(f"Created: {output_path} ({len(html_files)} slides)")
 
 

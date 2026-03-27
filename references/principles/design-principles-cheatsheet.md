@@ -1,222 +1,222 @@
-# 【纯正 PPTX】设计理论操作手册 -- 拒绝千篇一律，打造极致灵动
+# 设计原则速查表 -- Step 4 字段级操作手册
 
-> **本文件将世界顶刊公认的幻灯片设计准则（CRAP四原则、格式塔心理学、信噪比原理），硬核映射到 planning JSON 的具体数据推演中。我们要的是如 Apple 发布会般充满张力独立"呼吸"的画面，绝不是切分布散列的 Web DIV 容器！**
-> 核心目标：彻底打破惯性的平庸网格，实现**"单页组合高度随机但是极其灵动、空间景深层次分明、视觉灵魂极度统一"**的卓越设计。
-> 你的设计原则必须完完全全遵循 PPTX 演讲所需要的设计语言，彻底摒弃常规的 HTML 前端设计语言（如居中对齐、安全的 padding、死板的 Flexbox 陈列）。
+> 用途不是讲理论，而是告诉页面策划师：当 JSON 某个字段写得不对，应该改哪一项。
 
----
-
-## ⭐️ 零号法则：设计之魂与精神锚定 -> 填写 `director_command`
-
-**核心理念**：你不仅是排版工，你是这部“演示电影”的导演。单页设计极其重要！不要让下游的 HTML 切图机器擅自生成又平庸又规整的东西。你们虽然最后输出的是 HTML，但那是用来**呈现 PPT 的画笔**。你必须用极富感性与侵略性的“总监压迫指令”，逼迫下游产生符合纯正 PPTX 美学的强张力设计，给后续生成提供**极高质量的设计上下文**！
-
-**如何撰写引爆画面的 `director_command`（单页艺术指导）：**
-1. **打破"千篇一律"的随机与灵动**：如果上一页是对称的，这一页指令必须要求非对称！如果上一页是极简，这一页就指令全屏色块出血！利用指令制造页面间的视觉跳跃感（Random & Dynamic Layouts）。
-2. **要求"丰富多彩"但不失统一**：在指令中调用当前页的特性。例如"用主色调渲染背景，极度饱和的强调色泼洒在唯一的数据焦点上"，色彩要丰富，但指明要通过 CSS 变量来实现整体统一。
-3. **强制打破常态的布局手段要求**：
-   - 数据冲击场景页：`"这是整场秀最具统治力的一页！用 90% 的致暗环境色笼罩全场，让那个 180px 带外发光的超大百分比像重锤一样砸在左上，绝不允许使用任何该死的边框和圆角来束缚它，辅助文本统统用 0.2 透明度埋藏在暗区！"`
-   - 极简金字塔思维页：`"呈现苹果级的留白与克制！全场 70% 画布面积不准放任何元素，只用一行居中的箴言（字号不需大，但字重极高）承载巨大的周围空间压迫感，呈现出死寂般的威严，禁止一切背景纹理和干扰花哨色带！"`
-   - 左冲右撞的对比页：`"构造一场严重不平衡的楚河汉界撕裂对峙！左边的旧方案让它蜷缩着、拥挤着、灰暗着；右侧的新方案占据巨大的呼吸空间，并打上极亮的高光与悬浮阴影，形成肉眼可见的降维打击感！全画面禁止使用任何对齐线！"`
-4. **直接下达专属的 PPTX 黑话指令**：`"必须突破栅格"、"要求元素产生越界的出血效果（Bleed）"、"创造深不见底的 z-index 空间景深"、"极端的字号反差"、"让半透明的大图片冲出边缘破血流"`。这些指令将会在 HTML 渲染阶段化为无声的设计利剑。
+> CARP（Contrast / Alignment / Repetition / Proximity）在这个 workflow 里是**版式 guardrail**，不是新风格系统，也不是新的模板库。
+> 它不能覆盖 `scene_mode`、`density_contract`、`style.json.design_soul` 或 `variation_strategy`，只能约束这些合同如何被更清楚地执行。
 
 ---
 
-## 一、对比原则与视觉主轴 (Contrast & Focus) -> 操作 `cards[]` 的 `card_style`
+## CARP 接入原则
 
-**核心原则**：每页只有 1 个视觉锚点。观众闭眼睁开第一个看到的 = 最重要的信息。
+### 冲突优先级
 
-**怎么做**：
+当 CARP 与既有预设看起来冲突时，按这个顺序判断：
 
-1. **确定锚点卡片**：在 `cards[]` 中找到承载该页最重要信息的那张卡片
-   - 如果最重要的是一个数字 -> 锚点卡片 = `data` 或 `data_highlight` 类型
-   - 如果最重要的是一个结论 -> 锚点卡片 = `text` 类型，且该卡片放在布局的主区域
-   - 如果最重要的是一个对比 -> 锚点卡片 = `comparison` 类型
+1. `requirements / outline / planning` 真源优先
+2. `scene_mode` 与 `density_contract` 优先
+3. CARP 只管版式秩序，不管风格灵魂
+4. `variation_strategy` 保证“同宗不同脸”，防止 repetition 退化成模板复制
 
-2. **用 `card_style` 拉开层级**：
-   - 锚点卡片设为 `accent` 或 `elevated`（视觉最突出）
-   - 其他卡片设为 `filled` / `transparent` / `outline`（视觉退后）
-   - **禁止**同页出现 2 个 `accent` 卡片（= 2 个锚点在争夺注意力）
+### 四句短定义
 
-3. **用 `emphasis_keywords` 标记关键词**：
-   - 锚点卡片的 `emphasis_keywords[]` 放 1-3 个最核心的词/数字
-   - 非锚点卡片的 `emphasis_keywords[]` 最多 1 个或为空
+- **Contrast**：决定谁先被看到，谁必须退后
+- **Alignment**：决定元素归属于哪套共同骨架，而不是随意漂浮
+- **Repetition**：决定同语义角色是否说同一种视觉语言，而不是页页重造系统
+- **Proximity**：决定相关信息是否自然成组，而不是靠文字解释关系
 
-**JSON 示例**（锚点是核心 KPI 数字）：
-```json
-{
-  "cards": [
-    {"card_type": "data", "card_style": "accent", "chart_type": "kpi",
-     "title": "全球市场总规模", "data_points": ["2,847 亿美元"],
-     "emphasis_keywords": ["2,847"]},
-    {"card_type": "list", "card_style": "filled", "title": "三大细分市场",
-     "emphasis_keywords": []},
-    {"card_type": "data", "card_style": "transparent", "chart_type": "sparkline",
-     "title": "增速最快赛道", "emphasis_keywords": []}
-  ]
-}
-```
+### Scene Mode 力度表
 
----
+| scene_mode | Contrast | Alignment | Repetition | Proximity |
+|-----------|----------|-----------|------------|-----------|
+| `launch` | 强，可做 hero-stage 压差 | 中，允许更自由重力 | 中，保语法不保长相 | 中，避免过度把页面收死 |
+| `business` | 中强，服务判断先后 | 中高 | 中高 | 高，判断/依据/行动必须成组 |
+| `report` | 中，服务指标与管理判读 | 高 | 高 | 高，比较轴和说明必须聚合 |
+| `academic` | 中，服务论证主次，不做宣传冲击 | 很高 | 很高 | 很高，定义/证据/边界必须成组 |
+| `technical` | 中，服务结构/机制/约束扫描 | 很高 | 高 | 很高，模块/步骤/限制条件必须成组 |
+| `training` | 中，服务步骤和提醒先后 | 高 | 高 | 很高，步骤/警示/检查点必须贴近 |
 
-## 二、认知负荷 -> 操作 `goal`、`cards[]` 数量、内容字数
+### 字段映射速览
 
-**核心原则**：人一次处理 5-9 个信息块。每页能用一句话总结。
-
-**怎么做**：
-
-1. **写 `goal` 字段时的自检**：
-   - 写完 `goal` 后数一下有没有"和"字或"以及"
-   - 有 -> 说明这页塞了 2 个核心观点，**必须拆成 2 页**
-   - 正确的 goal：`"让观众知道 AI 基础设施市场正在爆发式增长"`
-   - 错误的 goal：`"让观众知道市场在增长和竞争格局在变化"` -> 拆页
-
-2. **`cards[]` 数量控制**：
-   - content 页：3-5 张卡片（不是 2 张也不是 7 张）
-   - 封面/章节封面/结束页：1-2 张卡片
-   - 如果你发现需要 6+ 张卡片 -> 内容太多，拆成 2 页或合并同类卡片
-
-3. **每张卡片的 `content` 字数限制**（硬性上限）：
-   - text 卡片：标题 12 字 + 正文 150 字
-   - data 卡片：解读 80 字
-   - list 卡片：每条 30 字，最多 6 条
-   - 超限 -> 拆为多张卡片，不要硬塞
+| CARP | 优先落在哪些字段 |
+|------|------------------|
+| Contrast | `visual_weight` / `design_intent.contrast_strategy` / `cards[].role` / `cards[].card_style` |
+| Alignment | `layout_hint` / `focus_zone` / `director_command.spatial_strategy` / `layout_variation_note` |
+| Repetition | `variation_guardrails.same_gene_as_deck` / `cards[].card_style` / `director_command.techniques` |
+| Proximity | `page_text_strategy` / `cards[].content_focus` / `content_budget` / `compression_priority` |
 
 ---
 
-## 三、格式塔理论：破冰对齐与亲密性 (Gestalt & Proximity) -> 操作 `layout_hint` 和 `cards[].position`
+## 原则 1. 视觉层级
 
-**核心原则**：网页永远追求被 `container` 囚禁的矩阵式绝对平衡。而顶级演讲 PPT 明白：事物因为极值的亲疏远近不同而产生逻辑！通过破坏对称来制造**灵动张力（Dynamic Asymmetry）**。
+核心问题：这一页谁是主角，谁必须退后？
 
-**怎么做**：
+优先影响字段：
+- `visual_weight`
+- `layout_hint`
+- `cards[].role`
+- `cards[].card_style`
+- `director_command.anchor_treatment`
 
-1. **选 `layout_hint` 的决策逻辑**：
+修正手法：
+- 如果整页没有焦点：提高 anchor 卡片 `visual_weight`，改成 `accent` 或 `elevated`
+- 如果所有卡片一样重：重写 `cards[].role`，只保留 1 个 `anchor`
+- 如果标题和内容都在平均发力：在 `must_avoid` 明写“禁止等高等宽平均分配”
+- 如果 `contrast_strategy` 只写成“突出重点”：改成具体对比轴，例如“靠标题尺度断层”“靠主图 vs 支撑卡面积差”“靠深浅对比而非装饰噪声”
 
-   | 你这页有什么 | 选什么 layout_hint | 锚点放哪里 |
-   |------------|-------------------|-----------|
-   | 1 个核心论点/金句 | 单一焦点 | 画布中心偏上 |
-   | 1 个主体 + 2-3 个辅助 | 主次结合 / 英雄式 | 主体占上 1/3 或左 2/3 |
-   | 2 个对比概念 | 50/50 对称 / 非对称两栏 | 各占一半 |
-   | 3 个并列概念 | 三栏等宽 | 中间栏或用 accent 卡片突出其一 |
-   | 4-6 个子项 | 混合网格 / L 型 / T 型 / 瀑布流 | 最重要的子项放左上或跨列 |
-
-2. **`cards[].position` 填写规则**：
-   - 锚点卡片的 position 放在布局的"最佳视觉位置"（通常是 `top-left`、`top-full`、或跨列区域）
-   - 辅助卡片填满剩余区域
-   - 不要所有卡片都居中（除封面/金句页）
-
-3. **布局多样性硬性检查**：
-   - 和前一页的 `layout_hint` 一样吗？ -> **必须换**
-   - 全 PPT 中同一个 `layout_hint` 用了超过 30% 的页面？ -> 换别的
+危险信号：
+- 3 张以上卡片都是 `filled`
+- 没有 `anchor`
+- `director_command.anchor_treatment` 只有“突出显示”这类空话
+- dense scene 仍然把所有重点压成相近字号和相近字重
 
 ---
 
-## 四、色彩 -> 操作 `card_style` 组合和 `decoration_hints`
+## 原则 2. 认知负荷
 
-**核心原则**：60% 背景 + 30% 内容载体 + 10% 强调色。
+核心问题：观众这一页需要消化多少东西？
 
-**怎么做**：
+优先影响字段：
+- `visual_weight`
+- `density_label`
+- `cards[].body`
+- `cards[].chart`
+- `rhythm_action`
 
-1. **`card_style` 组合规则（每页）**：
-   - `accent` 类型：**最多 1 个**（它是注意力聚焦点）
-   - `elevated` 类型：**最多 1 个**（它带阴影，太多页面"漂浮感"过强）
-   - 剩余卡片从 `filled` / `transparent` / `outline` / `glass` 中选
-   - **每页至少 2 种 card_style**（禁止所有卡片都 filled）
-   - 推荐组合：`accent` + `transparent` + `filled` 或 `elevated` + `outline` + `transparent`
+修正手法：
+- 如果一页塞太多：拆成 2 张 card 或下沉到下一页
+- 如果必须保留高信息量：把 `rhythm_action` 标成“爆发”，下一页安排“缓冲”
+- 如果信息少却做得很满：改成 `single-focus` 或 `free-section`
+- 如果信息并不多但看起来很乱：先检查 `Proximity` 是否失败，而不是先删内容
 
-2. **`decoration_hints` 中的色彩控制**：
-   - `background` 层的装饰用主色/辅色，不用 accent 色
-   - `page_accent` 层（水印、分隔线）可以用 accent 色，但 opacity 必须极低（0.04-0.08）
-   - `card_style` 层的装饰（左侧竖线、顶部色带）可以用 accent 色
-
----
-
-## 五、最高信噪比法则 (Max Signal-to-Noise Ratio) -> 操作 `data` / `data_highlight` 卡片
-
-**核心原则**：墨水只能用在刀刃上。数字 + 对比 = 唯一的认知解药。任何不承载信息变化的设计（比如为了填补空缺加的装饰图）都是噪音。
-
-**怎么做**：
-
-1. **选 `chart_type` 前先问自己这个问题**：
-
-   | 你想让观众 3 秒内得出什么结论 | 选什么 chart_type |
-   |---------------------------|-----------------|
-   | "XX 占了大头" | `ring` / `stacked_bar` / `treemap` |
-   | "XX 在快速增长" | `sparkline` |
-   | "XX 比 YY 强很多" | `comparison_bar` / `radar` |
-   | "XX 达到了 N" | `kpi` / `metric_row` |
-   | "XX 完成了 80%" | `progress_bar` / `rating` |
-   | "XX 经历了这些阶段" | `timeline` |
-   | "XX 在逐步流失" | `funnel` |
-
-2. **`data_points` 必须带上下文**：
-   - 错误：`["37%"]`（一个裸数字，观众不知道是高是低）
-   - 正确：`["37%（行业均值 22%）"]` 或 `["37%", "同比 +15%"]`
-   - `data_highlights` 中每个对象**必须填 `interpretation`**：
-     ```json
-     {"value": "2,847 亿", "label": "全球 TAM", "interpretation": "同比增长 34.2%，远超 GDP 增速"}
-     ```
-
-3. **`design_notes` 中标注数据属性**：
-   - 如果 data_points 中有预测/估算数据 -> 写 `"注意：XXX 为预测值，设计时用虚线/浅色区分"`
-   - 如果数字来源可信度为 medium -> 写 `"数据来源为行业媒体，非权威机构"`
+危险信号：
+- content 页 5 张以上 card 且都想当主角
+- 一页同时放 3 种图表
+- `visual_weight` 低，但 `cards` 内容非常密
 
 ---
 
-## 六、叙事节奏 -> 操作 `visual_weight` 和页面排列顺序
+## 原则 3. 构图与留白
 
-**核心原则**：全 PPT 的密度形成波浪曲线，禁止连续 3 页同密度。
+核心问题：空间是在说话，还是只是装内容？
 
-**怎么做**：
+优先影响字段：
+- `layout_hint`
+- `layout_variation_note`
+- `director_command.spatial_strategy`
+- `decoration_hints.background`
 
-1. **`visual_weight` 赋值规则**：
+修正手法：
+- 如果布局描述落回“左边一块右边两块”：改写为重力关系，而不是像素切块
+- 如果连续两页结构像克隆：在 `variation_guardrails.different_from_previous` 至少写 2 个反差维度
+- 如果是金句或章节封面仍然很拥挤：把 `visual_weight` 下调，并用 `free-section`
+- 如果元素像“差不多对齐”：把 `director_command.spatial_strategy` 改写成明确基线、列、带状区或中心轴，而不是模糊方位词
+- `academic / technical / report` 场景下，默认要求更强 alignment；不要拿 launch 的自由重力去做 dense board
 
-   | 你这页的 page_type + 内容密度 | visual_weight 填多少 |
-   |---------------------------|-------------------|
-   | 封面页 | 8 |
-   | 目录页 | 4 |
-   | 章节封面 | 2 |
-   | 结束页 | 6 |
-   | 只有 1-2 张卡片的内容页 | 5 |
-   | 3-4 张卡片的标准内容页 | 7 |
-   | 5+ 张卡片 / 数据密集 / 混合网格 | 9 |
-   | 对比页（50/50） | 6 |
-
-2. **填完 visual_weight 后必须检查**：
-   - 和前一页的差值超过 5 吗？-> 中间必须插一页过渡（如 vw=5 的单一焦点页）
-   - 连续 3 页 vw >= 7 吗？-> 第 3 页必须降到 6 以下（换成对比页/金句页/章节封面）
-   - 连续 3 页 vw <= 4 吗？-> 第 3 页必须升到 5 以上（增加内容密度）
-
-3. **每个 Part 内的推荐 visual_weight 走势**：
-   ```
-   章节封面(2) -> 总览页(7) -> 数据页(9) -> 内容页(7) -> 小结(5~6)
-   ```
-   Part 只有 2-3 页时：`章节封面(2) -> 核心页(7~9) -> 结论页(5~6)`
+危险信号：
+- “三栏均分”“上下两块”这类网页式描述
+- 没有 `layout_variation_note`
+- `background.feel` 为空或只有“简洁”
+- 相关卡片距离和无关卡片距离差不多，看不出分组骨架
 
 ---
 
-## 七、单页组合的绝对随机与极致灵动 (Dynamic Randomness & Agility)
+## 原则 4. 色彩与装饰克制
 
-**核心原则**：网页追求规整统一的栅格和边距盒子，而高水准的 PPTX 设计则追求**“每一页翻开都是意想不到的随机构图组合，但从色彩、色调来看又绝对归属于同一宇宙规则”**。灵动（Agility）= 彻底拒绝安全区束缚 + 打破常规的前端排版体系 + 制造极端的视觉空间反差！单页设计必须丰富多彩。
+核心问题：这一页的装饰是在服务信息，还是在抢戏？
 
-**如何用 LLM 可以理解的“灵动”语言来指挥设计**：
-1. **元素破局与越界溢出（Bleed & Break out）**：正常的前端网页习惯用 `padding` 包裹容器。你的设计指令应当硬性打破这个惯性：`“主图放大至 125% 冲破右上角色彩边缘截断生存！核心数据面板脱离网格，使用悬浮图层，强行跨界一半压在主背景上，一半压在图片上交叠！”`
-2. **刻意构筑的不对称重力（Intentional Asymmetry）**：制造楚河汉界式撕裂感。如果页面左侧或下侧堆积了厚重高密的图表（极繁），那么另一侧必须是大面积近乎死寂的空旷留白（极简），只在最角落悬浮一行 12px 的极微小注释。在空间重心上形成强烈的偏载效应。
-3. **字号大小的鸿沟式反差（Extreme Typography Scale）**：一页之内，最大元素和最小描述之间的跨度必须激进且令人不寒而栗。主推数字直接飙到 `150px` 起步的超级加粗字，并在背景垫一张占据全屏尺寸、透明度仅 `0.04` 的幽灵水印文本；而辅佐这些的解读文本却依然缩进到纤细的 13-14px。坚决取缔那种“标题24px + 副标题18px + 正文14px”平庸的前端字号台阶。
-4. **形态万千又如出一辙（Random Yet Unified）**：
-   - **单页表现形态绝对随机跳跃**：A 页面如果是深黯深邃底色加上居中克制的大字；那么紧促而来的 B 页面必须“变色龙”般直接切换到白金配色的开阔全景，左侧嵌合着极致通透的毛玻璃信息带。页面间的 `layout_hint`、表现形式、排版重点要如掷色子般高随机波动，拒绝连续使用相似排位。
-   - **统一的基因锁扣死整体风格**：虽然每张界面的姿态截然不同，但全靠一套不容侵犯的高质量 CSS 变量上下文强行并网结合（`--accent-1` 永远是精确的十六进制）；全局沿用同样高傲的 sans-serif Typography（字体族）；每一页同样延续底部 11px 的若隐若现品牌署名。这就是设计的边界控制力。
+优先影响字段：
+- `decoration_hints.*`
+- `cards[].card_style`
+- `variation_guardrails.same_gene_as_deck`
+
+修正手法：
+- 如果装饰很多却无主次：保留 1 个页面级手法 + 1 个卡片级手法
+- 如果页与页完全不像同一套 deck：补 `same_gene_as_deck`
+- 如果太稳太像模板：加强 `background.feel` 或 `page_accent.feel`，但写明 `restraint`
+- `Repetition` 只要求“同类角色讲同一种语法”，不要求每页长一样；要重复的是标题角色、标签角色、注释角色、边框语法，不是构图结果
+
+危险信号：
+- 三层 `decoration_hints` 都写成“轻微点缀”
+- 每页 weapon 组合完全一样
+- `accent` 卡片超过 1 张
 
 ---
 
-## 逐页体检单（每页 planning JSON 完成后必须过一遍）
+## 原则 5. 数据表达诚实
 
-| # | 检查什么 | 看 JSON 的哪个字段 | 不通过怎么改 |
-|---|---------|-----------------|------------|
-| 1 | goal 是否"一句话一个核心"（不含"和"） | `goal` | 拆成 2 页，每页一个核心观点 |
-| 2 | 谁是视觉锚点？只有 1 个吗？ | `cards[].card_style` | 确保只有 1 个 `accent` 卡片 |
-| 3 | cards 数量 3-5，card_type >= 2 种 | `cards[]` 长度和类型 | 太多 -> 拆页或合并；太少 -> 补充卡片；类型单一 -> 替换为更合适的类型 |
-| 4 | 锚点卡片的 position 在布局最佳位置 | `cards[].position` + `layout_hint` | 锚点移到 top-left / top-full / 跨列区域 |
-| 5 | accent 类型 card_style <= 1 个 | `cards[].card_style` | 多余的 accent 改为 elevated 或 filled |
-| 6 | data 卡片数字有上下文对比 | `data_points` / `data_highlights[].interpretation` | 裸数字加上对比参照（行业均值/同比/环比） |
-| 7 | visual_weight 和前后页形成波浪 | `visual_weight` | 调整页面密度（加/减卡片，换 layout） |
-| 8 | decoration_hints 和上一页至少 1 维不同 | `decoration_hints` 三个子字段 | 换其中一个维度的技法 |
+核心问题：数据是证据，不是贴纸。
+
+优先影响字段：
+- `cards[].data_points`
+- `cards[].chart`
+- `page_goal`
+- `audience_takeaway`
+
+修正手法：
+- 没有具体数据时，不要假装做数据页，改成 `framework` 或 `quote`
+- 有核心 KPI 时，至少安排 1 张 `data_highlight` 或带图表的 `data`
+- 图表存在只是装饰时，删掉 `chart`
+
+危险信号：
+- 图表只是“为了看起来专业”
+- `page_goal` 是判断句，但没有任何证据卡承接
+- `data_points.source` 大量空白
+
+---
+
+## 原则 6. 节奏与变奏
+
+核心问题：翻页时有呼吸和推进吗？
+
+优先影响字段：
+- `visual_weight`
+- `rhythm_action`
+- `director_command.techniques`
+- `variation_guardrails.different_from_previous`
+
+修正手法：
+- 连续两页已经高压，第三页必须降压或视觉降密
+- 同一布局复用时，必须换掉至少 2 个维度：重心 / card_style / 技法 / 留白
+- 相邻页技术组合雷同，直接重写 `director_command.techniques`
+
+危险信号：
+- 3 页连续 `visual_weight >= 7`
+- 3 页连续出现同一 `layout_hint`
+- 相邻页 techniques 完全一致
+
+---
+
+## CARP 反模式速查
+
+- **Contrast 失效**：所有字号、字重、卡片面积都差不多，观众不知道先看哪里
+- **Alignment 失效**：元素像“差不多对齐”，但没有共同列线、边界线或中心轴
+- **Repetition 失效**：同样是标题 / 标签 / 注释 / 指标块，却每页都换语法
+- **Proximity 失效**：标题、说明、指标、注释互相散开，只能靠文字解释关系
+- **误用 CARP**：把 `academic / technical / report` 做成 launch hero；或者把 `launch` 做成过于死板的表格页
+
+---
+
+## 字段纠偏表
+
+| 发现的问题 | 先改哪个字段 | 再看哪个字段 |
+|-----------|------------|------------|
+| 页面对但不惊艳 | `director_command` | `decoration_hints` |
+| 页面像网页 | `layout_hint` | `layout_variation_note` |
+| 卡片都一样 | `cards[].card_style` | `cards[].role` |
+| 节奏过平 | `visual_weight` | `rhythm_action` |
+| 装饰乱 | `decoration_hints.*.restraint` | `variation_guardrails` |
+| 论点强但证据弱 | `cards[].data_points` | `chart` |
+
+---
+
+## 逐页 8 项体检单
+
+- 这页的 `page_goal` 是否是一句可判断的完整论点？
+- `cards[]` 是否存在清晰的主次，而不是平均铺开？
+- `layout_hint` 是否真的匹配内容结构，而不是习惯性套版？
+- `director_command` 是否给出明确镜头感？
+- 三层 `decoration_hints` 是否各司其职？
+- 与上一页是否至少有 2 个维度不同？
+- `must_avoid` 是否说中了这页最危险的模板化风险？
+- 设计层拿到这页 JSON 后，是否能知道什么不能改、什么可以自由发挥？

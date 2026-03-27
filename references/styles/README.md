@@ -1,5 +1,9 @@
 # 风格系统
 
+> 非默认资料。human-only creative workbook。
+>
+> 本文件不作为默认 runtime 主链资料，不进入默认 stage bundle。若把整份文档直接大规模注入 planning 或 HTML 子代理，会显著提高模板化和模仿风险。
+
 ## 核心理念
 
 > **8 个预置风格是参考调色板，不是固定制服。** 它们提供经过验证的色彩搭配和装饰思路，但你完全可以：
@@ -46,7 +50,15 @@ style.json 不仅是 CSS 变量的容器，更是整个 PPT **视觉灵魂的基
     "accent_3": "#第三强调",
     "accent_4": "#第四强调"
   },
-  "font_family": "PingFang SC, Microsoft YaHei, system-ui, sans-serif"
+  "font_family": "PingFang SC, Microsoft YaHei, system-ui, sans-serif",
+  "css_snippets": {
+    "title_style": "font-size: 28px; font-weight: 700; letter-spacing: -0.5px; border-bottom: 3px solid var(--accent-1); padding-bottom: 8px; display: inline-block;",
+    "list_marker": "content:''; width: 6px; height: 6px; border-radius: 2px; background: var(--accent-1); margin-right: 12px; flex-shrink: 0;",
+    "body_text": "font-size: 14px; line-height: 1.8; color: var(--text-primary);",
+    "page_number": "font-size: 11px; color: var(--text-secondary); opacity: 0.5; position: absolute; bottom: 24px;",
+    "card_padding": "padding: 28px 32px;",
+    "section_gap": "gap: 20px;"
+  }
 }
 ```
 
@@ -59,6 +71,7 @@ style.json 不仅是 CSS 变量的容器，更是整个 PPT **视觉灵魂的基
 | `variation_strategy` | 跨页变奏策略 -- 描述页间变化的节奏和手法 | 引导设计师在统一基因下制造灵动跳变 |
 | `decoration_dna` | 装饰基因（标志手法/禁止手法/推荐组合） | 确保装饰选择既灵动又不跳戏 |
 | `css_variables` | 纯色值变量 -- 全局一致性的硬保证 | 直接映射为 CSS :root 变量 |
+| `css_snippets` | 固化 CSS 片段 -- 标题样式/列表标记/正文字号/间距等**非颜色**维度的跨页一致性硬锚点 | 由 `scripts/prompt_assembler.py` 注入每页 prompt-ready，LLM 必须严格使用这些固定样式 |
 
 > **关键区分**：`design_soul` 和 `variation_strategy` 是给 LLM 的"设计意图上下文"，而非具体的 CSS 代码。它们解决的是"为什么选这些颜色、页间怎么变化"的灵魂问题，而不是"这个元素用什么 CSS"的实现问题。
 
@@ -191,6 +204,8 @@ style.json 不仅是 CSS 变量的容器，更是整个 PPT **视觉灵魂的基
 | 光晕效果 | 未来感的光球，像晏暗中的聚光灯 | 发布会、科幻、极客 |
 | 几何线条 | 建筑的骨架感，像蓝图上的辅助线 | 工程、结构、严谨 |
 | 纹理底图 | 物质感，像纸张/绸缎/水墨的触感 | 文化、质感、传统 |
+| 噪声颗粒 | SVG feTurbulence 生成的分形纹理，像宣纸/磨砂/胶片颗粒 | 手作感、学术、高端品牌、文化 |
+| 扫描线 | repeating-linear-gradient 制造的水平细纹，像 CRT 显示器 | 科技仪表盘、监控视角、数据密集页 |
 
 ### 卡片层技法
 
@@ -210,6 +225,8 @@ style.json 不仅是 CSS 变量的容器，更是整个 PPT **视觉灵魂的基
 | 大号水印 | 超大尺寸极低透明度的数字/文字，像汪洋中隐约的冰山 | 页面识别度 |
 | 标题下划线 | accent 色的短横带，像标题的"基座" | 标题强调 |
 | 品牌色块 | 大面积低透明度的圆角矩形，像跳板上的水泡 | 风格标记 |
+| HUD 边角框定 | 画布四角的 L 形短线，像取景器/技术图纸的定位标记 | 画面被"注视"的紧张感与精密感 |
+| 叙事化页脚 | 页码变成故事的一部分（终端状态栏/印章徽记/进度刻度尺） | 让功能角落也参与氛围塑造 |
 
 
 ---

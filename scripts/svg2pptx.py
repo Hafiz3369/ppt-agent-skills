@@ -6,7 +6,7 @@
       group opacity 传递, 首屏 rect 自动设为幻灯片背景
 
 用法:
-  python svg2pptx.py <svg_dir_or_file> -o output.pptx
+  python3 scripts/svg2pptx.py <svg_dir_or_file> -o output.pptx
 """
 
 import argparse

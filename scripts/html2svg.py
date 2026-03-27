@@ -11,7 +11,7 @@
 首次运行自动安装依赖（dom-to-svg, puppeteer, esbuild）。
 
 用法：
-    python3 html2svg.py <html_dir_or_file> [-o output_dir]
+    python3 scripts/html2svg.py <html_dir_or_file> [-o output_dir]
 """
 
 import json
@@ -771,7 +771,7 @@ def convert(html_dir: Path, output_dir: Path) -> bool:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python3 html2svg.py <html_dir_or_file> [-o output_dir]")
+        print("Usage: python3 scripts/html2svg.py <html_dir_or_file> [-o output_dir]")
         sys.exit(1)
 
     html_path = Path(sys.argv[1]).resolve()

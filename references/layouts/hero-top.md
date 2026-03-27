@@ -25,7 +25,7 @@ Grid: repeat(N, 1fr) 列 x (auto + 1fr) 行
 ### 英雄区的多种灵魂表达
 - **压迫式**：英雄区用 `accent` style，内部放 48px+ 核心论点 + 关键数据，占据画面 40%+ 的视觉重量，让底部子项在它的阴影下呼吸
 - **虚无式**：英雄区用 `transparent` style，只放一行 28px 的概述文字 + 大片留白，让底部子项成为真正的主角
-- **图景式**：英雄区放配图（hero-blend 或 tint-overlay），文字叠加其上，制造电影宽银幕感
+- **图景式**：英雄区放配图（运行时 `usage` 通常为 `hero-background`，可采用 `hero-blend` 或 `tint-overlay` 技法），文字叠加其上，制造电影宽银幕感
 
 ### 底部子项的灵动反差
 - 子项之间**必须混合不同 card_style**（如 filled + outline + elevated）

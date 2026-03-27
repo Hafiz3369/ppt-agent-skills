@@ -3,915 +3,729 @@ name: ppt-agent
 description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT 设计公司的完整工作流（需求调研 -> 资料搜集 -> 大纲策划 -> 策划稿 -> 设计稿），输出高质量 HTML 格式演示文稿。当用户提到制作 PPT、做演示文稿、做 slides、做幻灯片、做汇报材料、做培训课件、做路演 deck、做产品介绍页面时触发此技能。即使用户只说"帮我做个关于 X 的介绍"或"我要给老板汇报 Y"，只要暗示需要结构化的多页演示内容，都应该触发。也适用于用户说"帮我把这篇文档做成 PPT"、"把这个主题做成演示"等需要将内容转化为演示格式的场景。
 ---
 
-# PPT Agent -- 专业演示文稿全流程生成
+# PPT Agent -- 主控制台合同
 
-## 核心理念
+## 1. 主控制台原则
 
-模仿专业 PPT 设计公司（报价万元/页级别）的完整工作流，而非"给个大纲套模板"：
+这份 `SKILL.md` 只负责四件事：
 
-1. **先调研后生成** -- 用真实数据填充内容，不凭空杜撰
-2. **策划与设计分离** -- 先验证信息结构，再做视觉包装
-3. **内容驱动版式** -- Bento Grid 卡片式布局，每页由内容决定版式
-4. **全局风格一致** -- 先定风格再逐页生成，保证跨页统一
-5. **智能配图** -- 利用图片生成能力为每页配插图（绝大多数环境都有此能力）
+1. 定义主状态机
+2. 定义每一步硬门槛
+3. 定义正式产物合同
+4. 定义失败回退与恢复规则
+
+主 agent 是**控制台**，不是内容生产者。主 agent 只做：
+
+- 列计划并更新步骤状态
+- 校验节点文件是否存在、是否合法、是否可进入下一步
+- 调用脚本组装 sub-agent prompt / packet
+- 拉起、监控、传递文件、回收、关闭 / 终止 sub-agent
+- 与用户交互：问卷、planning 确认、preview 确认、导出选择
+
+主 agent 不做：
+
+- 代替 Step 2 / Step 3 / Step 4 / Step 5c / Step 5d 直接产出内容
+- 在主线程里深读 playbook 然后口头转述给 sub-agent
+- 在 `SKILL.md` 里内嵌或复述 sub-agent prompt 模板
+- 通过“我看起来差不多”来判断能否进入下一步
+
+**硬规则**：
+
+- 主进程推进节点是否放行，只依赖：
+  - 节点文件存在性
+  - validator / harness exit code
+  - 计数一致性
+  - 用户确认
+- sub-agent 发送材料以脚本组装为基座：
+  - `scripts/subagent_prompt_assembler.py`
+  - `scripts/prompt_assembler.py`
+  - `scripts/final_review_harness.py`
+- 主 agent 可以在脚本组装结果上追加**必要运行上下文**，例如：
+  - 当前轮次 / 批次边界
+  - 最新用户反馈
+  - validator / harness 报错摘要
+  - 本轮返工目标
+  - 优先级提醒
+- 主 agent 追加信息的边界：
+  - 可以补充运行信息，不能覆盖正式文件真源
+  - 不能口头改写 `requirements / outline / planning / style` 合同
+  - 不能用追加信息替代节点校验
+- `SKILL.md` 不再承载 sub-agent prompt 正文
 
 ---
 
-## 环境感知
+## 2. 环境感知
 
-开始工作前自省 agent 拥有的工具能力：
+开始前检查可用能力：
 
-| 能力 | 降级策略 |
-|------|---------|
-| **信息获取**（搜索/URL/文档/知识库） | 全部缺失 -> 依赖用户提供材料 |
-| **图片生成**（绝大多数环境都有） | 缺失 -> 纯 CSS 装饰替代 |
-| **文件输出** | 必须有 |
-| **脚本执行**（Python/Node.js） | 缺失 -> 跳过自动打包和 SVG 转换 |
-| **Sub-agent / 并行代理**（Agent tool / subagent） | 可用 -> Step 4 策划和 Step 5c HTML 生成启用并行模式；缺失 -> 退回逐页串行 |
-
-**原则**：检查实际可调用的工具列表，有什么用什么。检测 sub-agent 能力时，确认是否有 `Agent` 工具（或等价的 subagent 调用能力）。若有，在 `progress.json` 中标记 `"has_subagent": true`，后续 Step 4 和 Step 5c 自动启用并行模式。
-
----
-
-## 路径约定
-
-整个流程中反复用到以下路径，在 Step 1 完成后立即确定：
-
-| 变量 | 含义 | 获取方式 |
+| 能力 | 要求 | 降级规则 |
 |------|------|---------|
-| `SKILL_DIR` | 本 SKILL.md 所在目录的绝对路径 | 即触发 Skill 时读取 SKILL.md 的目录 |
-| `OUTPUT_DIR` | 产物输出根目录 | 用户当前工作目录下的 `ppt-output/`（首次使用时 `mkdir -p` 创建） |
+| 信息获取 | 尽量有 | 缺失时依赖用户材料 |
+| 文件输出 | 必须有 | 无则停止 |
+| Python 脚本执行 | 必须有 | 无则停止标准工作流 |
+| Node.js | 导出时尽量有 | 无则只能停在 HTML / 建议改管线 |
+| Planning 工具 | 有则必用 | 无则在对话中列等价计划 |
+| Sub-agent 能力 | 有且用户已授权时必用 | 无或未授权则停止标准工作流，不静默退回主 agent 代做 |
 
-后续所有路径均基于这两个变量，不再重复说明。
+**最前置动作（强制）**：
 
----
+- 进入 Step 0 前，必须先向用户明确请求 sub-agent 使用授权，并获得明确同意。
+- 未获授权时，流程停在授权等待态；不得创建任何 sub-agent，不得进入 Step 0 及后续步骤。
 
-## 输入模式与复杂度判断
+**授权口径**：
 
-### 入口判断
-
-| 入口 | 示例 | 从哪步开始 |
-|------|------|-----------| 
-| 纯主题 | "做一个 Dify 企业介绍 PPT" | Step 1 完整流程 |
-| 主题 + 需求 | "15 页 AI 安全 PPT，暗黑风" | Step 1（跳部分已知问题）|
-| 源材料 | "把这篇报告做成 PPT" | Step 1（材料为主）|
-| 已有大纲 | "我有大纲了，生成设计稿" | Step 4 或 5 |
-
-### 跳步规则
-
-跳过前置步骤时，必须补全对应依赖产物：
-
-| 起始步骤 | 缺失依赖 | 补全方式 |
-|---------|---------|---------|
-| Step 4 | 每页内容文本 | 先用 Prompt #3 为每页生成内容分配 |
-| Step 5 | 策划稿 JSON | 用户提供或先执行 Step 4 |
-
-### 复杂度自适应
-
-根据目标页数自动调整流程粒度：
-
-| 规模 | 页数 | 调研 | 搜索 | 策划 | 生成 |
-|------|------|------|------|------|------|
-| **轻量** | <= 8 页 | 5 题精简版（Q1+Q2+Q7+Q8+Q12） | 3-5 个查询 | 整体生成（Step 3 可与 Step 4 合并） | 逐页生成 |
-| **标准** | 9-18 页 | 完整 12 题 + 动态追问 | 8-12 个查询 | 逐页生成 | 逐页生成 |
-| **大型** | > 18 页 | 完整 12 题 + 动态追问 | 10-15 个查询 | 逐页生成 | 逐页生成 |
-
-**复杂度判断时机**：
-1. **预判**（Step 1 开始前）：根据用户初始描述估算。若用户明确说了页数（如"做 5 页"）或暗示简短（如"简单介绍一下"），直接预判为轻量并精简提问
-2. **确认**（Step 1 结束后）：根据 Q8 回答的页数正式确认 `complexity_level`（light / standard / large），写入 `progress.json`
-3. **传递**：后续各步骤从 `progress.json` 读取 complexity_level，据此调整搜索查询数、策划深度等参数
+- 只有同时满足“环境可调 sub-agent” + “用户明确授权 delegation / subagent / 并行代理”，Step 2 / Step 3 / Step 4 / Step 5a / Step 5b / Step 5c / Step 5d 才能按标准工作流执行。
+- 一旦满足授权，返工必须新开干净 sub-agent，不复用旧会话。
 
 ---
 
-## 6 步 Pipeline
+## 3. 路径约定
 
-### Step 1: 需求调研 [STOP -- 必须等用户回复]
+| 变量 | 含义 |
+|------|------|
+| `SKILL_DIR` | 当前 skill 根目录 |
+| `ROOT_OUTPUT_DIR` | 用户工作目录下的 `ppt-output/` |
+| `RUN_ID` | 本次运行唯一标识（建议：`YYYYMMDD-HHMMSS-主题slug`） |
+| `OUTPUT_DIR` | `ROOT_OUTPUT_DIR/runs/{RUN_ID}` |
 
-> **禁止跳过。** 无论主题多简单，都必须提问并等用户回复后才能继续。不替用户做决定。
+隔离规则（同目录多次运行）：
 
-**执行**：使用 `references/prompts/prompt-1-research.md`
-1. **有搜索能力时**：搜索主题背景资料（3-5 条），基于搜索结果动态生成问卷选项（Q2 受众画像、Q5 内容侧重、第五层动态追问）
-   **无搜索能力时**：基于 LLM 知识生成通用选项，跳过第五层动态追问
-2. 一次性发给用户全部问题（12 基础题 + 0-3 动态题）
-3. **等待用户回复**（阻断点）
-4. 整理为需求 JSON（结构见下方），**对照消费审查矩阵逐字段确认无遗漏**
+- 每次新开工必须新建 `RUN_ID`，不得复用旧 `OUTPUT_DIR`。
+- 全部正式产物与运行文件只允许写入当前 `OUTPUT_DIR`。
+- 仅在用户明确要求“恢复某次运行”时，才允许绑定到既有 `RUN_ID`。
+- 未指定恢复目标时，默认使用 `ROOT_OUTPUT_DIR/latest`（软链接或等价记录）指向最近一次运行。
 
-**五层递进结构**（每个问题标注下游消费节点，确保零废话）：
+正式产物真源固定为：
 
-| 层级 | 问题 | 消费节点 |
-|------|------|---------|
-| 场景层 | 1. 演示场景（现场/自阅/培训） | Step 3 信息密度 + Step 5a 视觉密度 |
-| 场景层 | 2. 核心受众（动态生成画像） | Step 3 每页论点设计 + Step 4 card_type |
-| 场景层 | 3. 期望行动（决策/理解/执行/改变认知） | Step 3 叙事弧线终点 + Step 4 结尾策略 |
-| 内容层 | 4. 叙事结构（问题->方案/科普/对比/时间线） | Step 3 Part 逻辑 + Step 4 card_type 倾向 |
-| 内容层 | 5. 内容侧重（搜索结果动态生成，可多选） | Step 3 页数权重 + Step 2 搜索维度 |
-| 内容层 | 6. 说服力要素（数据/案例/权威/方法，可多选） | Step 4 card_type 分布 + Step 2 搜索重心 |
-| 视觉层 | 7. **视觉风格**（展示完整 8 种预置风格列表 + AI 自动匹配 + 自定义） | Step 5a style.json + Step 4 decoration_hints |
-| 执行层 | 8. 信息密度与页数 | 复杂度分级 + Step 4 visual_weight |
-| 执行层 | 9. 品牌与身份信息 | Step 4 封面/结尾页内容 + Step 5a 品牌色覆盖 |
-| 执行层 | 10. 内容边界（必含/必避） | Step 2 搜索过滤 + Step 4 内容硬约束 |
-| 执行层 | 11. 语言偏好 | Step 5a font_family + Step 5c 排版 |
-| 执行层 | 12. AI 配图偏好 | Step 4 image 字段 + Step 5b 执行 |
-| 动态层 | 13-15. 主题专属追问（0-3 题，基于搜索结果动态生成） | Step 2-4 内容方向聚焦 |
-
-> **Q7 风格选择的特殊要求**：必须以表格形式展示全部 8 种预置风格（蓝白商务/极简灰白/清新自然/暖色大地/朱红宫墙/暗黑科技/紫金奢华/活力彩虹），每种附一句话灵魂描述和适合场景。用户选编号即可，不需要自己描述"什么风格"。
->
-> **轻量模式**（用户明确说了页数 <= 8 或暗示简短）：Q1 + Q2 + Q7 + Q8 + Q12（5 题精简版，跳过内容层和部分执行层，由 AI 根据搜索结果自行决策）。
->
-> **动态追问**：仅在搜索结果揭示了主题特有的关键分歧（如技术路线分歧、阶段差异、视角选择）时才添加，不凑数。每个动态问题必须标注消费节点。
-
-**产物**：需求 JSON -- 结构如下，每个字段对应一个问题的答案，**必须完整填写所有字段**：
-
-```json
-{
-  "topic": "PPT 主题",
-  "scene": "Q1 演示场景（现场演讲/自阅文档/培训教学/其他）",
-  "audience": "Q2 核心受众画像",
-  "purpose": "Q3 期望观众做什么",
-  "narrative_structure": "Q4 叙事结构",
-  "emphasis": ["Q5 内容侧重（可多选）"],
-  "persuasion_style": ["Q6 说服力要素（可多选）"],
-  "style_choice": "Q7 风格选择（A-J）",
-  "style_detail": "Q7 附加信息（如选 J 时的自定义描述）",
-  "page_count": "Q8 页数（数字或 null=AI 决定）",
-  "info_density": "Q8 信息密度偏好（少而精/适中/信息量大）",
-  "brand_info": {
-    "presenter": "Q9 演讲人",
-    "date": "Q9 日期",
-    "company": "Q9 公司名",
-    "brand_color": "Q9 品牌色（如有，覆盖 style_choice）",
-    "logo_path": "Q9 Logo 路径"
-  },
-  "content_must_include": ["Q10 必须包含"],
-  "content_must_avoid": ["Q10 必须回避"],
-  "language": "Q11 语言偏好（中文/英文/中英混排/其他）",
-  "image_preference": "Q12 配图偏好（A-D）",
-  "dynamic_answers": {"问题文本": "用户回答"},
-  "complexity_level": "light | standard | large（根据 page_count 判定）"
-}
+```text
+requirements.json
+  -> raw-research.json
+  -> research-package.json
+  -> outline.json
+  -> outline-review-round-{n}.json
+  -> planning/planning{n}.json
+  -> style.json
+  -> images/*
+  -> prompts-ready/prompt-ready-{NN}.txt
+  -> slides/slide-{NN}.html
+  -> reviews/final-review-round-{n}.json
+  -> preview.html
+  -> presentation.pptx
 ```
 
-**消费审查矩阵** -- Step 1 完成后 LLM 必须对照此表自检，确认每个字段都有下游消费方：
+`progress.json` 是必需运行账本：Step 1 开始前必须存在并通过 `scripts/progress_validator.py --require-pre-step1`。
+它用于恢复与进度审计；是否放行下一节点仍以正式产物 + validator / harness 结果为准，不替代主链真源。
 
-| 需求字段 | 下游 prompt 占位符 | 消费步骤 | 如果未消费会怎样 |
-|---------|-------------------|---------|----------------|
-| `scene` | `{{SCENE}}` (prompt-2) | Step 3 信息密度策略 | 自阅型 PPT 被做成演讲型，信息不完整 |
-| `audience` | `{{AUDIENCE}}` (prompt-2, prompt-3) | Step 3 论点设计 + Step 4 card_type | 专业深度失控 |
-| `purpose` | `{{PURPOSE}}` (prompt-2) | Step 3 叙事弧线终点 | 结尾没有 CTA |
-| `narrative_structure` | `{{NARRATIVE_STRUCTURE}}` (prompt-2) | Step 3 Part 逻辑 | 大纲缺乏骨架 |
-| `emphasis` | `{{EMPHASIS}}` (prompt-2) | Step 3 页数权重 | 重点被平均化 |
-| `persuasion_style` | `{{PERSUASION_STYLE}}` (prompt-2) | Step 4 card_type 分布 | data/quote 比例失调 |
-| `style_choice` | 资源加载决策树 | Step 5a 风格决策 | 用户选了暗黑科技结果生成蓝白商务 |
-| `page_count` + `info_density` | `{{PAGE_REQUIREMENTS}}` (prompt-2) | Step 3 页数 + Step 4 密度 | 页数偏离 |
-| `brand_info` | `{{BRAND_INFO}}` (prompt-2, prompt-3) | Step 4 封面/结尾内容 | 封面缺演讲人/公司名 |
-| `content_must_include` | `{{CONTENT_CONSTRAINTS}}` (prompt-2) | Step 2 搜索 + Step 4 内容 | 必含内容遗漏 |
-| `content_must_avoid` | `{{CONTENT_CONSTRAINTS}}` (prompt-2) | Step 2 搜索过滤 | 触及敏感内容 |
-| `language` | 资源加载决策树 | Step 5a 字体栈 | 英文 PPT 用中文字体 |
-| `image_preference` | 资源加载决策树 | Step 4-5b 配图 | 不需要配图但生成了 |
+---
 
-> **审查规则**：Step 1 结束整理需求 JSON 后，逐行对照此矩阵。任何字段为空（且用户确实回答了对应问题），必须补全后才能进入 Step 2。
+## 4. 计划工具
+
+如果当前模型带 planning / `update_plan` 能力，开工前必须创建固定 canonical plan，并在状态变化时更新。
+
+固定步骤：
+
+1. `Step -1 获取用户 sub-agent 使用授权`
+2. `Step 0 生成 RUN_ID / 初始化 progress.json 并校验`
+3. `Step 1 搜索准备与需求问卷生成`
+4. `等待用户回复需求问卷`
+5. `写入 requirements.json`
+6. `Step 2 research sub-agent -> raw-research.json`
+7. `Step 2 material-prep sub-agent -> research-package.json`
+8. `Step 3 outline sub-agent -> outline.json`
+9. `Step 3 outline-review sub-agent -> outline-review-round-{n}.json`
+10. `Step 4 planning sub-agent -> planning/*.json`
+11. `等待用户确认 / 修改 planning`
+12. `Step 5a 风格决策 -> style.json`
+13. `Step 5b 配图生成（如需要）`
+14. `Step 5c html sub-agent -> slides/*.html`
+15. `Step 5d reviewer sub-agent -> reviews/final-review-round-{n}.json`
+16. `生成 preview.html 并等待用户确认`
+17. `Step 6 管线选择与导出交付`
+
+规则：
+
+- 不得合并步骤，不得删除前序步骤
+- 同一时刻只能有一个 `in_progress`
+- 拉起 sub-agent 前，先把对应 step 标成 `in_progress`
+
+---
+
+## 5. 复杂度与调度
+
+| 复杂度 | 页数 | 调研 | 搜索 | Step 4 | Step 5c |
+|------|------|------|------|--------|---------|
+| `light` | `<= 8` | 5 题精简版 | 3-5 查询 | 允许只拆 1 个批次；若拆成多批次，则批次之间并行 | 允许只开 1 个批次；若拆成多批次，则批次之间并行 |
+| `standard` | `9-18` | 完整问卷 | 8-12 查询 | 按 Part 分组 | 默认并行 |
+| `large` | `> 18` | 完整问卷 | 10-15 查询 | 按 Part 分组 | 默认并行 |
+
+轻量任务可以减少批次数，但**不能断业务闭环**。一旦拆成多批次，批次之间默认并行；不得把多批次串行化。`Step 3` 大纲审查与 `Step 5d` 终审始终保留。
+
+---
+
+## 6. 主流程
+
+### Step -1: 获取 sub-agent 使用授权（必须）
+
+**目标**：在任何业务步骤开始前，拿到用户对 sub-agent 的明确授权
+
+**执行**：
+
+- 主 agent 必须先询问用户是否授权使用 sub-agent（delegation / subagent / 并行代理）
+- 仅在用户明确同意后，才允许进入 Step 0
+
+通过条件：
+
+- 用户明确授权 sub-agent
+
+失败回退：
+
+- 未授权时停在 Step -1
+- 不得创建 sub-agent
+- 不得进入 Step 0 及后续步骤
+
+---
+
+### Step 0: 开工前门槛（必须）
+
+**目标**：为本次任务绑定隔离目录，并确保 `OUTPUT_DIR/progress.json` 已初始化且可恢复
+
+**执行**：
+
+- 新任务：生成新 `RUN_ID`，并设置 `OUTPUT_DIR=ROOT_OUTPUT_DIR/runs/{RUN_ID}`
+- 恢复任务：使用用户指定 `RUN_ID`，或默认绑定 `ROOT_OUTPUT_DIR/latest` 所指向的运行目录
+- 更新 `ROOT_OUTPUT_DIR/latest` 指向当前运行目录（软链接或等价记录）
+
+**硬门槛**：
+
+```bash
+python3 SKILL_DIR/scripts/progress_validator.py \
+  OUTPUT_DIR/progress.json \
+  --require-pre-step1
+```
+
+通过条件：
+
+- `OUTPUT_DIR` 已绑定到唯一运行目录
+- `progress.json` 存在
+- validator exit code = 0
+
+失败回退：
+
+- 不得进入 Step 1
+- 运行目录冲突（新任务误用旧目录）时，重新生成 `RUN_ID`
+- 缺文件或校验失败时，先修复 `progress.json`（字段补齐、状态归零）后重试
+
+---
+
+### Step 1: 需求调研
+
+**目标**：产出 `OUTPUT_DIR/requirements.json`
+
+**执行**：
+
+- 必须读取 `references/prompts/prompt-1-research.md`
+- 必须提问并等待用户回复
+- 问题包必须覆盖：
+  - 场景
+  - 受众
+  - 目的
+  - 叙事结构
+  - 内容侧重
+  - 说服力要素
+  - 风格选择
+  - 页数 / 信息密度
+  - 品牌信息
+  - 必含 / 必避
+  - 语言
+  - 配图偏好
+  - 0-3 个动态追问
+
+**轻量模式**：
+
+- 只问 `Q1 + Q2 + Q7 + Q8 + Q12`
+
+**硬门槛**：
+
+```bash
+python3 SKILL_DIR/scripts/contract_validator.py requirements OUTPUT_DIR/requirements.json
+```
+
+通过条件：
+
+- `requirements.json` 存在
+- validator exit code = 0
+
+失败回退：
+
+- 留在 Step 1，补问或补字段，不得进入 Step 2
 
 ---
 
 ### Step 2: 资料搜集
 
-> 盘点所有信息获取能力，全部用上。搜索质量直接决定后续内容是"言之有物"还是"空洞废话"。
+**目标**：
 
-**执行**：
+- `OUTPUT_DIR/raw-research.json`
+- `OUTPUT_DIR/research-package.json`
 
-**2a. 查询规划**
+**主控制台动作**：
 
-根据主题和用户需求，规划多维度搜索查询（数量参考复杂度表）：
+1. 先验证 Step 1 已通过
+2. 用脚本组装 research sub-agent prompt
+3. 拉起 `research` sub-agent
+4. 回收并关闭
+5. 校验 `raw-research.json`
+6. 用脚本组装 material-prep sub-agent prompt
+7. 拉起 `material-prep` sub-agent
+8. 回收并关闭
+9. 校验 `research-package.json`
 
-| 查询维度 | 示例 | 目的 |
-|---------|------|------|
-| 核心定义 | "{主题} 是什么 / 定义 / 核心概念" | 确保基础事实准确 |
-| 市场数据 | "{主题} 市场规模 / 增长率 / 行业报告 2024-2026" | 数据卡片填充 |
-| 竞品/对比 | "{主题} vs {竞品} / 对比分析 / 优劣势" | 对比论证素材 |
-| 案例/应用 | "{主题} 客户案例 / 应用场景 / 成功案例" | 故事化说服 |
-| 趋势/展望 | "{主题} 发展趋势 / 未来展望 / 技术路线图" | 结尾展望素材 |
-| 权威观点 | "{主题} 专家评价 / 行业报告 / 白皮书" | 权威背书 |
+**组装入口**：
 
-> 不要所有查询都是同一个维度的换词。每个维度至少 1 个查询，核心维度可多个。
+```bash
+python3 SKILL_DIR/scripts/subagent_prompt_assembler.py research \
+  --requirements OUTPUT_DIR/requirements.json \
+  --output OUTPUT_DIR/raw-research.json \
+  --prompt OUTPUT_DIR/runtime/research-prompt.txt
 
-**2b. 并行搜索**
-
-用所有可用的信息获取工具并行搜索，包括但不限于：搜索引擎、URL 读取、文档解析、知识库查询。
-
-**2c. 结果整理**
-
-每组搜索结果必须结构化整理为以下格式，不要只贴原文：
-
-```json
-{
-  "query": "搜索查询",
-  "findings": [
-    {
-      "fact": "一句话核心发现",
-      "data": "具体数据/数字（如有）",
-      "source": "来源（网站/报告名/作者）",
-      "reliability": "high | medium | low",
-      "relevance": "与大纲哪个 Part 最相关"
-    }
-  ]
-}
+python3 SKILL_DIR/scripts/subagent_prompt_assembler.py material-prep \
+  --requirements OUTPUT_DIR/requirements.json \
+  --raw-research OUTPUT_DIR/raw-research.json \
+  --output OUTPUT_DIR/research-package.json \
+  --prompt OUTPUT_DIR/runtime/material-prep-prompt.txt
 ```
 
-**可信度判定**：
-- **high**：权威机构报告（Gartner/IDC/政府统计）、学术论文、官方文档
-- **medium**：行业媒体报道、企业博客、分析师个人观点
-- **low**：论坛讨论、自媒体、无来源数据
+**硬门槛**：
 
-> 只有 high/medium 的数据才能进入策划稿的 data_highlights。low 可信度数据仅作参考，不用于关键数据展示。
+```bash
+python3 SKILL_DIR/scripts/contract_validator.py raw-research OUTPUT_DIR/raw-research.json
+python3 SKILL_DIR/scripts/contract_validator.py research-package OUTPUT_DIR/research-package.json
+```
 
-**产物**：搜索结果集合 JSON
+通过条件：
+
+- 两个节点文件都存在
+- 两个 validator 都通过
+
+失败回退：
+
+- `raw-research` 不合法 -> 回退到 research sub-agent
+- `research-package` 不合法 -> 回退到 material-prep sub-agent
 
 ---
 
 ### Step 3: 大纲策划
 
-**执行**：使用 `references/prompts/prompt-2-outline.md`（大纲架构师 v3.0 -- Strategic Architect）
-
-**方法论**：
-- **金字塔原理** -- 结论先行、以上统下、归类分组、逻辑递进
-- **叙事弧线** -- 根据 Step 1 第 4 题选择的叙事结构，确定 Part 排列的情感轨迹
-- **论证策略** -- 每 Part 选择论证策略（data_driven/case_study/comparison/framework/step_by_step/authority）
-
-**大纲架构师的 5 步思考过程**（prompt 内置，自动执行）：
-1. 提炼全局核心论点（1 句话 core_thesis）
-2. 确定 Part 数量和主题（含 Part 间逻辑关系标注）
-3. 为每 Part 选择论证策略
-4. 分配页面并确定每页论点
-5. 标注每页数据需求和搜索覆盖情况
-
-**自检**：
-- 页数符合要求
-- 每 Part >= 2 页（单页 Part 必须合并或扩充）
-- Part 之间有明确的逻辑递进关系（不是主题并列）
-- 要点有搜索数据支撑（缺失数据诚实标注 `found_in_search: false`）
-- `design_rationale` 字段完整（核心论点 / 叙事结构 / 情感弧线 / 逻辑链 / 页数分配理由）
-
-**产物**：`[PPT_OUTLINE]` JSON（含 `design_rationale` 和 Part 间 `transition_from_previous`）
-
----
-
-### Step 4: 内容分配 + 策划稿 [建议等用户确认]
-
-> 将内容分配和策划稿生成合为一步。在思考每页应该放什么内容的同时，决定布局和卡片类型，更自然高效。
-> 策划稿必须是 AI 逐页思考的内容创作产物。
-
-#### 4a. 资源菜单预读（首页策划前强制执行，仅一次）
-
-> **先看菜单才能点菜。** 不知道有哪些组件/图表/布局/原则可选，策划时就只会用最基础的 text/data/list，浪费了丰富的设计能力。
-
-策划第一页前，必须读取以下索引文件（每份只需读 README，不读具体文件）：
-
-| # | 读取什么 | 获得什么 | 影响策划的什么决策 |
-|---|---------|---------|----------------|
-| **0** | **`principles/design-principles-cheatsheet.md`** | **6 大原则 -> planning JSON 字段操作手册 + 逐页 8 项体检单** | **不是告诉 LLM "什么是好设计"，而是告诉它 "JSON 的每个字段怎么填才对、不对怎么改"。策划阶段的地基，必须第一个读取。** |
-| 1 | `layouts/README.md` | 10 种布局骨架 + 决策矩阵 | 每页的 `layout_hint` 选择 |
-| 2 | `blocks/README.md` | 8 种复合组件 + 选择指南 | 每页的 `card_type` 组合方式 |
-| 3 | `blocks/card-styles.md` | 6 种卡片视觉变体 + 搭配规则 | 每张卡片的 `card_style` 选择 |
-| 4 | `charts/README.md` | 13 种图表 + 数据类型映射 | data 卡片的 `chart_type` 选择 |
-| 5 | `principles/README.md` | 6 大设计原则索引 | 策划时就考虑原则 |
-| 6 | `styles/README.md` 的**装饰技法工具箱**章节 | 3 层装饰技法（背景层/卡片层/页面层各 5 种） | 每页 `decoration_hints` 的选择 |
-| 7 | `image-generation.md`（**需要配图时**） | prompt 6 维度构造公式 + 场景叙事翻译表 + 风格关键词表 + 构图自适应表 | 每页 `image.prompt` 的构造 + `image.usage` 的选择 |
-
-> 第 0 项是整个策划阶段的**地基**。它将 6 大设计原则（CRAP/Miller's Law/60-30-10/格式塔/Tufte/金字塔原理）翻译为 planning JSON 的字段级操作指令 -- 每条原则直接告诉 LLM 操作哪个字段、填什么值、怎么判断对不对、不对怎么改。通过 `{{DESIGN_PRINCIPLES_CHEATSHEET}}` 占位符注入到 prompt-3 的上下文中。
->
-> 第 7 项仅在 Q12 配图偏好 != A（不需要）时读取。策划师要写 `image.prompt`，就必须先掌握 prompt 构造方法、场景翻译技巧和各风格的关键词——没有这些上下文就是"没见过食材长什么样就要写菜谱"。
->
-> 第 6 项的 `styles/README.md` 只读"装饰技法工具箱"章节（L100-141），**不读**风格决策流程和调色板信息（那些留给 Step 5a）。策划师需要知道"有哪些装饰手法可选"，但不需要此刻决定具体配色。
-
-> 预读后，策划师就知道自己的"工具箱"里有什么。后续逐页策划时，根据内容特征从工具箱中选择最合适的组件，而非只用最熟悉的几种。
-
-#### 4b. 逐页策划
-
-**执行**：使用 `references/prompts/prompt-3-planning.md`（内容分配与策划稿）
-
-> **持久上下文注入（核心机制，共 2 个占位符）**：
-> - `{{DESIGN_PRINCIPLES_CHEATSHEET}}` -- 替换为 4a 阶段读取的 `principles/design-principles-cheatsheet.md` 的完整内容。确保 6 大黄金标准的核心决策点在每页策划时始终在上下文中。
-> - `{{RESOURCE_MENU}}` -- 替换为 `resource-menu.md` 的完整内容。这是一张精简的资源菜单速查卡（布局/卡片/图表/card_style/装饰技法的完整选项列表），防止 LLM 在策划后半程因上下文衰减而退化为只用 text+data+list 三板斧。每次策划每页时 LLM 都能"翻看菜单"而不是靠记忆。
-> - 其他占位符（`{{SCENE}}`/`{{AUDIENCE}}`/`{{PERSUASION_STYLE}}`/`{{BRAND_INFO}}`/`{{CONTENT_CONSTRAINTS}}`/`{{IMAGE_PREFERENCE}}`）从 Step 1 需求 JSON 的对应字段填入。
-
-> **★ 设计感强制约束（灵魂级）**：
-> 1. **彻底拒绝千篇一律的普通前端排版**，策划的必须是**完完全全的 PPTX 演讲展示组合**。
-> 2. **单页组合极其要求随机但是灵动**：绝不能上下两页长得一模一样，通过极端反差、非对称策略打破死板。
-> 3. **高质量的设计上下文传递**：必须通过 `director_command` 填写极具张力和具体排版暗示（如出血、压盖、全屏文本）的指令，指引下游的 HTML 生成渲染出完美符合 PPTX 共识的画面效果！单页设计极其重要，必须给足高质量上游意图上下文。
-
-**要点**：
-- **逐页体检**：每页 planning JSON 完成后，按 cheatsheet 尾部的 8 项体检单逐条检查 -- 每项指明看 JSON 的哪个字段、不通过时做什么具体修改（如"goal 含'和'字 -> 拆页"、"accent card_style > 1 -> 改 filled"），不是笼统地"检查一下"
-- 将搜索素材精准映射到每页
-- 为每页设计多层次内容结构（主内容 40-100 字 + 数据亮点 + 辅助要点）
-- 每页选择布局（`layout_hint`，从预读的 10 种布局中选择），必须保持**随机跳变与灵动感**。
-- 每个区域自由组合 14 种 card_type（从预读的 6 种基础 + 8 种复合中选择）
-- 复合类型卡片（timeline/diagram/quote/comparison/people/image_hero/matrix_chart）可跨列跨行，与基础卡片自由混搭
-- data 卡片需指定 `chart_type`（从预读的 13 种图表中选择）
-- 叙事节奏参考 `references/narrative-rhythm.md` 的视觉重量规则
-- 每页 planning JSON 带 `visual_weight` 分数
-- **每页必须填写 `required_resources`**：将 layout_hint / card_type / chart_type / page_type 翻译为具体文件路径（映射关系已在 4a 预读阶段掌握），供 Step 5c 按清单加载
-- **每页必须填写 `image`**：选择配图用法（`usage`）、构造图片生成 prompt、指定放置位置。策划阶段上下文最丰富，配图决策必须在此完成。整个 PPT 中 `split-content` 和 `card-inset` 各至少使用 1 次（总页数 >= 8 时）
-
-#### 逐页生成策划稿（一页一文件）
-
-> **核心原则：一个 planning JSON 对应一个 HTML。** 每页策划稿写入 `planning/planning{n}.json`（n = 页码），轻量独立，便于用户逐页编辑和 Step 5c 按需读取。
-
-##### 模式选择：串行 vs 并行（Sub-agent）
-
-根据环境感知阶段检测的 `has_subagent` 标记自动选择模式：
-
-**模式 A：串行模式（无 sub-agent）**
-
-```
-── 第 1 页 ──────────────────────────────
-生成：用 Prompt #3 为第 1 页生成策划 JSON
-写入：write_to_file -> OUTPUT_DIR/planning/planning1.json
-验证：python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning/planning1.json --refs SKILL_DIR/references
-
-── 第 2 页 ──────────────────────────────
-生成：用 Prompt #3 为第 2 页生成策划 JSON
-      注入上下文：上一页 JSON（保证衔接）
-写入：write_to_file -> OUTPUT_DIR/planning/planning2.json
-验证：python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning/planning2.json --refs SKILL_DIR/references
-
-── 第 3, 4, 5... 页 重复 ──────────────
-每页都是：生成 -> write_to_file -> 验证 -> 下一页
-```
-
-**模式 B：并行模式（有 sub-agent，标准/大型复杂度时推荐）**
-
-> **按 Part 分组并行，组内串行。** 同一 Part 的页面由同一个 sub-agent 串行生成（保证章节内衔接），不同 Part 的 sub-agent 并行执行（加速整体流程）。
-
-**分发前准备**（主 agent 执行）：
-1. 完成 4a 资源菜单预读
-2. 确定 Part 分组：`Part 1: [page 1-4], Part 2: [page 5-8], ...`
-3. 为每组准备共享上下文：需求 JSON + 大纲 JSON + 搜索素材 + 资源菜单内容 + 设计原则 cheatsheet
-
-**并行分发**（使用 Agent tool / 等价并行工具）：
-```
-┌─ Sub-agent A (Part 1: 封面+引入) ──────────────────────
-│  输入：共享上下文 + Part 1 页面列表 + 上下文衔接指令
-│  任务：逐页生成 planning JSON -> 写入 -> 验证
-│  产物：planning1.json ~ planning4.json
-│
-├─ Sub-agent B (Part 2: 核心论证) ───────────── 并行 ────
-│  输入：共享上下文 + Part 2 页面列表 + Part 1 最后一页摘要（衔接用）
-│  任务：逐页生成 planning JSON -> 写入 -> 验证
-│  产物：planning5.json ~ planning8.json
-│
-├─ Sub-agent C (Part 3: 总结+结尾) ───────────── 并行 ────
-│  输入：共享上下文 + Part 3 页面列表 + Part 2 最后一页摘要（衔接用）
-│  任务：逐页生成 planning JSON -> 写入 -> 验证
-│  产物：planning9.json ~ planning12.json
-└────────────────────────────────────────────────────────
-```
-
-**Sub-agent Prompt 模板**：
-```
-你是 PPT 策划师，负责生成第 {start_page} ~ {end_page} 页的策划稿 JSON。
-
-## 共享上下文
-- 需求 JSON: {requirement_json}
-- 大纲 JSON: {outline_json}（仅你负责的 Part 部分）
-- 搜索素材: {search_findings_for_this_part}
-- 设计原则 Cheatsheet: {cheatsheet_content}
-- 资源菜单: {resource_menu_content}
-
-## 衔接上下文
-- 上一个 Part 最后一页摘要: {previous_part_last_page_summary}
-  （第一个 Part 无此项）
-
-## 执行规则
-1. 严格遵循 Prompt #3 的策划规范
-2. 每页生成后立即写入 OUTPUT_DIR/planning/planning{n}.json
-3. 写入后运行验证: python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning/planning{n}.json --refs SKILL_DIR/references
-4. ERROR 必须修正后再继续下一页
-5. 组内串行：上一页的完整 JSON 作为下一页的衔接上下文
-```
-
-**回收与校验**（主 agent 执行）：
-1. 等待所有 sub-agent 完成
-2. 运行全量验证（含跨页规则）
-3. 重点检查 Part 交界处（如 page 4→5, page 8→9）的衔接是否自然，必要时微调
-
-**轻量模式（<= 8 页）**：即使有 sub-agent 也建议串行，页数少时并行开销不划算。
-
-> **验证是写入流程的一部分，不是事后审查。** 每页 JSON 写入后立即运行 `planning_validator.py` 单页验证。validator 检查：字段完整性、枚举值合法性、资源文件路径存在性、card_style 多样性。有 ERROR 时必须修正后再继续下一页。
-
-**操作边界**（两种模式通用）：
-1. 每次只在 Prompt #3 中请求**一页**的策划（封面/目录/章节封面等极简页可 2-3 页一起，但仍然每页独立文件）
-2. 每页生成后**必须**立即写入 `planning/planning{n}.json`
-3. 写入后立即运行 `planning_validator.py` 验证（ERROR = 必须修正，WARNING = 建议修正）
-4. 验证通过后才开始下一页
-5. 不要用 Python 脚本操作 JSON 文件
-6. 不要尝试一次输出全部页面
-
-**上下文传递**：每页生成时注入上一页的完整 JSON，保证内容衔接和节奏递进。并行模式下，Part 交界处通过"上一 Part 最后一页摘要"传递衔接上下文。
-
-所有策划稿完成后：
-1. 运行全量验证（含跨页规则：布局多样性 + visual_weight 节奏 + image usage 多样性）：
-   ```bash
-   python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning/ --refs SKILL_DIR/references
-   ```
-2. 修正全量验证发现的跨页问题（如有）
-3. 向用户展示策划稿概览
-4. **[STOP -- 等待用户确认]**：告知用户可以直接编辑对应的 `planning/planning{n}.json` 修改任意页面的内容/布局/卡片结构。修改完成后回复确认，再进入 Step 5。
-
-**产物**：每页独立的策划 JSON -> `OUTPUT_DIR/planning/planning{n}.json`（n = 1, 2, 3...）
-
----
-
-### Step 5: 风格决策 + 设计稿生成
-
-分三个子步骤，**顺序不可颠倒**：
-
-#### 5a. 风格决策
-
-> **风格不是"选个调色板"，而是为这个特定项目调配独一无二的视觉灵魂。** style.json 影响全局每一页的视觉基调，生成质量绝不能马虎。
-
-**执行**：阅读 `references/styles/README.md`，按其**灵动创作方法论（四步法）**进行风格决策：
-
-**四步法概要**（详细指引见 `styles/README.md` 的"灵动创作方法论"章节）：
-
-1. **提炼情绪关键词**（3-5 个感性通感体验词，不是"蓝色""深色"这种色彩描述词。如"精密仪器""深空冷寂""微光脉搏"）
-2. **从情绪推导色彩**（情绪 -> 自然类比/场景联想/触觉通感 -> 色彩方案。选择一个最接近的预置调色板作为起点，可微调或完全自创）
-3. **写灵魂宣言**（一句话描述这套色彩要传达的画面感体验，将注入到每页 prompt 中作为设计师的情绪锚点）
-4. **设计变奏策略**（描述在统一基因下，页与页之间如何制造灵动变化的节奏型）
-
-只读对应参考调色板文件（如 `references/styles/blue-white.md`），获取装饰 DNA 和灵感。
-
-> 风格的装饰工具箱已在 `styles/README.md` 中定义，首页生成前读取一次即可。style.json 承载三层信息：**灵魂层**（mood_keywords / design_soul / variation_strategy）+ **装饰基因层**（decoration_dna）+ **色值层**（css_variables）。灵魂层和装饰基因层由 `prompt_assembler.py` 自动注入到每页 prompt 中，为设计师提供情绪锚点和变奏引导。
-
-8 种参考调色板及其文件路径见 `resource-registry.md` 第 1 节。
-
-**style.json 产物校验**（缺一不可）：
-- `mood_keywords`：3-5 个情绪关键词（不是色彩词）
-- `design_soul`：一句话灵魂宣言（有画面感、有通感）
-- `variation_strategy`：跨页变奏策略（描述节奏型，不是"每页用不同装饰"这种废话）
-- `decoration_dna`：标志手法 / 禁止手法 / 推荐组合
-- `css_variables`：完整的 CSS 变量集（必须覆盖全部 12 个变量）
-- `font_family`：字体栈
-
-**产物**：`OUTPUT_DIR/style.json`（灵魂描述 + 装饰基因 + CSS 变量，完整结构见 `styles/README.md` 的数据模型定义）
-
-#### 5b. 配图生成（可选）
-
-> **prompt 已由 Step 4 策划阶段生成**，写入 `planning{n}.json` 的 `image.prompt` 字段。Step 5b 只需读取并调用 `generate_image`。
-
-**执行流程**：
-
-1. 读取 `planning{n}.json` 的 `image` 对象
-2. 如果 `image.usage` = `none`，跳过该页
-3. 调用 `generate_image`：Prompt = `image.prompt`，ImageName = 基于页码和 `image.alt` 生成描述性命名
-4. 保存到 `OUTPUT_DIR/images/`
-
-**关键要点**：
-- 配图时机：在生成每页 HTML **之前**先生成该页配图
-- `image-generation.md` 的融入技法和 HTML 模板已在 4a 预读阶段读取（供 Step 5c 使用）
-- 融入技法不限，LLM 自由选择最佳视觉效果
-
-**产物**：`OUTPUT_DIR/images/` 下的配图文件
-
-#### 5c. 逐页 HTML 设计稿生成（一个 planning 对应一个 HTML）
-
-> 每页 HTML 都从对应的 `planning{n}.json` 生成。读取 `OUTPUT_DIR/planning/planning{n}.json` -> 生成 `OUTPUT_DIR/slides/slide-{NN}.html`，一对一消费，无上下文负担。
-
-##### ========== GATE CHECK: 5c 入口强制动作（不可跳过） ==========
-
-**在写任何一行 HTML 之前，必须按顺序完成以下 2 个动作。缺一则整个 Step 5c 禁止开始。**
-
-| # | 强制动作 | 命令 | 验证标准 |
-|---|---------|------|----------|
-| 1 | **运行 prompt_assembler.py** | `python3 SKILL_DIR/scripts/prompt_assembler.py OUTPUT_DIR/planning/ --refs SKILL_DIR/references --style OUTPUT_DIR/style.json --image-dir OUTPUT_DIR/images/ -o OUTPUT_DIR/prompts-ready/` | 控制台输出 `Loaded N technique cards` + `Done: N prompt files -> prompts-ready/`，且 `prompts-ready/` 下有 N 个 `prompt-ready-{n}.txt` 文件 |
-| 2 | **读取全局资源**（仅一次） | `view_file` 以下 3 个文件：`styles/README.md` / `principles/README.md` / `blocks/README.md` | 3 个文件内容已在上下文中 |
-
-**ASSERT（每页 HTML 生成前）**：`ls OUTPUT_DIR/prompts-ready/prompt-ready-{n}.txt` 文件存在。如果不存在，说明 GATE CHECK #1 未通过，**立即回退执行 prompt_assembler.py**。
-
-**每页 HTML 生成时只需一步**：`view_file OUTPUT_DIR/prompts-ready/prompt-ready-{n}.txt`，然后根据完整 prompt 生成 HTML。**禁止不读 prompt-ready 文件就直接写 HTML。**
-
-##### ==========================================================
-
-##### 资源按需加载决策树
-
-> **核心理念：用户采访后获得的信息已经足以确定后续需要读取哪些资源。** 不要一口气读完所有参考文件，按以下三层决策树精确加载。
-
-**第一层：采访后全局决策（Step 1 完成后立即执行，全流程只做一次）**
-
-根据 Step 1 的采访答案，确定整个 PPT 生命周期内的资源加载策略：
-
-| 采访答案 | 触发的加载决策 |
-|---------|--------------| 
-| Q12 配图偏好 = A（不需要） | 整个流程**跳过** `image-generation.md`，Step 5b 全部跳过 |
-| Q12 配图偏好 = B/C/D | 标记**需要配图**，4a 预读阶段读取 `image-generation.md`（prompt 构造公式 + 风格关键词表 + 构图自适应表），Step 4 每页策划时填写 `image` 字段，Step 5b 执行 |
-| Q7 风格选择 = A-H（明确选择预置风格） | Step 5a 直接读取对应 style_id 的文件（style_id -> 文件路径映射见 `resource-registry.md` 第 1 节），跳过其他风格 |
-| Q7 风格选择 = I（AI 自动匹配） | 先读 `styles/README.md` 的决策规则，确定风格后只读命中风格的独立文件 |
-| Q7 风格选择 = J（自定义） | 读 `styles/README.md` 的灵动创作方法论，基于用户描述自创配色方案 |
-| Q11 语言偏好 = B/C/D（非纯中文） | 标记**多语言模式**，Step 5a 额外读取 `styles/README.md` 的"多语言排版优化"章节 |
-| Q6 说服力要素 = 数据为主 | 标记**数据密集型**，Step 4 每页 data 卡片比例提高 |
-| Q4 叙事结构 = 时间线 | 标记**时间线叙事**，Step 4 中更倾向使用 timeline chart_type |
-
-**第二层：大纲后节奏决策（Step 3 完成后执行，全流程只做一次）**
-
-| 大纲信息 | 触发的加载决策 |
-|---------|------|
-| 总页数 <= 12 | 读取 `narrative-rhythm.md` 的 **10 页标准模板** |
-| 总页数 13-17 | 读取 `narrative-rhythm.md` 的 **15 页标准模板** |
-| 总页数 >= 18 | 读取 `narrative-rhythm.md` 的 **20 页标准模板** |
-| Part 数量确定后 | 读取 `narrative-rhythm.md` 的**章节色彩递进规则** |
-
-**第三层：prompt_assembler 自动组装完整 prompt（已在上方 GATE CHECK #1 强制执行）**
-
-> **核心变化：LLM 不再需要自己拼装 prompt。** `prompt_assembler.py` 一次性完成所有占位符替换，输出一个开箱即用的完整 prompt 文件。LLM 只需 `view_file` 一个文件就获得全部上下文（设计模板 + CSS 变量 + 策划 JSON + 配图信息 + [RESOURCES] 资源块），从根本上消除"忘记读资源"的可能性。
->
-> **如果你发现 `prompts-ready/` 目录不存在或为空，说明 GATE CHECK 未通过，立即回退执行。**
-
-**原理**：`prompt_assembler.py` 读取 `prompt-4-design.md` 模板，替换其中 6 个占位符：
-- `{{STYLE_DEFINITION}}` <- `style.json` 的 CSS 变量定义（灵魂层 + 装饰基因层 + 色值层）
-- `{{PLANNING_JSON}}` <- `planning{n}.json` 的完整 JSON
-- `{{PAGE_CONTENT}}` <- 从 planning JSON 中提取的内容摘要
-- `{{IMAGE_INFO}}` <- 配图信息（usage + path + placement），无配图时自动省略
-- `{{TECHNIQUE_CARDS}}` <- 从 `director_command` 中提取技法牌编号（T1-T10），展开为该页所需的 2-3 张牌的完整 CSS 原子代码 + ADAPT 参数范围（来源：`references/technique-cards.md`）
-- `{{RESOURCES}}` <- 内部调用 `resource_assembler.py` 组装的完整资源块（布局骨架 + 组件模板 + 图表模板 + 设计原则）
-
-**首页 HTML 生成前的强制执行流程（批量模式，推荐）**：
+**目标**：
+
+- `OUTPUT_DIR/outline.json`
+- `OUTPUT_DIR/outline-review-round-{n}.json`
+
+**主控制台动作**：
+
+1. 先验证 Step 2 已通过
+2. 组装 outline sub-agent prompt
+3. 拉起 `outline` sub-agent，生成 `outline.json`
+4. 回收并关闭
+5. 组装 outline-review sub-agent prompt
+6. 拉起 `outline-review` sub-agent
+7. 回收并关闭
+8. 校验 review 结果
+9. 不通过则新开 outline / outline-review 回路
+
+**组装入口**：
 
 ```bash
-# 一次性为所有页面组装完整 prompt（执行一次，后续逐页 view_file）
-python3 SKILL_DIR/scripts/prompt_assembler.py \
-  OUTPUT_DIR/planning/ \
-  --refs SKILL_DIR/references \
+python3 SKILL_DIR/scripts/subagent_prompt_assembler.py outline \
+  --requirements OUTPUT_DIR/requirements.json \
+  --research-package OUTPUT_DIR/research-package.json \
+  --output OUTPUT_DIR/outline.json \
+  --prompt OUTPUT_DIR/runtime/outline-prompt.txt
+
+python3 SKILL_DIR/scripts/subagent_prompt_assembler.py outline-review \
+  --requirements OUTPUT_DIR/requirements.json \
+  --research-package OUTPUT_DIR/research-package.json \
+  --outline OUTPUT_DIR/outline.json \
+  --output OUTPUT_DIR/outline-review-round-1.json \
+  --prompt OUTPUT_DIR/runtime/outline-review-prompt.txt
+```
+
+**硬门槛**：
+
+```bash
+python3 SKILL_DIR/scripts/contract_validator.py outline-review \
+  OUTPUT_DIR/outline-review-round-1.json \
+  --require-pass
+```
+
+通过条件：
+
+- `outline.json` 存在
+- 最新一轮 `outline-review-round-{n}.json` 存在
+- review validator 通过且 `verdict = pass`
+
+失败回退：
+
+- 回退到 outline 编写者
+- 最多 2 轮
+- 第 2 轮仍不通过，展示问题给用户决定
+
+---
+
+### Step 4: 内容分配与策划稿
+
+**目标**：
+
+- `OUTPUT_DIR/planning/planning{n}.json`
+
+**执行细则**：
+
+- 由 `references/playbooks/planning-subagent-playbook.md` 与 `references/prompts/prompt-3-planning.md` 承担
+- 主控制台不再手读 planning prompt 细节
+
+**主控制台动作**：
+
+1. 验证 Step 3 已通过
+2. 按复杂度决定页范围与批次数
+3. 用脚本组装 planning sub-agent prompt
+4. 若拆成多个页范围批次，批次之间并行拉起 planning sub-agent
+5. 回收并关闭
+6. 运行单页 / 全量 validator
+7. 展示 planning 给用户确认
+
+**组装入口**：
+
+```bash
+python3 SKILL_DIR/scripts/subagent_prompt_assembler.py planning \
+  --requirements OUTPUT_DIR/requirements.json \
+  --research-package OUTPUT_DIR/research-package.json \
+  --outline OUTPUT_DIR/outline.json \
+  --output-dir OUTPUT_DIR/planning \
+  --page-range 1-8 \
+  --prompt OUTPUT_DIR/runtime/planning-prompt.txt
+```
+
+**硬门槛**：
+
+```bash
+python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning --refs SKILL_DIR/references
+python3 SKILL_DIR/scripts/contract_validator.py images OUTPUT_DIR/planning
+```
+
+通过条件：
+
+- `planning/` 存在且包含全部页面
+- `scripts/planning_validator.py` exit code = 0
+- image contract validator exit code = 0
+- 用户确认或修改完 planning
+
+失败回退：
+
+- validator 失败 -> 回退到 planning sub-agent
+- 用户改动后 -> 重新跑 validator，再进 Step 5
+
+---
+
+### Step 5a: 风格决策
+
+**目标**：
+
+- `OUTPUT_DIR/style.json`
+
+**主控制台动作**：
+
+1. 验证 Step 4 已通过
+2. 组装 style sub-agent prompt
+3. 拉起 style sub-agent
+4. 回收并关闭
+5. 校验 `style.json`
+
+**组装入口**：
+
+```bash
+python3 SKILL_DIR/scripts/subagent_prompt_assembler.py style \
+  --requirements OUTPUT_DIR/requirements.json \
+  --outline OUTPUT_DIR/outline.json \
+  --output OUTPUT_DIR/style.json \
+  --prompt OUTPUT_DIR/runtime/style-prompt.txt
+```
+
+**硬门槛**：
+
+```bash
+python3 SKILL_DIR/scripts/contract_validator.py style OUTPUT_DIR/style.json
+```
+
+通过条件：
+
+- `style.json` 存在
+- validator exit code = 0
+
+失败回退：
+
+- 回退到 style sub-agent
+
+---
+
+### Step 5b: 配图生成（条件执行）
+
+**目标**：
+
+- `OUTPUT_DIR/images/*`
+
+**主控制台动作**：
+
+- 只在 `image_preference != none / 不需要` 时执行
+- 先检查 planning 中的 image contract
+- 组装 image sub-agent prompt
+- 拉起 image sub-agent
+- 回收并关闭
+- 生成后再检查 path 是否已回填且文件存在
+
+**组装入口**：
+
+```bash
+python3 SKILL_DIR/scripts/subagent_prompt_assembler.py image \
+  --planning OUTPUT_DIR/planning \
   --style OUTPUT_DIR/style.json \
-  --image-dir OUTPUT_DIR/images/ \
-  -o OUTPUT_DIR/prompts-ready/
+  --output-dir OUTPUT_DIR/images \
+  --prompt OUTPUT_DIR/runtime/image-prompt.txt
 ```
 
-> 也支持单页模式：
-> ```bash
-> python3 SKILL_DIR/scripts/prompt_assembler.py \
->   OUTPUT_DIR/planning/planning{n}.json \
->   --refs SKILL_DIR/references \
->   --style OUTPUT_DIR/style.json \
->   --image-dir OUTPUT_DIR/images/ \
->   -o OUTPUT_DIR/prompts-ready/prompt-ready-{n}.txt
-> ```
+**硬门槛**：
 
-**每页 HTML 生成时只需一步**：
-
-```
-view_file OUTPUT_DIR/prompts-ready/prompt-ready-{n}.txt
-```
-
-然后直接根据完整 prompt 生成 HTML，**不需要再手动读取任何资源文件**。
-
-> 脚本输出会显示资源统计和 WARNING（文件未找到时），方便快速发现 planning JSON 中的路径错误。
-
-**首页生成前必须完整读取的全局资源**（仅一次，全局生效）：
-- `references/styles/README.md` -- 装饰技法工具箱 + 色彩原则
-- `references/principles/README.md` -- 设计原则索引
-- `references/blocks/README.md` -- 复合组件索引
-
-> **注意**：`prompt-4-design.md` 不再需要手动读取，其内容已由 `prompt_assembler.py` 自动注入到每页的 `prompt-ready-{n}.txt` 中。
-
-> 页面类型专属规范：封面/目录/章节封面/结束页的结构规范已通过 `required_resources.page_template` 指定路径（如 `page-templates/cover.md`），无需另行查映射。**规范只定义"必须有哪些区域"，不提供具体 HTML 代码**。每次生成时，构图方式、排版比例、装饰元素必须根据所选风格的装饰 DNA 自由变化。
-
-> 叙事节奏：整体 PPT 的视觉密度起伏须遵循 `references/narrative-rhythm.md` 的节奏规则和标准模板。
-
-> CSS 动画（可选）：HTML 预览可嵌入渐入/计数/填充/描边动画，见 `references/prompts/animations.md`。不影响 PPTX 输出。
-
-> **禁止跳过策划稿直接生成。** 每页必须先有 Step 4 的结构 JSON。
-
-> **装饰手法不在每页 Prompt 中重复注入。** 装饰工具箱（`styles/README.md`）在首页生成前读取一次，模型每页自由组合不同装饰技法，而不是被同一份装饰说明反复引导。
-
-**核心设计约束**（完整清单见 prompt-ready 文件内部）：
-- 画布 1280x720px，overflow:hidden
-- 所有颜色通过 CSS 变量引用，禁止硬编码
-- CSS 技法不受限，可自由使用伪元素、渐变、滤镜等一切浏览器原生能力，追求极致视觉效果
-- 配图融入设计：按 `planning{n}.json` 的 `image.usage` 决定融入技法（7 种用法详见 `image-generation.md`）
-
-**布局骨架引用（防错位核心机制）**：每个布局文件（如 `layouts/hero-top.md`）包含完整的 HTML 骨架代码。prompt-ready 文件的 [RESOURCES] 块中 LAYOUT 分区已包含完整骨架代码，以此为起点填充内容。跨行/跨列卡片的 `grid-row` / `grid-column` 属性必须与骨架保持一致。
-
-**逐页生成（严格流程 -- 禁止跳步）**：
-```
-每页 HTML 的生成流程（N = 页码）：
-
-  ASSERT: ls OUTPUT_DIR/prompts-ready/prompt-ready-{N}.txt
-          ↳ 文件不存在？→ 立即运行 prompt_assembler.py，不要「凭记忆」写 HTML
-
-  STEP 1: view_file OUTPUT_DIR/prompts-ready/prompt-ready-{N}.txt
-          ↳ 获得完整上下文（设计模板 + CSS 变量 + 策划 JSON + 配图路径 + [RESOURCES] 资源块）
-
-  STEP 2: 基于 prompt-ready 内容生成 HTML
-          ↳ 布局骨架必须来自 [RESOURCES] 的 LAYOUT 分区
-          ↳ 复合组件必须参考 [RESOURCES] 的 CARD_RESOURCES 分区
-          ↳ 图表模板必须参考 [RESOURCES] 的 chart 分区
-
-  STEP 3: 6 项自检 → 写入 OUTPUT_DIR/slides/slide-{NN}.html
-```
-
-**禁止行为**：不读 prompt-ready 文件就直接写 HTML。这是 Step 5c 的第一条红线。
-
-##### 并行生成模式（Sub-agent 可用时启用）
-
-> 每页 HTML 的生成输入**完全自包含**，页面之间无运行时依赖，天然适合并行。有 sub-agent 能力时**必须启用并行模式**（标准/大型复杂度）。
-
-每页 HTML 的生成输入：
-
-```
-并行单元输入:
-  page_number:       页码
-  prompt_ready_txt:  prompt_assembler.py 为该页生成的 prompt-ready-{n}.txt 完整内容
-                     （已包含设计模板 + CSS 变量 + 策划 JSON + 配图信息 + [RESOURCES] 资源块）
-  global_resources:  首页前已读取的全局资源（styles/README / principles/README / blocks/README / card-styles.md）
-```
-
-**并行策略**：按 Part 分组（同一 Part 的页面分给同一 sub-agent，保证章节内视觉一致性）。不同 Part 的 sub-agent 并行执行。
-
-**分发前准备**（主 agent 执行）：
-1. 完成 GATE CHECK（prompt_assembler.py 已为所有页面生成 prompt-ready 文件）
-2. 读取全局资源（styles/README.md + principles/README.md + blocks/README.md）
-3. 确定 Part 分组
-
-**并行分发**（使用 Agent tool / 等价并行工具）：
-```
-┌─ Sub-agent A (Part 1: page 1-4) ──────────────────────
-│  输入：global_resources + prompt-ready-1~4.txt 内容
-│  任务：逐页读取 prompt-ready -> 生成 HTML -> 5 项自检 -> 写入 slides/
-│  产物：slide-01.html ~ slide-04.html
-│
-├─ Sub-agent B (Part 2: page 5-8) ────────── 并行 ──────
-│  输入：global_resources + prompt-ready-5~8.txt 内容
-│  任务：同上
-│  产物：slide-05.html ~ slide-08.html
-│
-├─ Sub-agent C (Part 3: page 9-12) ───────── 并行 ──────
-│  输入：global_resources + prompt-ready-9~12.txt 内容
-│  任务：同上
-│  产物：slide-09.html ~ slide-12.html
-└────────────────────────────────────────────────────────
-```
-
-**Sub-agent Prompt 模板**：
-```
-你是 PPT 设计师，负责生成第 {start_page} ~ {end_page} 页的 HTML 设计稿。
-
-## 全局资源（已读取，直接使用）
-{global_resources_content}
-
-## 执行规则
-对于你负责的每一页（N = {start_page} ~ {end_page}）：
-
-1. 读取 OUTPUT_DIR/prompts-ready/prompt-ready-{N}.txt
-2. 基于 prompt-ready 内容生成 HTML：
-   - 布局骨架来自 [RESOURCES] 的 LAYOUT 分区
-   - 复合组件参考 [RESOURCES] 的 CARD_RESOURCES 分区
-   - 图表模板参考 [RESOURCES] 的 chart 分区
-3. 5 项自检（内容完整/布局无重叠/不溢出画布/色彩规范/资源已消费）
-4. 写入 OUTPUT_DIR/slides/slide-{NN}.html（NN = 两位数页码）
-
-## 核心约束
-- 画布 1280x720px，overflow:hidden
-- 所有颜色通过 CSS 变量引用
-- 禁止不读 prompt-ready 文件就直接写 HTML
-- 组内逐页串行生成，保证章节内视觉一致性
-```
-
-**回收与校验**（主 agent 执行）：
-1. 等待所有 sub-agent 完成
-2. 检查所有 `slide-XX.html` 文件是否存在
-3. 跨页视觉一致性抽检（Part 交界处的配色/装饰风格衔接）
-4. 运行 `html_packager.py` 生成 `preview.html`
-
-**串行退化**：轻量模式（<= 8 页）或无 sub-agent 时，主 agent 按原有逐页串行流程执行。
-
-##### 每页生成后 5 项自检（必做 -- 写入文件前对照）
-
-每页 HTML 生成后、写入文件前，快速过一遍以下 5 项。如有不通过项，立即修正后再写入：
-
-| # | 检查项 | 判定标准 | 不通过时的修正动作 |
-|---|--------|---------|------------------|
-| 1 | **内容完整** | 每张卡片有标题 + 正文/数据/列表（无空卡）；data 卡片有可视化元素 | 补充缺失内容，空卡填满 |
-| 2 | **布局无重叠** | 所有卡片通过 CSS Grid 自动排列或明确 grid-row/grid-column 定位；跨行/跨列卡片的 span 属性与布局文件一致 | 对照所选布局的 HTML 骨架修正 grid 定位 |
-| 3 | **不溢出画布** | 内容区 `overflow:hidden`；每张卡片 `overflow:hidden`；图表容器有明确 `height`；正文有 `-webkit-line-clamp` 截断 | 缩减内容（缩短正文 > 减少列表项 > 移除装饰） |
-| 4 | **色彩规范** | 所有颜色通过 `var(--xxx)` 引用（除 transparent 和 rgba(255,255,255,0.x)）；accent 色不超过同页 2 种 | 替换硬编码颜色为 CSS 变量 |
-| 5 | **资源已消费** | `prompt-ready-{n}.txt` 中 [RESOURCES] 块的资源已在 HTML 中体现：布局来自 LAYOUT 分区的骨架；每个卡片的复合组件/图表符合 CARD_RESOURCES 分区中该卡片 [block]/[chart] 的设计要点和模板；PAGE_PRINCIPLES 和卡片级 [principle] 在设计决策中被考虑 | 回读 `prompt-ready-{n}.txt` 的 [RESOURCES] 部分对照修正 |
-
-> 自检不是事后审查，而是生成流程的一部分。把 5 项检查融入"生成 -> 检查 -> 修正 -> 写入"的循环中。
-
-**跨页视觉叙事**：按 `references/narrative-rhythm.md` 的节奏规则和章节色彩递进规则执行，确保密度交替、章节色彩递进、封面-结尾呼应。
-
-**产物**：每页一个 HTML 文件 -> `OUTPUT_DIR/slides/`
-
-##### HTML 自检中断点 [STOP -- 等待用户确认]
-
-> **所有页面 HTML 生成完毕后，暂停等用户自检。** 出错概率低，因此统一自检而非逐页中断。
-
-所有 `slide-XX.html` 写入完成后：
-
-1. 运行 `html_packager.py` 生成 `preview.html`（合并预览，方便用户一次性审阅）
-   ```bash
-   python3 SKILL_DIR/scripts/html_packager.py OUTPUT_DIR/slides/ -o OUTPUT_DIR/preview.html
-   ```
-2. **通知用户**：告知用户打开 `preview.html` 翻页审阅所有页面
-3. **等待用户反馈**（阻断点），用户可以：
-   - **A) 直接确认**：回复"OK"或"没问题"，进入 Step 6
-   - **B) 自行编辑 HTML**：直接修改 `slides/slide-XX.html` 文件，改完后回复确认
-   - **C) 指示 agent 修改**：告诉 agent 哪些页面需要改什么（如"第 3 页标题颜色太淡"、"第 7 页布局太空"），agent 修改后重新生成 `preview.html` 供再次审阅
-4. 确认通过后，进入 Step 6
-
-> 如果用户选择 C，agent 修改 HTML 后必须重新运行 `html_packager.py` 更新预览，然后再次等用户确认。循环直到用户满意。
-
----
-
-### Step 6: 管线选择 + 后处理 [必做 -- 用户确认 HTML 后立即执行]
-
-> **禁止跳过。** 用户确认 HTML 后必须执行完整的转换管线，不要停在 preview.html 就结束。
-
-#### 6a. 管线选择 [STOP -- 等待用户选择]
-
-> 两条管线各有优劣，**必须让用户选择**，不要替用户做决定。
-
-向用户展示以下选项：
-
-| 管线 | 路径 | 优势 | 劣势 |
-|------|------|------|------|
-| **A) PNG 管线** | HTML -> PNG -> PPTX | 兼容性极好（任何版本 PPT / WPS / Keynote / Google Slides）；所有 CSS 效果完美保留 | 文字不可编辑（成为像素） |
-| **B) SVG 管线** | HTML -> SVG -> PPTX | 文字可编辑（右键"转换为形状"）；矢量无损缩放 | 需要 Microsoft 365 / PPT 2021+；复杂 CSS 可能转换失真 |
-
-**等待用户回复**（阻断点）。
-
-#### 6b. 执行转换
-
-**依赖检查**（首次运行自动执行）：
 ```bash
-pip install python-pptx lxml Pillow 2>/dev/null
+python3 SKILL_DIR/scripts/contract_validator.py images OUTPUT_DIR/planning
+python3 SKILL_DIR/scripts/contract_validator.py images OUTPUT_DIR/planning --require-paths
 ```
 
-##### 管线 A：PNG 管线（HTML -> PNG -> PPTX）
+通过条件：
 
-```
-slides/*.html --> png/*.png --> presentation.pptx
-```
+- 如需要配图：两次 image validator 都通过
+- 如不需要配图：Step 5b 标记 `skipped`
 
-1. **PNG 截图** -- 运行 `html2png.py`（Puppeteer 截图，2x 高清）
-   ```bash
-   python3 SKILL_DIR/scripts/html2png.py OUTPUT_DIR/slides/ -o OUTPUT_DIR/png/ --scale 2
-   ```
-   **降级**：如果 Node.js 不可用或 Puppeteer 安装失败，跳过并告知用户手动安装 Node.js。
+失败回退：
 
-2. **PPTX 生成** -- 运行 `png2pptx.py`（全屏图片嵌入）
-   ```bash
-   python3 SKILL_DIR/scripts/png2pptx.py OUTPUT_DIR/png/ -o OUTPUT_DIR/presentation.pptx
-   ```
-
-##### 管线 B：SVG 管线（HTML -> SVG -> PPTX）
-
-```
-slides/*.html --> svg/*.svg --> presentation.pptx
-```
-
-1. **SVG 转换** -- 运行 `html2svg.py`（DOM 直接转 SVG，保留 `<text>` 可编辑）
-   > **注意**：SVG 管线会尽力转换所有 CSS，但部分高级 CSS 特性可能有轻微失真。`html2svg.py` 内置了 13 种自动兜底修复。如果效果不满意，建议改用 PNG 管线。
-   ```bash
-   python3 SKILL_DIR/scripts/html2svg.py OUTPUT_DIR/slides/ -o OUTPUT_DIR/svg/
-   ```
-   底层用 dom-to-svg（自动安装），首次运行会 esbuild 打包。
-   **降级**：如果 Node.js 不可用或 dom-to-svg 安装失败，告知用户并建议改用 PNG 管线。
-
-2. **PPTX 生成** -- 运行 `svg2pptx.py`（OOXML 原生形状解析，PPT 365 可编辑）
-   ```bash
-   python3 SKILL_DIR/scripts/svg2pptx.py OUTPUT_DIR/svg/ -o OUTPUT_DIR/presentation.pptx --html-dir OUTPUT_DIR/slides/
-   ```
-
-#### 6c. 通知用户
-
-告知产物位置和使用方式：
-- `preview.html` -- 浏览器打开即可翻页预览（Step 5c 自检阶段已生成）
-- `presentation.pptx` -- 最终 PPTX 文件
-- **PNG 管线产物**：
-  - `png/` -- 每页截图，可直接插入任何演示软件
-  - 文字为像素，不可在 PPT 中直接编辑
-- **SVG 管线产物**：
-  - `svg/` -- 每个 SVG 也可单独拖入 PPT
-  - 右键 -> "转换为形状" 即可编辑文字和形状
-  - **版本要求**："转换为形状"功能需要 **Microsoft 365 / PowerPoint 2021+**。较低版本（2019 及以下）只能将 SVG 作为不可编辑的图片显示
-- **如果转换被降级跳过**，说明原因并告知用户手动安装 Node.js 后可重新运行
-
-**产物**：preview.html + (png/*.png 或 svg/*.svg) + presentation.pptx
+- 前置 image contract 不合法 -> 回退到 Step 4
+- 图片已生成但 path / 文件缺失 -> 回退到 image sub-agent
 
 ---
 
-## 中断恢复机制
+### Step 5c: HTML 设计稿生成
 
-> 长流程（15+ 页 PPT）中途中断时，通过 `progress.json` 记录进度，下次从中断点继续。
+**目标**：
 
-### progress.json 结构
+- `OUTPUT_DIR/prompts-ready/prompt-ready-{NN}.txt`
+- `OUTPUT_DIR/slides/slide-{NN}.html`
 
-```json
-{
-  "version": "1.0",
-  "topic": "PPT 主题",
-  "complexity": "light | standard | large",
-  "total_pages": 15,
-  "started_at": "ISO 时间戳",
-  "last_updated": "ISO 时间戳",
-  "steps": {
-    "step_1": {"status": "done | in_progress | pending"},
-    "step_2": {"status": "done"},
-    "step_3": {"status": "done"},
-    "step_4": {"status": "in_progress", "completed_pages": [1,2,3,4,5], "current_page": 6},
-    "step_5a": {"status": "pending"},
-    "step_5b": {"status": "pending", "completed_pages": []},
-    "step_5c": {"status": "pending", "completed_pages": []},
-    "step_6": {"status": "pending", "pipeline": null}
-  }
-}
+**主控制台动作**：
+
+1. 验证 Step 4 / Step 5a / Step 5b 已通过
+2. 运行 `scripts/prompt_assembler.py design`
+3. 检查 `prompt-ready` 数量是否与 planning 页数一致
+4. 用脚本组装 HTML sub-agent prompt
+5. 若拆成多个 HTML 批次，批次之间并行拉起 HTML sub-agent
+6. 回收并关闭
+7. 检查 `slides` 数量是否与 planning 页数一致
+
+**组装入口**：
+
+```bash
+python3 SKILL_DIR/scripts/prompt_assembler.py design \
+  --planning OUTPUT_DIR/planning \
+  --style OUTPUT_DIR/style.json \
+  --all \
+  --output-dir OUTPUT_DIR/prompts-ready \
+  --self-contained
+
+python3 SKILL_DIR/scripts/subagent_prompt_assembler.py html \
+  --page 1 \
+  --prompt-ready OUTPUT_DIR/prompts-ready/prompt-ready-01.txt \
+  --planning OUTPUT_DIR/planning/planning1.json \
+  --output OUTPUT_DIR/slides/slide-01.html \
+  --prompt OUTPUT_DIR/runtime/html-page-01-prompt.txt
 ```
 
-### 写入时机
+**硬门槛**：
 
-| 事件 | 更新内容 |
-|------|--------|
-| Step 1 完成 | 创建 `progress.json`，写入 topic + complexity + step_1=done |
-| Step 2 完成 | step_2=done |
-| Step 3 完成 | step_3=done, total_pages |
-| Step 4 每页写入 | step_4.completed_pages 追加页码 |
-| Step 5a 完成 | step_5a=done |
-| Step 5b/5c 每页完成 | 对应 completed_pages 追加页码 |
-| Step 6a 用户选择管线 | step_6.pipeline = "png" 或 "svg" |
-| Step 6 完成 | step_6=done |
+- `prompts-ready/` 存在
+- `prompt-ready` 文件数 = planning 页数
+- `slides/` 存在
+- `slide` 文件数 = planning 页数
 
-### 恢复流程
+轻量任务可以只开 1 个 HTML 批次；一旦拆成多批次，批次之间并行。主 agent 仍然只做控制台，不亲自写页面。
 
-流程开始时检查 `OUTPUT_DIR/progress.json` 是否存在：
-1. 不存在 -> 全新开始
-2. 存在 -> 读取并展示当前进度，询问用户"继续"或"重新开始"
-3. 用户选择继续 -> 跳到第一个非 done 的步骤，补全缺失产物
-4. 用户选择重新开始 -> 删除 progress.json，全新开始
+失败回退：
 
-**恢复时的产物校验**：跳到中断步骤前，检查前序步骤的产物文件是否存在（如 outline.json、planning/*.json、style.json）。缺失则回退到该步骤重新生成。
+- `prompt-ready` 缺页 -> 回退到 `scripts/prompt_assembler.py`
+- `slides` 缺页 -> 回退到对应 HTML sub-agent
 
 ---
 
-## 输出目录结构
+### Step 5d: 强制终审
 
-```
-ppt-output/
-  progress.json        # 进度日志（中断恢复用）
-  outline.json         # 大纲（Step 3 产物）
-  style.json           # 风格定义（Step 5a 产物）
-  planning/            # 策划稿目录（Step 4 产物）
-    planning1.json     # 第 1 页策划稿
-    planning2.json     # 第 2 页策划稿
-    planning{n}.json   # 第 n 页策划稿（每页独立文件）
-  images/              # AI 配图（Step 5b 产物）
-  prompts-ready/       # ★ 完整 prompt（Step 5c GATE CHECK 产物 -- 必须在写 HTML 之前生成）
-    prompt-ready-1.txt # prompt_assembler.py 组装：模板+风格+策划+资源+配图，开箱即用
-    prompt-ready-{n}.txt
-  slides/              # 每页 HTML（Step 5c 产物 -- 必须基于 prompts-ready 生成）
-  preview.html         # 可翻页预览（html_packager.py 合并打包）
-  png/                 # PNG 截图（Step 6 PNG 管线产物）
-  svg/                 # 矢量 SVG（Step 6 SVG 管线产物，可导入 PPT 编辑）
-  presentation.pptx    # 最终 PPTX（Step 6 产物）
+**目标**：
+
+- `OUTPUT_DIR/reviews/reviewer-prompt.txt`
+- `OUTPUT_DIR/reviews/final-review-round-{n}.json`
+
+**主控制台动作**：
+
+1. 尽量先生成 PNG
+2. 用 harness 组装 reviewer prompt
+3. 拉起 reviewer sub-agent
+4. 回收并关闭
+5. 用 harness validate
+6. 若需修复则重新 assemble，换新 reviewer
+
+**组装入口**：
+
+```bash
+python3 SKILL_DIR/scripts/html2png.py OUTPUT_DIR/slides -o OUTPUT_DIR/png --scale 2
+
+python3 SKILL_DIR/scripts/final_review_harness.py assemble \
+  OUTPUT_DIR \
+  -o OUTPUT_DIR/reviews/reviewer-prompt.txt \
+  --review-mode auto
+
+python3 SKILL_DIR/scripts/final_review_harness.py validate \
+  OUTPUT_DIR/reviews/final-review-round-1.json \
+  --pages 15
 ```
 
-> **依赖关系**：`planning/` → `prompts-ready/` → `slides/`。每个目录都依赖前一个目录的产物，**禁止跳过中间产物**。
+**硬门槛**：
+
+- 终审必须隔离 reviewer 执行
+- 终审优先 PNG；没有 PNG 时自动退回 source 审查
+- `scripts/final_review_harness.py validate` 必须通过
+- 只有 Step 5d 通过后，才允许生成 `preview.html`
+
+失败回退：
+
+- 留在 Step 5d
+- reviewer 每轮回收后必须关闭
+- 不得让同一 reviewer 自检
 
 ---
 
-## 质量自检（全局级 -- 与 Step 5c 逐页自检互补）
+### Step 5d 后：用户预览
 
-| 维度 | 检查项 |
-|------|-------|
-| 全局一致 | CSS 变量跨页一致 / 配色统一 / 配图风格统一 |
-| 叙事节奏 | 相邻页 visual_weight 差 <= 5 / 不连续 3 页高密度 / 规则冲突时内容完整性 > 节奏美感 |
+```bash
+python3 SKILL_DIR/scripts/html_packager.py OUTPUT_DIR/slides -o OUTPUT_DIR/preview.html
+```
+
+通过条件：
+
+- `preview.html` 存在
+- 用户确认 HTML，或修改后重新进入 Step 5d
 
 ---
 
-## Reference 文件索引
+### Step 6: 导出交付
 
-> 完整映射见 `resource-registry.md`。
+**目标**：
 
-| 文件 | 何时读 | 内容 |
-|------|-------|------|
-| `prompts/prompt-1-research.md` | Step 1 | 需求调研 |
-| `prompts/prompt-2-outline.md` | Step 3 | 大纲架构 v3.0（叙事弧线 + 论证策略 + Part 逻辑关系） |
-| `prompts/prompt-3-planning.md` | Step 4 | 策划稿（含 14 种 card_type + decoration_hints） |
-| `prompts/prompt-4-design.md` | prompt_assembler.py 内部使用 | HTML 设计稿模板（不再需要手动读取） |
-| `blocks/README.md` | Step 4 首页前 | 复合组件选择指南 + 总表 |
-| `blocks/{type}.md` | Step 4 + 5c 按需 | 8 种复合区域展示组件 |
-| `principles/README.md` | Step 4 首页前 | 6 大设计原则索引 |
-| `principles/{name}.md` | 按需 | 视觉层级/认知负荷/构图/色彩/数据可视化/叙事 |
-| `principles/design-principles-cheatsheet.md` | Step 4 首页前（第 0 号必读项） | **6 大原则 -> JSON 字段操作手册 + 逐页体检单，通过 `{{DESIGN_PRINCIPLES_CHEATSHEET}}` 注入 prompt-3** |
-| `resource-menu.md` | Step 4 每页策划时（通过 `{{RESOURCE_MENU}}` 注入 prompt-3） | **资源菜单速查卡（布局/卡片/图表/card_style/装饰技法完整选项），防止后半程策划退化** |
-| `styles/README.md` | Step 5a + 5c 首页前 | 色彩原则 + 装饰工具箱 |
-| `styles/{id}.md` | Step 5a | 8 个参考调色板 |
-| `layouts/README.md` | Step 5c 首页前 | 骨架使用总则 |
-| `layouts/{layout}.md` | prompt_assembler.py 自动组装 | 10 种布局骨架 |
-| `charts/{type}.md` | prompt_assembler.py 自动组装 | 13 种图表模板 |
-| `page-templates/{type}.md` | prompt_assembler.py 自动组装 | 页面结构建议 |
-| `narrative-rhythm.md` | Step 3 后 | 节奏 + 色彩递进 + 规则冲突优先级 + 边缘场景 |
-| `technique-cards.md` | prompt_assembler.py 自动按需注入 | **T1-T10 技法牌完整定义**（CSS 原子代码 + ADAPT 参数），根据 director_command 中的编号展开注入 |
-| `resource-registry.md` | 维护时 | **全局映射唯一权威源** |
-| `scripts/prompt_assembler.py` | Step 5c 首页生成前 | **自动组装完整 prompt**（模板+风格+策划+技法牌+资源+配图，6 个占位符一次性替换） |
-| `scripts/resource_assembler.py` | prompt_assembler.py 内部依赖 | 组装 [RESOURCES] 文本块（不再需要手动调用） |
-| `scripts/planning_validator.py` | Step 4 每页写入后 + 全量验证 | 策划稿 JSON 格式与规则验证（单页+跨页） |
+- `OUTPUT_DIR/presentation.pptx`
+
+**规则**：
+
+- 用户必须在 PNG / SVG 管线中明确选择
+- 不允许跳过导出直接结束
+
+**PNG 管线**：
+
+```bash
+python3 SKILL_DIR/scripts/html2png.py OUTPUT_DIR/slides -o OUTPUT_DIR/png --scale 2
+python3 SKILL_DIR/scripts/png2pptx.py OUTPUT_DIR/png -o OUTPUT_DIR/presentation.pptx
+```
+
+**SVG 管线**：
+
+```bash
+python3 SKILL_DIR/scripts/html2svg.py OUTPUT_DIR/slides -o OUTPUT_DIR/svg
+python3 SKILL_DIR/scripts/svg2pptx.py OUTPUT_DIR/svg -o OUTPUT_DIR/presentation.pptx --html-dir OUTPUT_DIR/slides
+```
+
+通过条件：
+
+- 目标管线产物存在
+- `presentation.pptx` 存在
+
+失败回退：
+
+- 管线依赖缺失 -> 告知用户并建议改用另一条管线
+
+---
+
+## 7. 失败回退总表
+
+| 当前节点 | 检查方式 | 失败回退 |
+|---------|---------|---------|
+| sub-agent 授权 | 用户明确同意 | Step -1 |
+| 运行目录隔离 | `OUTPUT_DIR` 与 `RUN_ID` 一一对应 | Step 0 |
+| `progress.json` | `scripts/progress_validator.py --require-pre-step1` | Step 0 |
+| `requirements.json` | `scripts/contract_validator.py requirements` | Step 1 |
+| `raw-research.json` | `scripts/contract_validator.py raw-research` | research sub-agent |
+| `research-package.json` | `scripts/contract_validator.py research-package` | material-prep sub-agent |
+| `outline-review-round-{n}.json` | `scripts/contract_validator.py outline-review --require-pass` | Step 3 |
+| `planning/*.json` | `scripts/planning_validator.py` | Step 4 |
+| planning image 合同 | `scripts/contract_validator.py images` | Step 4 |
+| `style.json` | `scripts/contract_validator.py style` | Step 5a |
+| 图片 path | `scripts/contract_validator.py images --require-paths` | Step 5b |
+| `prompts-ready/*` | 文件数校验 | `scripts/prompt_assembler.py` |
+| `slides/*` | 文件数校验 | Step 5c |
+| `final-review-round-{n}.json` | `scripts/final_review_harness.py validate` | Step 5d |
+| `preview.html` | 文件存在 + 用户确认 | Step 5d |
+| `presentation.pptx` | 文件存在 | Step 6 |
+
+---
+
+## 8. 恢复规则
+
+中断恢复时，主控制台只做以下检查：
+
+1. 是否已有用户明确的 sub-agent 授权；无授权时回到 Step -1
+2. 绑定目标 `RUN_ID`（用户指定优先；否则 `latest`）
+3. `progress.json` 是否存在且 `scripts/progress_validator.py` 通过
+4. 前序正式产物是否存在
+5. 对应 validator / harness 是否能通过
+6. 找到第一个未完成节点并从那里继续
+
+若任一前序节点不合法，直接回退到该节点重做，不依赖口头记忆。
+
+恢复辅助说明见：
+
+- `references/ops/workflow-ops.md`
+
+---
+
+## 9. 运行入口索引
+
+主控制台常用入口只保留这些：
+
+- 用户问卷：`references/prompts/prompt-1-research.md`
+- research prompt 组装：`scripts/subagent_prompt_assembler.py` 的 `research` 子命令
+- material-prep prompt 组装：`scripts/subagent_prompt_assembler.py` 的 `material-prep` 子命令
+- outline / outline-review prompt 组装：`scripts/subagent_prompt_assembler.py` 的 `outline` / `outline-review` 子命令
+- planning prompt 组装：`scripts/subagent_prompt_assembler.py` 的 `planning` 子命令
+- style / image prompt 组装：`scripts/subagent_prompt_assembler.py` 的 `style` / `image` 子命令
+- planning 合法性：`scripts/planning_validator.py`
+- progress 合法性：`scripts/progress_validator.py`
+- requirements / research / style / image / outline-review 合法性：`scripts/contract_validator.py`
+- design prompt 组装：`scripts/prompt_assembler.py` 的 `design` 子命令
+- html sub-agent prompt 组装：`scripts/subagent_prompt_assembler.py` 的 `html` 子命令
+- reviewer packet：`scripts/final_review_harness.py` 的 `assemble` / `validate` 子命令
+- preview 打包：`scripts/html_packager.py`
+- 导出：`scripts/html2png.py` / `scripts/html2svg.py` / `scripts/png2pptx.py` / `scripts/svg2pptx.py`
+
+执行细则真源在：
+
+- `references/playbooks/research-subagent-playbook.md`
+- `references/playbooks/material-prep-subagent-playbook.md`
+- `references/playbooks/outline-subagent-playbook.md`
+- `references/playbooks/outline-review-subagent-playbook.md`
+- `references/playbooks/planning-subagent-playbook.md`
+- `references/playbooks/html-subagent-playbook.md`
+- `references/playbooks/review-subagent-playbook.md`
+
+主控制台只引用这些文件，不在 `SKILL.md` 里重复抄执行细节。

@@ -7,7 +7,7 @@
 - 缺点：文字不可编辑（成为像素）
 
 用法：
-    python3 html2png.py <html_dir_or_file> [-o output_dir] [--scale 2]
+    python3 scripts/html2png.py <html_dir_or_file> [-o output_dir] [--scale 2]
 """
 
 import json
@@ -135,7 +135,7 @@ def convert(html_dir: Path, output_dir: Path, scale: int = 2) -> bool:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python3 html2png.py <html_dir_or_file> [-o output_dir] [--scale 2]")
+        print("Usage: python3 scripts/html2png.py <html_dir_or_file> [-o output_dir] [--scale 2]")
         sys.exit(1)
 
     html_path = Path(sys.argv[1]).resolve()

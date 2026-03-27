@@ -1,517 +1,478 @@
 #!/usr/bin/env python3
-"""策划稿 JSON 验证器 -- 在 Step 4 每页策划写入后立即校验
+"""Validate Step 4 planning JSON files against the current deck schema.
 
-彻底消除 planning JSON 格式错误静默传播到下游的问题。
-验证分两层：
-  - 单页验证：字段完整性、值有效性、资源路径合法性
-  - 跨页验证：布局多样性、visual_weight 节奏、image usage 多样性
-
-用法:
-  # 单页验证
-  python planning_validator.py planning/planning4.json --refs references/
-
-  # 全量验证（所有页面 + 跨页规则）
-  python planning_validator.py planning/ --refs references/
-
-  # 严格模式（warning 也视为失败，exit code = 1）
-  python planning_validator.py planning/ --refs references/ --strict
-
-SKILL.md 集成方式:
-  Step 4 每页策划稿写入后立即执行:
-  python3 SKILL_DIR/scripts/planning_validator.py \
-    OUTPUT_DIR/planning/planning{n}.json \
-    --refs SKILL_DIR/references
+The validator is intentionally conservative:
+- supports wrapped deck payloads and single-page payloads
+- validates current schema first, while tolerating a few legacy aliases
+- checks referenced resources against the local references registry
 """
+
+from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
-from collections import Counter
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
-# ── 合法枚举值 ──────────────────────────────────────────────────────────
+import resource_registry as rr
+from workflow_versions import (
+    PLANNING_CONTINUITY_VERSION,
+    PLANNING_PACKET_VERSION,
+    PLANNING_SCHEMA_VERSION,
+    WORKFLOW_VERSION,
+)
+
 
 VALID_PAGE_TYPES = {"cover", "toc", "section", "content", "end"}
-
+VALID_NARRATIVE_ROLES = {
+    "opening", "orientation", "transition", "setup", "evidence", "comparison",
+    "framework", "process", "case", "quote", "breath", "close", "cta",
+}
+VALID_CARD_ROLES = {"anchor", "support", "context"}
 VALID_CARD_TYPES = {
-    # 基础
     "text", "data", "list", "process", "tag_cloud", "data_highlight",
-    # 复合
-    "timeline", "diagram", "quote", "comparison", "people",
-    "image_hero", "matrix_chart",
+    "timeline", "diagram", "quote", "comparison", "people", "image_hero",
+    "matrix_chart",
 }
-
-VALID_CARD_STYLES = {
-    "filled", "transparent", "outline", "accent", "glass", "elevated",
+VALID_CARD_STYLES = {"accent", "elevated", "filled", "outline", "glass", "transparent"}
+VALID_ARGUMENT_ROLES = {
+    "claim", "evidence", "contrast", "constraint", "method", "synthesis",
+    "prerequisite", "framework",
 }
-
-VALID_CHART_TYPES = {
-    "progress_bar", "ring", "comparison_bar", "sparkline", "waffle",
-    "kpi", "metric_row", "rating", "radar", "stacked_bar", "treemap",
-    "timeline", "funnel",
-}
-
-VALID_IMAGE_USAGES = {
-    "hero-blend", "atmosphere", "tint-overlay", "split-content",
-    "card-inset", "card-header", "circle-badge", "none",
-}
-
 VALID_LAYOUT_HINTS = {
-    "单一焦点", "50/50 对称", "非对称两栏", "三栏等宽", "主次结合",
-    "英雄式", "顶部英雄式", "混合网格", "L 型", "T 型", "瀑布流",
+    "single-focus", "symmetric", "asymmetric", "three-column", "primary-secondary",
+    "hero-top", "mixed-grid", "l-shape", "t-shape", "waterfall", "free-cover",
+    "free-section", "free-end", "toc-route",
 }
-
-COMPLEX_CARD_TYPES = {
-    "timeline", "diagram", "quote", "comparison", "people",
-    "image_hero", "matrix_chart",
+VALID_CHART_TYPES = {
+    "kpi", "metric_row", "sparkline", "comparison_bar", "ring", "stacked_bar",
+    "timeline", "funnel", "radar", "treemap", "waffle", "progress_bar", "rating",
 }
+VALID_IMAGE_USAGES = {
+    "hero-background", "inline-illustration", "icon-accent", "data-visualization-bg",
+}
+VALID_IMAGE_PLACEMENTS = {"full-bleed", "left-half", "right-half", "card-bg", "inline"}
 
-CHART_REQUIRING_TYPES = {"data", "data_highlight"}
 
-
+@dataclass
 class ValidationResult:
-    """收集验证结果。"""
-    def __init__(self):
-        self.errors: list[str] = []
-        self.warnings: list[str] = []
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
-    def error(self, msg: str):
-        self.errors.append(msg)
+    def error(self, message: str) -> None:
+        self.errors.append(message)
 
-    def warn(self, msg: str):
-        self.warnings.append(msg)
+    def warn(self, message: str) -> None:
+        self.warnings.append(message)
 
     @property
     def ok(self) -> bool:
-        return len(self.errors) == 0
-
-    def summary(self, label: str = "") -> str:
-        prefix = f"[{label}] " if label else ""
-        lines = []
-        for e in self.errors:
-            lines.append(f"  ERROR: {prefix}{e}")
-        for w in self.warnings:
-            lines.append(f"  WARN:  {prefix}{w}")
-        return "\n".join(lines)
+        return not self.errors
 
 
-def validate_single(planning: dict, refs_dir: Path | None) -> ValidationResult:
-    """验证单个 planning JSON 的字段完整性和值有效性。"""
-    r = ValidationResult()
-    pn = planning.get("page_number", "?")
-    label = f"p{pn}"
-
-    # ── 顶层必填字段 ──────────────────────────────────────────────────
-    required_top = [
-        "page_number", "page_type", "title", "goal",
-        "cards", "visual_weight",
-    ]
-    for field in required_top:
-        if field not in planning:
-            r.error(f"[{label}] 缺少必填字段: {field}")
-
-    # ── page_type ─────────────────────────────────────────────────────
-    pt = planning.get("page_type", "")
-    if pt and pt not in VALID_PAGE_TYPES:
-        r.error(f"[{label}] page_type 无效: '{pt}'（合法值: {VALID_PAGE_TYPES}）")
-
-    # ── visual_weight ─────────────────────────────────────────────────
-    vw = planning.get("visual_weight")
-    if vw is not None:
-        try:
-            vw_num = int(vw)
-            if vw_num < 2 or vw_num > 9:
-                r.error(f"[{label}] visual_weight 超出范围 [2-9]: {vw_num}")
-        except (ValueError, TypeError):
-            r.error(f"[{label}] visual_weight 必须是整数: {vw}")
-
-    # ── layout_hint ───────────────────────────────────────────────────
-    lh = planning.get("layout_hint", "")
-    if pt == "content" and not lh:
-        r.error(f"[{label}] content 页必须有 layout_hint")
-    if lh and lh not in VALID_LAYOUT_HINTS:
-        r.warn(f"[{label}] layout_hint 不在已知列表中: '{lh}'（可能是自定义值）")
-
-    # ── cards[] ────────────────────────────────────────────────────────
-    cards = planning.get("cards", [])
-    if pt == "content" and len(cards) < 2:
-        r.warn(f"[{label}] content 页卡片数量偏少: {len(cards)}（推荐 3-5）")
-
-    card_styles_used = set()
-    for idx, card in enumerate(cards):
-        # card_type
-        ct = card.get("card_type", "")
-        if not ct:
-            r.error(f"[{label}] cards[{idx}] 缺少 card_type")
-        elif ct not in VALID_CARD_TYPES:
-            r.error(f"[{label}] cards[{idx}] card_type 无效: '{ct}'")
-
-        # card_style
-        cs = card.get("card_style", "filled")
-        if cs not in VALID_CARD_STYLES:
-            r.error(f"[{label}] cards[{idx}] card_style 无效: '{cs}'")
-        card_styles_used.add(cs)
-
-        # chart_type（data/data_highlight 类型必须有）
-        chart_type = card.get("chart_type")
-        if ct in CHART_REQUIRING_TYPES and not chart_type:
-            r.error(f"[{label}] cards[{idx}] {ct} 卡片必须指定 chart_type")
-        if chart_type and chart_type not in VALID_CHART_TYPES:
-            r.error(f"[{label}] cards[{idx}] chart_type 无效: '{chart_type}'")
-
-        # resource_ref（复合类型必须有 block 引用）
-        ref = card.get("resource_ref", {})
-        if ct in COMPLEX_CARD_TYPES:
-            block_ref = ref.get("block", "")
-            if not block_ref:
-                r.warn(f"[{label}] cards[{idx}] 复合类型 '{ct}' 建议填写 resource_ref.block")
-
-        # resource_ref 路径存在性检查
-        if refs_dir and isinstance(ref, dict):
-            for key in ("block", "chart", "principle"):
-                path = ref.get(key, "")
-                if path:
-                    clean = path.removeprefix("references/")
-                    full_path = refs_dir / clean
-                    if not full_path.is_file():
-                        r.error(f"[{label}] cards[{idx}] resource_ref.{key} 文件不存在: {path}")
-
-        # content 非空检查
-        content = card.get("content", "")
-        title = card.get("title", "")
-        if not title and not content:
-            r.warn(f"[{label}] cards[{idx}] 无标题且无内容")
-
-    # card_style 多样性
-    if pt == "content" and len(card_styles_used) < 2 and len(cards) >= 2:
-        r.error(f"[{label}] content 页至少需要 2 种 card_style（当前: {card_styles_used}）")
-
-    # accent/elevated 限制
-    accent_count = sum(1 for c in cards if c.get("card_style") == "accent")
-    elevated_count = sum(1 for c in cards if c.get("card_style") == "elevated")
-    if accent_count > 1:
-        r.warn(f"[{label}] accent style 建议每页最多 1 个（当前: {accent_count}）")
-    if elevated_count > 1:
-        r.warn(f"[{label}] elevated style 建议每页最多 1 个（当前: {elevated_count}）")
-
-    # ── 按 page_type 的内容质量校验 ───────────────────────────────────
-    _validate_page_type_quality(planning, cards, pt, label, r)
-
-    # ── required_resources ─────────────────────────────────────────────
-    rr = planning.get("required_resources", {})
-    if pt == "content":
-        if not rr.get("layout"):
-            r.error(f"[{label}] content 页 required_resources.layout 为空")
-    elif pt in ("cover", "toc", "section", "end"):
-        if not rr.get("page_template"):
-            r.warn(f"[{label}] {pt} 页建议填写 required_resources.page_template")
-
-    if not rr.get("principles"):
-        r.warn(f"[{label}] required_resources.principles 为空（建议至少 1 条）")
-
-    # required_resources 路径检查
-    if refs_dir:
-        for key in ("layout", "page_template"):
-            path = rr.get(key, "")
-            if path:
-                clean = path.removeprefix("references/")
-                full_path = refs_dir / clean
-                if not full_path.is_file():
-                    r.error(f"[{label}] required_resources.{key} 文件不存在: {path}")
-        for p in rr.get("principles", []):
-            if p:
-                clean = p.removeprefix("references/")
-                full_path = refs_dir / clean
-                if not full_path.is_file():
-                    r.error(f"[{label}] required_resources.principles 文件不存在: {p}")
-
-    # ── image ──────────────────────────────────────────────────────────
-    img = planning.get("image", {})
-    usage = img.get("usage", "none")
-    if usage not in VALID_IMAGE_USAGES:
-        r.error(f"[{label}] image.usage 无效: '{usage}'")
-    if usage != "none":
-        if not img.get("prompt"):
-            r.error(f"[{label}] image.usage={usage} 但 image.prompt 为空")
-        if not img.get("placement"):
-            r.warn(f"[{label}] image.placement 为空")
-
-    # ── decoration_hints ───────────────────────────────────────────────
-    dh = planning.get("decoration_hints", {})
-    if pt == "content" and not dh:
-        r.warn(f"[{label}] content 页 decoration_hints 为空")
-
-    return r
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
 
 
-def _is_brand_info_card(card: dict) -> bool:
-    """检测卡片是否只是伪装成卡片的品牌/页脚信息。
-
-    判定标准：无标题且内容只含姓名|日期|公司等元数据，
-    不承载任何实质内容。
-    """
-    title = card.get("title", "").strip()
-    content = card.get("content", "").strip()
-    data_points = card.get("data_points", [])
-
-    # 有标题的卡片不算纯品牌信息（除非标题也是空的）
-    if title:
-        return False
-
-    # 有实质数据点的不算
-    if data_points and any(len(str(dp)) > 15 for dp in data_points):
-        return False
-
-    # 内容只有短文本且包含常见品牌信息分隔符
-    if content and len(content) < 60:
-        separators = ["|", "/", "·", "--", "—"]
-        if any(sep in content for sep in separators):
-            # 进一步检测：内容中是否有日期模式或极短片段
-            parts = [p.strip() for p in content.replace("|", "/").replace("·", "/").split("/")]
-            # 如果每段都少于 15 字且没有动词/论点，大概率是品牌信息
-            if all(len(p) < 15 for p in parts if p):
-                return True
-
-    return False
-
-
-def _validate_page_type_quality(
-    planning: dict, cards: list[dict], pt: str, label: str, r: ValidationResult
-) -> None:
-    """按 page_type 检查卡片质量和数量。
-
-    核心原则：品牌信息（演讲人/日期/公司）是页脚元素，不是卡片。
-    只含品牌信息的卡片不计入有效内容卡片数。
-    """
-    # 统计有效内容卡片（排除纯品牌信息卡片）
-    content_cards = [c for c in cards if not _is_brand_info_card(c)]
-    brand_cards = [c for c in cards if _is_brand_info_card(c)]
-
-    if brand_cards:
-        for idx, card in enumerate(cards):
-            if _is_brand_info_card(card):
-                r.warn(
-                    f"[{label}] cards[{idx}] 疑似品牌信息伪装成卡片"
-                    f"（内容: '{card.get('content', '')[:30]}...'）。"
-                    f"品牌信息应写入 content_summary.supporting_points，"
-                    f"不占用 cards[] 名额"
-                )
-
-    if pt == "cover":
-        # 封面至少 2 张有效内容卡片
-        if len(content_cards) < 2:
-            r.error(
-                f"[{label}] 封面页有效内容卡片不足: {len(content_cards)} 张"
-                f"（最低 2 张。品牌信息不算卡片，应放入 supporting_points）"
-            )
-        # 封面必须有至少一个数据可视化或 quote
-        has_visual = any(
-            c.get("card_type") in ("data_highlight", "data", "quote")
-            for c in content_cards
-        )
-        if not has_visual:
-            r.warn(
-                f"[{label}] 封面页缺少数据/金句卡片"
-                f"（推荐 data_highlight/data/quote 作为视觉爆裂点）"
-            )
-
-    elif pt == "end":
-        # 结束页至少 2 张有效内容卡片
-        if len(content_cards) < 2:
-            r.error(
-                f"[{label}] 结束页有效内容卡片不足: {len(content_cards)} 张"
-                f"（最低 2 张：要点总结 + 行动号召）"
-            )
-        # 结束页推荐有 list 卡片做要点回顾
-        has_list = any(c.get("card_type") == "list" for c in content_cards)
-        if not has_list:
-            r.warn(
-                f"[{label}] 结束页缺少 list 卡片"
-                f"（推荐用 list 回顾 3-5 条核心要点）"
-            )
-
-
-def validate_cross_page(plannings: list[dict]) -> ValidationResult:
-    """跨页验证：布局多样性、visual_weight 节奏、image 多样性。"""
-    r = ValidationResult()
-
-    content_pages = [p for p in plannings if p.get("page_type") == "content"]
-
-    if len(content_pages) < 2:
-        return r
-
-    # ── 布局多样性 ─────────────────────────────────────────────────────
-    # 规则 1: 相邻 content 页不能相同 layout_hint
-    for i in range(len(content_pages) - 1):
-        lh1 = content_pages[i].get("layout_hint", "")
-        lh2 = content_pages[i + 1].get("layout_hint", "")
-        pn1 = content_pages[i].get("page_number", "?")
-        pn2 = content_pages[i + 1].get("page_number", "?")
-        if lh1 and lh2 and lh1 == lh2:
-            r.error(
-                f"相邻 content 页 p{pn1} 和 p{pn2} 使用了相同布局: '{lh1}'"
-            )
-
-    # 规则 2: 任一 layout_hint 占比不超 30%
-    layout_counter = Counter(
-        p.get("layout_hint", "") for p in content_pages if p.get("layout_hint")
-    )
-    total_content = len(content_pages)
-    for layout, count in layout_counter.items():
-        ratio = count / total_content
-        if ratio > 0.3:
-            r.error(
-                f"布局 '{layout}' 占比 {ratio:.0%}（{count}/{total_content}），"
-                f"超过 30% 上限"
-            )
-
-    # ── visual_weight 节奏 ─────────────────────────────────────────────
-    # 规则 1: 相邻页差不超过 5
-    sorted_pages = sorted(plannings, key=lambda p: p.get("page_number", 0))
-    for i in range(len(sorted_pages) - 1):
-        vw1 = sorted_pages[i].get("visual_weight")
-        vw2 = sorted_pages[i + 1].get("visual_weight")
-        pn1 = sorted_pages[i].get("page_number", "?")
-        pn2 = sorted_pages[i + 1].get("page_number", "?")
-        if vw1 is not None and vw2 is not None:
-            try:
-                diff = abs(int(vw1) - int(vw2))
-                if diff > 5:
-                    r.error(
-                        f"p{pn1}(vw={vw1}) -> p{pn2}(vw={vw2}) "
-                        f"视觉重量差 {diff}，超过阈值 5"
-                    )
-            except (ValueError, TypeError):
-                pass
-
-    # 规则 2: 不连续 3 页高密度 (>= 7)
-    for i in range(len(sorted_pages) - 2):
-        vws = []
-        for j in range(3):
-            vw = sorted_pages[i + j].get("visual_weight")
-            try:
-                vws.append(int(vw))
-            except (ValueError, TypeError):
-                break
-        if len(vws) == 3 and all(v >= 7 for v in vws):
-            pn_start = sorted_pages[i].get("page_number", "?")
-            r.warn(
-                f"从 p{pn_start} 起连续 3 页高密度（vw={vws}），"
-                f"建议中间插入低密度页"
-            )
-
-    # ── image usage 多样性（总页数 >= 8 时） ──────────────────────────────
-    if len(plannings) >= 8:
-        usages = [
-            p.get("image", {}).get("usage", "none") for p in plannings
-        ]
-        content_usages = set(u for u in usages if u != "none")
-        has_split = "split-content" in content_usages
-        has_card_inset = "card-inset" in content_usages
-        if not has_split:
-            r.warn("全 PPT 中未使用 split-content 配图用法（>= 8 页时建议至少 1 次）")
-        if not has_card_inset:
-            r.warn("全 PPT 中未使用 card-inset 配图用法（>= 8 页时建议至少 1 次）")
-
-    return r
-
-
-def load_planning(path: Path) -> dict:
-    """加载并解析 planning JSON，处理可能的格式问题。"""
-    text = path.read_text(encoding="utf-8")
+def extract_wrapped_json(text: str) -> Any:
+    text = text.strip()
+    if not text:
+        raise ValueError("Empty JSON input")
     try:
         return json.loads(text)
-    except json.JSONDecodeError as e:
-        print(f"  ERROR: JSON 解析失败: {path.name} -> {e}", file=sys.stderr)
-        sys.exit(2)
+    except json.JSONDecodeError:
+        pass
+
+    fenced = re.search(r"```json\s*(\{.*?\})\s*```", text, re.S)
+    if fenced:
+        return json.loads(fenced.group(1))
+
+    for tag in ("PPT_OUTLINE", "PPT_PLANNING"):
+        pattern = rf"\[{tag}\]\s*```json\s*(\{{.*?\}})\s*```\s*\[/{tag}\]"
+        match = re.search(pattern, text, re.S)
+        if match:
+            return json.loads(match.group(1))
+
+    first = text.find("{")
+    last = text.rfind("}")
+    if first != -1 and last != -1 and last > first:
+        return json.loads(text[first:last + 1])
+    raise ValueError("Could not parse JSON payload")
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Planning Validator -- 策划稿 JSON 格式与规则验证",
-    )
-    parser.add_argument(
-        "path",
-        help="单个 planning JSON 文件，或包含 planning*.json 的目录",
-    )
-    parser.add_argument(
-        "--refs", default=None,
-        help="references 目录路径（用于检查资源文件存在性，可选）",
-    )
-    parser.add_argument(
-        "--strict", action="store_true",
-        help="严格模式：warning 也视为失败",
-    )
+def load_jsonish(path: Path) -> Any:
+    return extract_wrapped_json(read_text(path))
+
+
+def natural_sort_key(path: Path) -> tuple[Any, ...]:
+    parts = re.split(r"(\d+)", path.name)
+    key: list[Any] = []
+    for part in parts:
+        key.append(int(part) if part.isdigit() else part.lower())
+    return tuple(key)
+
+
+def as_list(value: Any) -> list[Any]:
+    return value if isinstance(value, list) else []
+
+
+def normalize_page(page: dict[str, Any]) -> dict[str, Any]:
+    """Accept a few legacy aliases without mutating the source payload."""
+    normalized = dict(page)
+    if "slide_number" not in normalized and "page_number" in normalized:
+        normalized["slide_number"] = normalized["page_number"]
+    if "page_goal" not in normalized and "goal" in normalized:
+        normalized["page_goal"] = normalized["goal"]
+    if "resources" not in normalized and "required_resources" in normalized:
+        legacy = normalized.get("required_resources")
+        if isinstance(legacy, dict):
+            layout_refs = []
+            if isinstance(legacy.get("layout"), str):
+                layout_refs.append(legacy["layout"])
+            layout_refs.extend(item for item in as_list(legacy.get("layout_refs")) if isinstance(item, str))
+
+            principle_refs = list(as_list(legacy.get("principles")))
+            principle_refs.extend(item for item in as_list(legacy.get("principle_refs")) if isinstance(item, str))
+
+            normalized["resources"] = {
+                "page_template": legacy.get("page_template"),
+                "layout_refs": layout_refs,
+                "block_refs": list(as_list(legacy.get("block_refs"))),
+                "chart_refs": list(as_list(legacy.get("chart_refs"))),
+                "principle_refs": principle_refs,
+            }
+    return normalized
+
+
+def load_planning_pages(path: Path) -> list[dict[str, Any]]:
+    def from_payload(payload: Any) -> list[dict[str, Any]]:
+        if isinstance(payload, dict) and "ppt_planning" in payload:
+            deck = payload["ppt_planning"]
+            return [normalize_page(page) for page in as_list(deck.get("pages")) if isinstance(page, dict)]
+        if isinstance(payload, dict):
+            page = payload.get("page") if isinstance(payload.get("page"), dict) else payload
+            if isinstance(page, dict) and ("slide_number" in page or "page_number" in page):
+                return [normalize_page(page)]
+        return []
+
+    if path.is_dir():
+        pages: list[dict[str, Any]] = []
+        files = sorted(path.glob("planning*.json"), key=natural_sort_key)
+        if not files:
+            raise ValueError(f"No planning*.json files found in {path}")
+        for file_path in files:
+            pages.extend(from_payload(load_jsonish(file_path)))
+        return sorted(pages, key=lambda item: int(item.get("slide_number") or 0))
+
+    pages = from_payload(load_jsonish(path))
+    if not pages:
+        raise ValueError(f"Unsupported planning payload: {path}")
+    return pages
+
+
+def resource_exists(refs_dir: Path, group: str, value: str) -> bool:
+    if not value:
+        return True
+    raw = str(value).strip()
+    direct = Path(raw)
+    if direct.is_absolute():
+        return direct.exists()
+    if raw.startswith("references/"):
+        return (refs_dir / raw.removeprefix("references/")).exists()
+    if group == "page_template":
+        path = rr.resolve_page_template(raw)
+        return bool(path and path.exists())
+    return rr.resolve_resource_ref(group, raw).exists()
+
+
+def validate_card(card: dict[str, Any], page_label: str, index: int, refs_dir: Path | None, result: ValidationResult) -> None:
+    card_label = f"{page_label} card[{index}]"
+    card_id = card.get("card_id")
+    if not isinstance(card_id, str) or not card_id.strip():
+        result.error(f"{card_label}: missing card_id")
+    role = card.get("role")
+    if role not in VALID_CARD_ROLES:
+        result.error(f"{card_label}: invalid role '{role}'")
+    card_type = card.get("card_type")
+    if card_type not in VALID_CARD_TYPES:
+        result.error(f"{card_label}: invalid card_type '{card_type}'")
+    style = card.get("card_style")
+    if style not in VALID_CARD_STYLES:
+        result.error(f"{card_label}: invalid card_style '{style}'")
+    argument_role = card.get("argument_role")
+    if argument_role and argument_role not in VALID_ARGUMENT_ROLES:
+        result.warn(f"{card_label}: unknown argument_role '{argument_role}'")
+
+    has_headline = isinstance(card.get("headline"), str) and card.get("headline").strip()
+    has_body = bool([item for item in as_list(card.get("body")) if isinstance(item, str) and item.strip()])
+    has_data = bool([item for item in as_list(card.get("data_points")) if isinstance(item, dict)])
+    chart = card.get("chart") if isinstance(card.get("chart"), dict) else {}
+    has_chart = bool(chart.get("chart_type"))
+    if not any([has_headline, has_body, has_data, has_chart]):
+        result.error(f"{card_label}: empty card payload")
+
+    if has_chart and chart.get("chart_type") not in VALID_CHART_TYPES:
+        result.error(f"{card_label}: invalid chart_type '{chart.get('chart_type')}'")
+
+    budget = card.get("content_budget")
+    if not isinstance(budget, dict):
+        result.warn(f"{card_label}: missing content_budget")
+
+    image = card.get("image")
+    if not isinstance(image, dict):
+        result.error(f"{card_label}: missing image contract")
+    elif image.get("needed"):
+        for field_name in ("usage", "placement", "content_description"):
+            if not image.get(field_name):
+                result.error(f"{card_label}: image.needed=true but image.{field_name} is empty")
+        usage = image.get("usage")
+        if usage not in VALID_IMAGE_USAGES:
+            result.error(f"{card_label}: invalid image.usage '{usage}'")
+        placement = image.get("placement")
+        if placement not in VALID_IMAGE_PLACEMENTS:
+            result.error(f"{card_label}: invalid image.placement '{placement}'")
+    elif isinstance(image, dict):
+        for field_name in ("usage", "placement", "content_description", "source_hint"):
+            value = image.get(field_name)
+            if value not in (None, "null"):
+                result.warn(f"{card_label}: image.needed=false so image.{field_name} should be null")
+
+    if refs_dir:
+        resource_ref = card.get("resource_ref")
+        if isinstance(resource_ref, dict):
+            mapping = {
+                "block": "block_refs",
+                "chart": "chart_refs",
+                "principle": "principle_refs",
+            }
+            for key, group in mapping.items():
+                value = resource_ref.get(key)
+                if isinstance(value, str) and value.strip() and not resource_exists(refs_dir, group, value):
+                    result.error(f"{card_label}: resource_ref.{key} not found: {value}")
+
+
+def validate_workflow_metadata(page: dict[str, Any], label: str, result: ValidationResult) -> None:
+    metadata = page.get("workflow_metadata")
+    if metadata is None:
+        result.warn(f"{label}: missing workflow_metadata")
+        return
+    if not isinstance(metadata, dict):
+        result.warn(f"{label}: workflow_metadata should be an object")
+        return
+
+    checks = {
+        "workflow_version": WORKFLOW_VERSION,
+        "planning_schema_version": PLANNING_SCHEMA_VERSION,
+        "planning_packet_version": PLANNING_PACKET_VERSION,
+        "planning_continuity_version": PLANNING_CONTINUITY_VERSION,
+    }
+    for field_name, expected in checks.items():
+        actual = metadata.get(field_name)
+        if actual is None:
+            result.warn(f"{label}: workflow_metadata.{field_name} is missing")
+        elif actual != expected:
+            result.warn(f"{label}: workflow_metadata.{field_name}={actual!r} != expected {expected!r}")
+
+
+def validate_page(page: dict[str, Any], refs_dir: Path | None) -> ValidationResult:
+    result = ValidationResult()
+    slide_number = page.get("slide_number")
+    label = f"slide {slide_number if slide_number is not None else '?'}"
+
+    required_fields = ("slide_number", "page_type", "title", "page_goal", "cards", "visual_weight")
+    for field_name in required_fields:
+        if field_name not in page:
+            result.error(f"{label}: missing required field '{field_name}'")
+
+    if not isinstance(slide_number, int):
+        result.error(f"{label}: slide_number must be an integer")
+
+    page_type = page.get("page_type")
+    if page_type not in VALID_PAGE_TYPES:
+        result.error(f"{label}: invalid page_type '{page_type}'")
+
+    narrative_role = page.get("narrative_role")
+    if narrative_role and narrative_role not in VALID_NARRATIVE_ROLES:
+        result.warn(f"{label}: unknown narrative_role '{narrative_role}'")
+
+    visual_weight = page.get("visual_weight")
+    if not isinstance(visual_weight, int) or not (1 <= visual_weight <= 9):
+        result.error(f"{label}: visual_weight must be an integer in [1, 9]")
+
+    if page_type == "content":
+        layout_hint = page.get("layout_hint")
+        if not isinstance(layout_hint, str) or not layout_hint:
+            result.error(f"{label}: content page requires layout_hint")
+        elif layout_hint not in VALID_LAYOUT_HINTS:
+            result.warn(f"{label}: non-standard layout_hint '{layout_hint}'")
+
+    validate_workflow_metadata(page, label, result)
+
+    cards = [card for card in as_list(page.get("cards")) if isinstance(card, dict)]
+    if page_type == "content" and len(cards) < 2:
+        result.warn(f"{label}: content page has only {len(cards)} cards")
+    if not cards:
+        result.error(f"{label}: cards[] is empty")
+
+    anchor_count = sum(1 for card in cards if card.get("role") == "anchor")
+    if anchor_count == 0:
+        result.error(f"{label}: missing anchor card")
+    if anchor_count > 1:
+        result.warn(f"{label}: multiple anchor cards ({anchor_count})")
+
+    card_styles = {card.get("card_style") for card in cards if isinstance(card.get("card_style"), str)}
+    if page_type == "content" and len(cards) >= 2 and len(card_styles) < 2:
+        result.error(f"{label}: content page with multiple cards needs at least 2 card styles")
+
+    accent_count = sum(1 for card in cards if card.get("card_style") == "accent")
+    elevated_count = sum(1 for card in cards if card.get("card_style") == "elevated")
+    if accent_count > 1:
+        result.warn(f"{label}: accent card_style appears {accent_count} times")
+    if elevated_count > 1:
+        result.warn(f"{label}: elevated card_style appears {elevated_count} times")
+
+    if not isinstance(page.get("director_command"), dict):
+        result.error(f"{label}: missing director_command")
+    if not isinstance(page.get("decoration_hints"), dict):
+        result.error(f"{label}: missing decoration_hints")
+    if page_type == "content" and not isinstance(page.get("source_guidance"), dict):
+        result.error(f"{label}: content page missing source_guidance")
+
+    resources = page.get("resources")
+    if not isinstance(resources, dict):
+        result.error(f"{label}: missing resources")
+    else:
+        if refs_dir:
+            page_template = resources.get("page_template")
+            if isinstance(page_template, str) and page_template and not resource_exists(refs_dir, "page_template", page_template):
+                result.error(f"{label}: resources.page_template not found: {page_template}")
+            for group in ("layout_refs", "block_refs", "chart_refs", "principle_refs"):
+                for item in as_list(resources.get(group)):
+                    if isinstance(item, str) and item.strip() and not resource_exists(refs_dir, group, item):
+                        result.error(f"{label}: resources.{group} not found: {item}")
+
+    for index, card in enumerate(cards, start=1):
+        validate_card(card, label, index, refs_dir, result)
+
+    return result
+
+
+def validate_cross_page(pages: list[dict[str, Any]]) -> ValidationResult:
+    result = ValidationResult()
+    if not pages:
+        return result
+
+    seen_numbers: set[int] = set()
+    last_content_layout: str | None = None
+    high_weight_streak = 0
+
+    for page in pages:
+        slide_number = page.get("slide_number")
+        label = f"slide {slide_number}"
+        if isinstance(slide_number, int):
+            if slide_number in seen_numbers:
+                result.error(f"{label}: duplicate slide_number")
+            seen_numbers.add(slide_number)
+
+        if page.get("page_type") == "content":
+            layout = page.get("layout_hint")
+            if isinstance(layout, str) and layout == last_content_layout:
+                result.warn(f"{label}: repeats previous content layout_hint '{layout}'")
+            last_content_layout = layout if isinstance(layout, str) else last_content_layout
+
+        weight = page.get("visual_weight")
+        if isinstance(weight, int) and weight >= 7:
+            high_weight_streak += 1
+        else:
+            high_weight_streak = 0
+        if high_weight_streak >= 3:
+            result.warn(f"{label}: 3 consecutive slides with visual_weight >= 7")
+
+    sorted_numbers = sorted(number for number in seen_numbers)
+    if sorted_numbers and sorted_numbers != list(range(min(sorted_numbers), max(sorted_numbers) + 1)):
+        result.warn("slide numbers are not consecutive")
+
+    return result
+
+
+def format_result(result: ValidationResult) -> str:
+    lines: list[str] = []
+    lines.extend(f"ERROR: {item}" for item in result.errors)
+    lines.extend(f"WARN:  {item}" for item in result.warnings)
+    return "\n".join(lines)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Validate PPT planning JSON files")
+    parser.add_argument("path", help="Single planning JSON file or directory containing planning*.json")
+    parser.add_argument("--refs", help="Path to references directory")
+    parser.add_argument("--strict", action="store_true", help="Treat warnings as failures")
+    parser.add_argument("--report", help="Optional path to write a JSON report")
     args = parser.parse_args()
 
-    input_path = Path(args.path)
-    refs_dir = Path(args.refs) if args.refs else None
-
+    target = Path(args.path)
+    refs_dir = Path(args.refs).resolve() if args.refs else None
     if refs_dir and not refs_dir.is_dir():
-        print(f"Warning: references 目录不存在: {refs_dir}", file=sys.stderr)
-        refs_dir = None
+        print(f"ERROR: references directory not found: {refs_dir}", file=sys.stderr)
+        return 1
 
-    all_errors = 0
-    all_warnings = 0
-    plannings = []
+    try:
+        pages = load_planning_pages(target)
+    except Exception as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
 
-    if input_path.is_file():
-        files = [input_path]
-    elif input_path.is_dir():
-        files = sorted(input_path.glob("planning*.json"))
-        if not files:
-            print(f"Error: 目录中无 planning*.json: {input_path}", file=sys.stderr)
-            sys.exit(1)
-    else:
-        print(f"Error: 路径不存在: {input_path}", file=sys.stderr)
-        sys.exit(1)
+    page_reports = []
+    aggregate = ValidationResult()
+    for page in pages:
+        page_result = validate_page(page, refs_dir)
+        aggregate.errors.extend(page_result.errors)
+        aggregate.warnings.extend(page_result.warnings)
+        page_reports.append(
+            {
+                "slide_number": page.get("slide_number"),
+                "errors": page_result.errors,
+                "warnings": page_result.warnings,
+            }
+        )
 
-    # ── 单页验证 ────────────────────────────────────────────────────────
-    print(f"验证 {len(files)} 个策划稿...\n", file=sys.stderr)
+    cross_page = validate_cross_page(pages)
+    aggregate.errors.extend(cross_page.errors)
+    aggregate.warnings.extend(cross_page.warnings)
 
-    for f in files:
-        planning = load_planning(f)
-        plannings.append(planning)
-        result = validate_single(planning, refs_dir)
-        pn = planning.get("page_number", "?")
-        title = planning.get("title", "?")
+    report_payload = {
+        "ok": aggregate.ok and (not args.strict or not aggregate.warnings),
+        "pages": page_reports,
+        "cross_page": {
+            "errors": cross_page.errors,
+            "warnings": cross_page.warnings,
+        },
+        "summary": {
+            "total_pages": len(pages),
+            "error_count": len(aggregate.errors),
+            "warning_count": len(aggregate.warnings),
+        },
+    }
+    if args.report:
+        report_path = Path(args.report)
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(report_payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-        if result.errors or result.warnings:
-            print(f"p{pn}: {title}", file=sys.stderr)
-            print(result.summary(), file=sys.stderr)
-            all_errors += len(result.errors)
-            all_warnings += len(result.warnings)
-        else:
-            print(f"p{pn}: {title} -- OK", file=sys.stderr)
+    output = format_result(aggregate)
+    if output:
+        print(output)
+    if not aggregate.errors and not aggregate.warnings:
+        print(f"OK: {len(pages)} page(s) validated")
 
-    # ── 跨页验证（仅目录模式） ──────────────────────────────────────────
-    if len(plannings) > 1:
-        print(f"\n跨页规则验证...", file=sys.stderr)
-        cross = validate_cross_page(plannings)
-        if cross.errors or cross.warnings:
-            print(cross.summary(), file=sys.stderr)
-            all_errors += len(cross.errors)
-            all_warnings += len(cross.warnings)
-        else:
-            print("跨页规则 -- OK", file=sys.stderr)
-
-    # ── 汇总 ────────────────────────────────────────────────────────────
-    print(f"\n{'=' * 50}", file=sys.stderr)
-    print(
-        f"验证完成: {all_errors} errors, {all_warnings} warnings",
-        file=sys.stderr,
-    )
-
-    if all_errors > 0:
-        print("FAILED -- 请修正 errors 后再继续", file=sys.stderr)
-        sys.exit(1)
-    elif args.strict and all_warnings > 0:
-        print("FAILED (strict) -- 请修正 warnings 后再继续", file=sys.stderr)
-        sys.exit(1)
-    else:
-        print("PASSED", file=sys.stderr)
-        sys.exit(0)
+    if aggregate.errors:
+        return 1
+    if args.strict and aggregate.warnings:
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

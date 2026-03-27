@@ -1,6 +1,6 @@
 # 智能配图系统
 
-> 在需求调研（Step 1 Q12）中确认用户的配图偏好后执行。如果用户选择"不需要配图"则跳过。
+> 在需求调研（Step 1 语言与配图偏好）中确认用户的配图偏好后执行。如果用户选择"不需要配图"则跳过。
 
 ## 配图时机
 
@@ -9,16 +9,30 @@
 ## 核心原则
 
 - 配图的目标是**精准表达该页内容的核心概念**，而不是生成一张"好看但空洞"的装饰图
-- **prompt 由策划阶段生成**：策划师拥有最丰富的上下文（主题/受众/搜索素材/每页内容/布局），因此在 Step 4 策划每页时就将 prompt 写入 `planning{n}.json` 的 `image.prompt` 字段
+- **图片语义合同由策划阶段生成**：策划师拥有最丰富的上下文（主题/受众/搜索素材/每页内容/布局），因此 Step 4 先写 card 级 `image` 语义字段：`needed` / `usage` / `placement` / `content_description` / `source_hint`
 - **usage 由策划阶段决定**：图片在页面中扮演什么角色（背景/内容/装饰）写入 `image.usage` 字段
-- Step 5b 只是按 `image.prompt` 调用 `generate_image`，Step 5c 按 `image.usage` 消费图片
+- Step 5b 基于上述语义合同和风格上下文派生真正的英文图片 prompt，再调用 `generate_image`；Step 5c 按 `image.usage` 消费图片
+
+### 当前字段约定
+
+- Step 4 planning 阶段必须先写：`needed` / `usage` / `placement` / `content_description` / `source_hint`
+- Step 5b 配图阶段在此基础上补写：`path`
+- 如果调用方能拿到更完整的生成元信息，也可继续补写：`prompt` / `alt_text` / `dimensions` / `aspect_ratio` / `format` / `style`
+- Step 5c 只消费最终回填后的 `image` 对象，不要求重新猜测图片路径或生成参数
+
+### 术语说明
+
+- `image.usage` 是**运行时稳定枚举**，当前以 `prompt-3-planning.md` 中的字段定义为准
+- `hero-blend`、`tint-overlay`、`atmosphere`、`split-content`、`card-inset`、`card-header`、`circle-badge` 这些词，在本文件中表示**设计技法名/构图昵称**
+- 换句话说：`usage` 决定“这张图在页面里扮演什么角色”，技法名决定“这张图具体怎么融进去”
+- 不要把技法名直接抄进 `image.usage` 字段，除非上游 schema 明确支持
 
 ---
 
 ## generate_image 调用规范
 
 调用 `generate_image` 时：
-- **Prompt**：按下方 6 维度公式构造，英文输出（图片生成模型对英文 prompt 效果最佳）
+- **Prompt**：由 Step 5b 根据 `content_description`、页面语义、图片角色和风格上下文按下方 6 维度公式构造，英文输出（图片生成模型对英文 prompt 效果最佳）
 - **ImageName**：使用描述性命名，如 `cover_molecular_structure`、`section2_market_growth`
 
 ## Prompt 构造公式（6 维度）
@@ -60,11 +74,11 @@
 
 ---
 
-## 基于 usage 的构图自适应
+## 基于技法的构图自适应
 
-不同 usage 对图片构图有不同要求。策划阶段构造 prompt 时，根据所选 usage 调整构图描述：
+不同技法对图片构图有不同要求。策划阶段构造 prompt 时，根据准备采用的融入技法调整构图描述：
 
-| usage | 构图方向 | prompt 中添加的构图关键词 |
+| 技法名 | 构图方向 | prompt 中添加的构图关键词 |
 |-------|---------|------------------------|
 | `hero-blend` | 主体偏右，左侧留空渐隐区 | "main subject on right, left fading to empty, panoramic, 16:9" |
 | `atmosphere` | 极低对比度，纹理质感 | "subtle texture, low contrast, ambient pattern, seamless, 16:9" |
@@ -118,19 +132,16 @@
 ### 7. 卡片内嵌 (`card-inset`) -- 图片+说明组合
 图片嵌在卡片上半部分作为内容展示，下半部分是标题+说明。适合案例展示、产品截图、场景照片。
 
-### usage -> 技法速查
+### 运行时 `usage` -> 可选技法速查
 
-| usage 值 | 对应技法 | opacity 范围 | 典型场景 |
-|----------|---------|-------------|----------|
-| `hero-blend` | 渐隐融合 | 0.25-0.40 | 封面页/章节封面 |
-| `atmosphere` | 氛围底图 | 0.05-0.15 | 章节封面/数据页 |
-| `tint-overlay` | 色调蒙版 | 0.15-0.30 | 英雄卡片/大卡片 |
-| `split-content` | 图文分栏 | 0.8-1.0 | 内容页图文并排 |
-| `card-inset` | 卡片内嵌 | 0.8-1.0 | 案例/产品/场景展示 |
-| `card-header` | 裁切视窗 | 0.8-1.0 | 小卡片顶部装饰 |
-| `circle-badge` | 圆形裁切 | 0.8-1.0 | 小装饰元素 |
+| `image.usage` 值 | 常见技法 | opacity 范围 | 典型场景 |
+|------------------|---------|-------------|----------|
+| `hero-background` | `hero-blend` / `tint-overlay` / `atmosphere` | 0.05-0.40 | 封面页 / 章节封面 / 大背景 |
+| `data-visualization-bg` | `atmosphere` / `tint-overlay` | 0.05-0.30 | 数据页 / 英雄卡片背景 |
+| `inline-illustration` | `split-content` / `card-inset` / `card-header` | 0.8-1.0 | 内容页图文并排 / 案例展示 / 卡片头图 |
+| `icon-accent` | `circle-badge` | 0.8-1.0 | 小装饰元素 / 辅助视觉锚点 |
 
-> **多样性约束**：整个 PPT 中，背景类和内容类 usage 都应出现。不要所有页都用同一种融入方式。
+> **多样性约束**：整个 PPT 中，背景类和内容类 `usage` 都应出现；同一种 `usage` 之下也不要总是复用同一种技法。
 
 ---
 

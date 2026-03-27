@@ -25,7 +25,7 @@
 
 - **Step 4（策划阶段）首页前**：
   1. **第一个读** `design-principles-cheatsheet.md`（第 0 号必读项，策划的地基）
-  2. 然后读 `README.md`（本文件）建立原则意识
+  2. 然后读 `references/principles/README.md`（本文件）建立原则意识
 - **Step 5c（设计阶段）**：遇到设计决策犹豫时，按需读取对应原则文件
 - 不需要每次全部读取 6 份原则文件，操作手册已涵盖 JSON 字段级的具体指导
 

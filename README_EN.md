@@ -14,7 +14,7 @@
     <img src="https://img.shields.io/badge/Styles-8_Themes-ff6b35?style=flat-square" alt="Styles" />
     <img src="https://img.shields.io/badge/Layouts-10_Types-00d4ff?style=flat-square" alt="Layouts" />
     <img src="https://img.shields.io/badge/Charts-13_Templates-8b5cf6?style=flat-square" alt="Charts" />
-    <img src="https://img.shields.io/badge/Blocks-8_Components-22c55e?style=flat-square" alt="Blocks" />
+    <img src="https://img.shields.io/badge/Blocks-7_Components-22c55e?style=flat-square" alt="Blocks" />
     <img src="https://img.shields.io/badge/Scripts-8_Tools-f59e0b?style=flat-square" alt="Scripts" />
   </p>
 </div>
@@ -29,7 +29,7 @@ PPT Agent is a code-driven presentation generation framework. By strictly decoup
 - **On-Demand Context Injection**: Owns a massive library of 60+ assets but injects only what the current slide targets. Saves LLM tokens and prevents context overload conflicts.
 - **Automated Validation**: Syntaxes and module variables are validated automatically during IO write cycles.
 - **Dual-Engine Export**: Offers two export pipelines for PPTX compiling: a pixel-perfect universal PNG rendering path, and a scalable, text-editable SVG vector path.
-- **Persistent State**: Lengthy generation tasks snapshot safely into `progress.json`, offering seamless pause and resume capabilities for massive slide counts.
+- **Recoverable Artifact Chain**: Long runs resume from formal intermediate artifacts on disk instead of relying on a single runtime state file.
 
 ## Showcase
 
@@ -76,16 +76,37 @@ Rendered assemblies output entirely towards `ppt-output/`, including standard ex
 
 ## Repository Layout
 
+The repository now follows the control-console model defined by `SKILL.md`. Only three areas are runtime sources of truth:
+
 ```text
 ppt-agent-skill/
-├── SKILL.md                 # Cognitive router and orchestrator context
-├── scripts/                 # Utility processors (HTML injections / Validators)
-└── references/              # Pluggable modular assets
-    ├── blocks/              # DOM container components
-    ├── layouts/             # Grid alignment primitives
-    ├── charts/              # Native CSS/SVG chart templates
-    └── styles/              # Baseline aesthetic boundaries & palettes
+├── SKILL.md                 # Main state machine, gates, rollback rules
+├── scripts/                 # Runtime script entrypoints
+│   └── README.md            # Script index
+├── references/              # Markdown sources of truth
+│   ├── playbooks/           # sub-agent execution guides
+│   ├── runtime/             # runtime shared contracts
+│   ├── design-runtime/      # design/runtime supplemental rules
+│   ├── ops/                 # ops notes and resource map
+│   └── README.md            # Reference index
+├── assets/                  # Logo and README screenshots
+├── copy/                    # Manual backup area, not runtime
+└── ppt-output/              # Runtime outputs (git-ignored)
 ```
+
+### Directory Boundaries
+
+- `SKILL.md`: control-console contract only; no embedded sub-agent prompt templates.
+- `scripts/`: executable workflow utilities only; no mirrored markdown copies.
+- `references/`: markdown sources of truth used by the live workflow; the root now stays index-only and grouped docs live in subdirectories.
+- `copy/`: backup only; never treated as a runtime source.
+- `ppt-output/`: generated artifacts only.
+
+### Entry Index
+
+- Control console: `SKILL.md`
+- Script index: `scripts/README.md`
+- Markdown/reference index: `references/README.md`
 
 ## License
 

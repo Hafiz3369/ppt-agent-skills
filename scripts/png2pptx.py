@@ -8,7 +8,7 @@
 - 缺点：文字不可编辑（转为像素）
 
 用法：
-    python3 png2pptx.py <png_dir_or_file> -o output.pptx
+    python3 scripts/png2pptx.py <png_dir_or_file> -o output.pptx
 """
 
 import argparse
