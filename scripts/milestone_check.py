@@ -3,10 +3,10 @@
 
 Usage examples:
   python3 scripts/milestone_check.py 0
-  python3 scripts/milestone_check.py 3
-  python3 scripts/milestone_check.py 5c
+  python3 scripts/milestone_check.py 3.5
+  python3 scripts/milestone_check.py 4
   python3 scripts/milestone_check.py preview
-  python3 scripts/milestone_check.py 6 --output-dir /path/to/ppt-output
+  python3 scripts/milestone_check.py 5 --output-dir /path/to/ppt-output
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from pathlib import Path
 from planning_validator import load_planning_pages
 
 
-STAGE_ORDER = ("0", "1", "2", "3", "4", "5a", "5b", "5c", "5d", "preview", "6")
+STAGE_ORDER = ("0", "1", "2", "3", "3.5", "4", "preview", "5")
 STAGE_ALIAS = {
     "0": "0",
     "step0": "0",
@@ -38,38 +38,22 @@ STAGE_ALIAS = {
     "step3": "3",
     "step_3": "3",
     "step-3": "3",
+    "3.5": "3.5",
+    "step3.5": "3.5",
+    "step_3.5": "3.5",
+    "step-3.5": "3.5",
     "4": "4",
     "step4": "4",
     "step_4": "4",
     "step-4": "4",
-    "5a": "5a",
-    "step5a": "5a",
-    "step_5a": "5a",
-    "step-5a": "5a",
-    "5b": "5b",
-    "step5b": "5b",
-    "step_5b": "5b",
-    "step-5b": "5b",
-    "5c": "5c",
-    "step5c": "5c",
-    "step_5c": "5c",
-    "step-5c": "5c",
-    "5d": "5d",
-    "step5d": "5d",
-    "step_5d": "5d",
-    "step-5d": "5d",
-    "5p": "preview",
     "preview": "preview",
-    "step5p": "preview",
-    "step_5p": "preview",
-    "step-5p": "preview",
-    "step5preview": "preview",
-    "step_5preview": "preview",
-    "step-5preview": "preview",
-    "6": "6",
-    "step6": "6",
-    "step_6": "6",
-    "step-6": "6",
+    "steppreview": "preview",
+    "step_preview": "preview",
+    "step-preview": "preview",
+    "5": "5",
+    "step5": "5",
+    "step_5": "5",
+    "step-5": "5",
 }
 
 
@@ -168,26 +152,42 @@ class Checker:
         self.echo("== Step 2 ==")
         search = self.output_dir / "search.txt"
         search_brief = self.output_dir / "search-brief.txt"
-        self.must_file(search)
-        self.must_file(search_brief)
-        self.run_cmd(
-            [
-                self.python,
-                str(self.skill_dir / "scripts/contract_validator.py"),
-                "search",
-                str(search),
-            ],
-            "contract_validator search",
-        )
-        self.run_cmd(
-            [
-                self.python,
-                str(self.skill_dir / "scripts/contract_validator.py"),
-                "search-brief",
-                str(search_brief),
-            ],
-            "contract_validator search-brief",
-        )
+        source_brief = self.output_dir / "source-brief.txt"
+
+        if search.is_file() and search_brief.is_file():
+            self.run_cmd(
+                [
+                    self.python,
+                    str(self.skill_dir / "scripts/contract_validator.py"),
+                    "search",
+                    str(search),
+                ],
+                "contract_validator search",
+            )
+            self.run_cmd(
+                [
+                    self.python,
+                    str(self.skill_dir / "scripts/contract_validator.py"),
+                    "search-brief",
+                    str(search_brief),
+                ],
+                "contract_validator search-brief",
+            )
+        elif source_brief.is_file():
+            self.run_cmd(
+                [
+                    self.python,
+                    str(self.skill_dir / "scripts/contract_validator.py"),
+                    "source-brief",
+                    str(source_brief),
+                ],
+                "contract_validator source-brief",
+            )
+        else:
+            self.fail(
+                "missing step 2 artifacts: expected search.txt + search-brief.txt "
+                "or source-brief.txt"
+            )
         self.echo("[OK] step 2")
 
     def check_step3(self) -> None:
@@ -207,7 +207,10 @@ class Checker:
 
     def check_step4(self) -> None:
         self.echo("== Step 4 ==")
+        images_dir = self.output_dir / "images"
         planning_dir = self.output_dir / "planning"
+        slides_dir = self.output_dir / "slides"
+        png_dir = self.output_dir / "png"
         self.must_dir(planning_dir)
         self.run_cmd(
             [
@@ -232,6 +235,34 @@ class Checker:
         if not pages:
             self.fail("planning pages must be > 0")
         self.pages = len(pages)
+        needs_external_images = any(
+            isinstance(card, dict)
+            and isinstance(card.get("image"), dict)
+            and bool(card.get("image", {}).get("needed"))
+            for page in pages
+            for card in (page.get("cards") if isinstance(page.get("cards"), list) else [])
+        )
+        if needs_external_images:
+            self.must_dir(images_dir)
+            self.run_cmd(
+                [
+                    self.python,
+                    str(self.skill_dir / "scripts/contract_validator.py"),
+                    "images",
+                    str(planning_dir),
+                    "--require-paths",
+                ],
+                "contract_validator images --require-paths",
+            )
+
+        self.must_dir(slides_dir)
+        self.must_dir(png_dir)
+        slides = sorted(slides_dir.glob("slide-*.html"), key=natural_sort_key)
+        pngs = sorted(png_dir.glob("slide-*.png"), key=natural_sort_key)
+        if len(slides) != self.pages:
+            self.fail(f"slide count={len(slides)} != planning pages={self.pages}")
+        if len(pngs) != self.pages:
+            self.fail(f"png count={len(pngs)} != planning pages={self.pages}")
         self.echo(f"[OK] step 4 (pages={self.pages})")
 
     def ensure_pages(self) -> int:
@@ -245,8 +276,8 @@ class Checker:
         self.pages = len(pages)
         return self.pages
 
-    def check_step5a(self) -> None:
-        self.echo("== Step 5a ==")
+    def check_step35(self) -> None:
+        self.echo("== Step 3.5 ==")
         style = self.output_dir / "style.json"
         self.must_file(style)
         self.run_cmd(
@@ -258,66 +289,46 @@ class Checker:
             ],
             "contract_validator style",
         )
-        self.echo("[OK] step 5a")
+        self.echo("[OK] step 3.5")
 
-    def check_step5b(self) -> None:
-        self.echo("== Step 5b ==")
-        images_dir = self.output_dir / "images"
-        planning_dir = self.output_dir / "planning"
-        self.must_dir(images_dir)
-        self.must_dir(planning_dir)
+    def check_preview(self) -> None:
+        self.echo("== Preview ==")
+        self.must_file(self.output_dir / "preview.html")
+        self.echo("[OK] preview")
+
+    def check_step5(self) -> None:
+        self.echo("== Step 5 ==")
+        pages = self.ensure_pages()
+        png_dir = self.output_dir / "png"
+        svg_dir = self.output_dir / "svg"
+        manifest = self.output_dir / "delivery-manifest.json"
+
+        self.must_file(self.output_dir / "preview.html")
+        self.must_dir(png_dir)
+        self.must_dir(svg_dir)
+        self.must_file(self.output_dir / "presentation-png.pptx")
+        self.must_file(self.output_dir / "presentation-svg.pptx")
+        self.must_file(manifest)
+
+        pngs = sorted(png_dir.glob("slide-*.png"), key=natural_sort_key)
+        svgs = sorted(svg_dir.glob("slide-*.svg"), key=natural_sort_key)
+        if len(pngs) != pages:
+            self.fail(f"png count={len(pngs)} != planning pages={pages}")
+        if len(svgs) != pages:
+            self.fail(f"svg count={len(svgs)} != planning pages={pages}")
+
         self.run_cmd(
             [
                 self.python,
                 str(self.skill_dir / "scripts/contract_validator.py"),
-                "images",
-                str(planning_dir),
-                "--require-paths",
+                "delivery-manifest",
+                str(manifest),
+                "--base-dir",
+                str(self.output_dir),
             ],
-            "contract_validator images --require-paths",
+            "contract_validator delivery-manifest",
         )
-        self.echo("[OK] step 5b")
-
-    def check_step5c(self) -> None:
-        self.echo("== Step 5c ==")
-        pages = self.ensure_pages()
-        slides_dir = self.output_dir / "slides"
-        png_dir = self.output_dir / "png"
-        self.must_dir(slides_dir)
-        slides = sorted(slides_dir.glob("slide-*.html"), key=natural_sort_key)
-        if len(slides) != pages:
-            self.fail(f"slide count={len(slides)} != planning pages={pages}")
-        # PNG screenshots should exist for each page
-        if png_dir.is_dir():
-            pngs = sorted(png_dir.glob("slide-*.png"), key=natural_sort_key)
-            if len(pngs) != pages:
-                self.fail(f"png count={len(pngs)} != planning pages={pages}")
-        self.echo("[OK] step 5c")
-
-    def check_step5d(self) -> None:
-        self.echo("== Step 5d ==")
-        pages = self.ensure_pages()
-        png_dir = self.output_dir / "png"
-        self.must_dir(png_dir)
-        # Verify all pages have review-pass markers or PNG files
-        pngs = sorted(png_dir.glob("slide-*.png"), key=natural_sort_key)
-        if len(pngs) != pages:
-            self.fail(f"png count={len(pngs)} != planning pages={pages} (review incomplete)")
-        self.echo("[OK] step 5d")
-
-    def check_preview(self) -> None:
-        self.echo("== Step 5d 后预览 ==")
-        self.must_file(self.output_dir / "preview.html")
-        self.echo("[OK] preview")
-
-    def check_step6(self) -> None:
-        self.echo("== Step 6 ==")
-        self.must_file(self.output_dir / "presentation.pptx")
-        pngs = list((self.output_dir / "png").glob("*.png")) if (self.output_dir / "png").is_dir() else []
-        svgs = list((self.output_dir / "svg").glob("*.svg")) if (self.output_dir / "svg").is_dir() else []
-        if not pngs and not svgs:
-            self.fail("neither png/*.png nor svg/*.svg found")
-        self.echo("[OK] step 6")
+        self.echo("[OK] step 5")
 
     def run(self) -> None:
         required_scripts = [
@@ -336,20 +347,14 @@ class Checker:
             self.check_step2()
         if self.reached("3"):
             self.check_step3()
+        if self.reached("3.5"):
+            self.check_step35()
         if self.reached("4"):
             self.check_step4()
-        if self.reached("5a"):
-            self.check_step5a()
-        if self.reached("5b"):
-            self.check_step5b()
-        if self.reached("5c"):
-            self.check_step5c()
-        if self.reached("5d"):
-            self.check_step5d()
         if self.reached("preview"):
             self.check_preview()
-        if self.reached("6"):
-            self.check_step6()
+        if self.reached("5"):
+            self.check_step5()
 
         self.echo("[PASS] milestone checks passed")
 
@@ -364,7 +369,7 @@ def normalize_stage(raw: str) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run milestone acceptance checks for the PPT workflow")
-    parser.add_argument("stage", help="Milestone target: 0/1/2/3/4/5a/5b/5c/5d/preview/6")
+    parser.add_argument("stage", help="Milestone target: 0/1/2/3/3.5/4/preview/5")
     parser.add_argument(
         "--skill-dir",
         default=str(Path(__file__).resolve().parent.parent),

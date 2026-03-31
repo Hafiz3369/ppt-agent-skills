@@ -2,7 +2,7 @@
 
 > 非默认资料。human-only creative workbook。
 >
-> 本文件不作为默认 runtime 主链资料，不进入默认 stage bundle。若把整份文档直接大规模注入 planning 或 HTML 子代理，会显著提高模板化和模仿风险。
+> 本文件不作为默认 runtime 主链注入资料，不进入默认 prompt 注入链或资源自动加载链。若把整份文档直接大规模注入 planning 或 HTML 子代理，会显著提高模板化和模仿风险。
 
 ## 核心理念
 

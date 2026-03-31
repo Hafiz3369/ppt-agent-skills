@@ -1,6 +1,6 @@
 # Runtime Failure Modes
 
-> 本文件沉淀 Step 4 planning 和 Step 5 design 共用的主链 failure modes。
+> 本文件沉淀 Step 4 单页生产链路共用的 failure modes。
 >
 > 它定义的是合同违约和修复顺序，不定义某一种审美风格，不压制创新实验。
 
@@ -78,4 +78,3 @@
 - 创新允许发生在构图、节奏、装饰组合、锚点表现、材质层次。
 - failure mode 只约束违约，不约束风格实验。
 - 只要内容合同完整、阅读路径清晰、风格系统稳定，允许页面做高差异化探索。
-

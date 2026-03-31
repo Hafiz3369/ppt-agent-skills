@@ -344,19 +344,19 @@ def resolve_resources(refs_dir: Path, planning_path: Path) -> str:
 
 def generate_image_inventory(images_dir: Path) -> str:
     """Generate deterministic local image inventory for subagent correction loops."""
-    if not images_dir.is_dir():
-        raise ValueError(f"images-dir not found: {images_dir}")
-
-    image_files = [
-        path for path in images_dir.rglob("*")
-        if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
-    ]
-    image_files.sort(key=lambda p: _natural_text_key(str(p.relative_to(images_dir)).replace("\\", "/")))
+    image_files: list[Path] = []
+    if images_dir.is_dir():
+        image_files = [
+            path for path in images_dir.rglob("*")
+            if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
+        ]
+        image_files.sort(key=lambda p: _natural_text_key(str(p.relative_to(images_dir)).replace("\\", "/")))
 
     lines: list[str] = [
         "# Image Asset Inventory",
         "",
         f"images_dir: {images_dir.resolve()}",
+        f"exists: {images_dir.is_dir()}",
         f"count: {len(image_files)}",
         "",
         "## Assets",
@@ -364,7 +364,9 @@ def generate_image_inventory(images_dir: Path) -> str:
     if not image_files:
         lines.append("(empty)")
         lines.append("")
-        lines.append("规划图片卡片前请先确认是否真的需要配图；若 needed=true，后续必须提供可访问的 source_hint。")
+        lines.append("当前没有可直接绑定的本地图片。")
+        lines.append("如果本页走 AI 文生图，可先在 planning 中规划未来落盘路径，再在图片阶段生成。")
+        lines.append("如果本页走 manual_slot / decorate，可继续后续 HTML，不必等待图片文件。")
         return "\n".join(lines)
 
     for idx, file_path in enumerate(image_files, start=1):
@@ -374,7 +376,7 @@ def generate_image_inventory(images_dir: Path) -> str:
         lines.append(f"   abs={abs_path}")
 
     lines.append("")
-    lines.append("约束：planning 中 image.needed=true 的卡片，image.source_hint 必须引用上面清单中的本地路径。")
+    lines.append("约束：当 planning 选择 provided 模式时，image.source_hint 必须引用上面清单中的本地路径。")
     return "\n".join(lines)
 
 
@@ -424,9 +426,6 @@ def main() -> int:
         result = resolve_resources(refs_dir, planning_path)
     elif args.mode == "images":
         images_dir = Path(args.images_dir)
-        if not images_dir.is_dir():
-            print(f"ERROR: images-dir not found: {images_dir}", file=sys.stderr)
-            return 1
         result = generate_image_inventory(images_dir)
     else:
         parser.print_help()

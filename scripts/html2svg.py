@@ -6,7 +6,9 @@
 - dom-to-svg 直接将 DOM 树转为 SVG，保留 <text> 元素
 - 不经过 PDF 中转，文字不会变成 path
 
-降级方案：Puppeteer PDF + pdf2svg（文字变 path，不可编辑）
+降级方案：
+- 优先使用 PNG 包裹 SVG（保住产物链，文字不可编辑）
+- 最后尝试 Puppeteer PDF + pdf2svg（文字变 path，不可编辑）
 
 首次运行自动安装依赖（dom-to-svg, puppeteer, esbuild）。
 
@@ -14,6 +16,7 @@
     python3 scripts/html2svg.py <html_dir_or_file> [-o output_dir]
 """
 
+import base64
 import json
 import os
 import re
@@ -31,9 +34,10 @@ const path = require('path');
 (async () => {
     const config = JSON.parse(process.argv[2]);
     const browser = await puppeteer.launch({
-        headless: 'new',
+        headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu',
-               '--font-render-hinting=none']
+               '--disable-dev-shm-usage', '--disable-crash-reporter',
+               '--disable-crashpad-for-testing', '--font-render-hinting=none']
     });
 
     for (const item of config.files) {
@@ -575,8 +579,10 @@ const path = require('path');
 (async () => {
     const config = JSON.parse(process.argv[2]);
     const browser = await puppeteer.launch({
-        headless: 'new',
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu',
+               '--disable-dev-shm-usage', '--disable-crash-reporter',
+               '--disable-crashpad-for-testing', '--font-render-hinting=none']
     });
 
     for (const item of config.files) {
@@ -612,31 +618,46 @@ window.__domToSvg = { documentToSVG, elementToSVG, inlineResources };
 def ensure_deps(work_dir: Path) -> tuple:
     """安装依赖，返回 (方案名, bundle路径)"""
     # puppeteer
-    r = subprocess.run(
-        ["node", "-e", "require('puppeteer')"],
-        capture_output=True, text=True, timeout=10, cwd=str(work_dir)
-    )
-    if r.returncode != 0:
+    try:
+        r = subprocess.run(
+            ["node", "-e", "require('puppeteer')"],
+            capture_output=True, text=True, timeout=10, cwd=str(work_dir)
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        r = None
+    if r is None or r.returncode != 0:
         print("Installing puppeteer...")
-        subprocess.run(["npm", "install", "puppeteer"],
-                       capture_output=True, text=True, timeout=180, cwd=str(work_dir))
+        try:
+            subprocess.run(["npm", "install", "puppeteer"],
+                           capture_output=True, text=True, timeout=180, cwd=str(work_dir))
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            print("Puppeteer install unavailable, will rely on existing local deps or fallback.", file=sys.stderr)
 
     # dom-to-svg
-    r = subprocess.run(
-        ["node", "-e", "require('dom-to-svg')"],
-        capture_output=True, text=True, timeout=10, cwd=str(work_dir)
-    )
-    if r.returncode != 0:
-        print("Installing dom-to-svg...")
-        subprocess.run(["npm", "install", "dom-to-svg"],
-                       capture_output=True, text=True, timeout=60, cwd=str(work_dir))
+    try:
         r = subprocess.run(
             ["node", "-e", "require('dom-to-svg')"],
             capture_output=True, text=True, timeout=10, cwd=str(work_dir)
         )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        r = None
+    if r is None or r.returncode != 0:
+        if (work_dir / "png").is_dir():
+            print("dom-to-svg unavailable, reusing existing PNG renders for SVG wrappers", file=sys.stderr)
+            return ("png-wrapper", None)
+        print("Installing dom-to-svg...")
+        try:
+            subprocess.run(["npm", "install", "dom-to-svg"],
+                           capture_output=True, text=True, timeout=60, cwd=str(work_dir))
+            r = subprocess.run(
+                ["node", "-e", "require('dom-to-svg')"],
+                capture_output=True, text=True, timeout=10, cwd=str(work_dir)
+            )
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            r = None
 
-    if r.returncode != 0:
-        print("dom-to-svg unavailable, using pdf2svg fallback", file=sys.stderr)
+    if r is None or r.returncode != 0:
+        print("dom-to-svg unavailable, using fallback mode", file=sys.stderr)
         return ("pdf2svg", None)
 
     # 打包 dom-to-svg 为浏览器 bundle
@@ -645,16 +666,20 @@ def ensure_deps(work_dir: Path) -> tuple:
         print("Building dom-to-svg browser bundle...")
         entry_path = work_dir / ".bundle_entry.js"
         entry_path.write_text(BUNDLE_ENTRY)
-        r = subprocess.run(
-            ["npx", "-y", "esbuild", str(entry_path),
-             "--bundle", "--format=iife",
-             f"--outfile={bundle_path}", "--platform=browser"],
-            capture_output=True, text=True, timeout=60, cwd=str(work_dir)
-        )
+        try:
+            r = subprocess.run(
+                ["npx", "-y", "esbuild", str(entry_path),
+                 "--bundle", "--format=iife",
+                 f"--outfile={bundle_path}", "--platform=browser"],
+                capture_output=True, text=True, timeout=60, cwd=str(work_dir)
+            )
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            r = None
         if entry_path.exists():
             entry_path.unlink()
-        if r.returncode != 0:
-            print(f"esbuild failed: {r.stderr}", file=sys.stderr)
+        if r is None or r.returncode != 0:
+            stderr = r.stderr if r is not None else "esbuild unavailable"
+            print(f"esbuild failed: {stderr}", file=sys.stderr)
             return ("pdf2svg", None)
 
     return ("dom-to-svg", str(bundle_path))
@@ -742,6 +767,76 @@ def convert_pdf2svg(html_files, output_dir, work_dir):
             shutil.rmtree(pdf_tmp)
 
 
+def convert_png_wrapper(html_input: Path, html_files, output_dir: Path, work_dir: Path) -> bool:
+    """兜底方案：复用 html2png.py 产出 PNG，再包装成 SVG <image>。"""
+    png_tmp = work_dir / ".svg_fallback_png"
+    existing_png_dir = work_dir / "png"
+    if existing_png_dir.is_dir():
+        png_tmp = existing_png_dir
+    else:
+        png_tmp.mkdir(exist_ok=True)
+
+    html2png_script = Path(__file__).resolve().parent / "html2png.py"
+    try:
+        png_ready = all((png_tmp / f"{html_file.stem}.png").exists() for html_file in html_files)
+        if not png_ready:
+            print(
+                "Fallback 1/1: HTML -> PNG -> SVG wrapper "
+                "(WARNING: text becomes raster, but downstream SVG/PPTX flow stays intact)..."
+            )
+            r = None
+            for attempt in range(1, 3):
+                r = subprocess.run(
+                    [
+                        sys.executable,
+                        str(html2png_script),
+                        str(html_input),
+                        "-o",
+                        str(png_tmp),
+                        "--scale",
+                        "2",
+                    ],
+                    cwd=str(work_dir),
+                    timeout=300,
+                )
+                png_ready = all((png_tmp / f"{html_file.stem}.png").exists() for html_file in html_files)
+                if r.returncode == 0 or png_ready:
+                    break
+                print(f"Retrying PNG wrapper fallback ({attempt}/2 failed)...", file=sys.stderr)
+
+            if (r is None or r.returncode != 0) and not png_ready:
+                return False
+        else:
+            print("Fallback 1/1: Reusing existing PNG renders to build SVG wrappers...")
+
+        for html_file in html_files:
+            png_path = png_tmp / f"{html_file.stem}.png"
+            if not png_path.exists():
+                print(f"Missing fallback PNG: {png_path}", file=sys.stderr)
+                return False
+
+            data = base64.b64encode(png_path.read_bytes()).decode("ascii")
+            svg_path = output_dir / f"{html_file.stem}.svg"
+            svg_path.write_text(
+                (
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" '
+                    'viewBox="0 0 1280 720">'
+                    f'<image href="data:image/png;base64,{data}" x="0" y="0" '
+                    'width="1280" height="720" preserveAspectRatio="none" />'
+                    '</svg>'
+                ),
+                encoding="utf-8",
+            )
+            print(f"SVG(wrapper): {html_file.name} -> {svg_path.name}")
+        return True
+    except subprocess.TimeoutExpired:
+        print("Timeout: PNG fallback took too long", file=sys.stderr)
+        return False
+    finally:
+        if png_tmp != existing_png_dir and png_tmp.exists():
+            shutil.rmtree(png_tmp)
+
+
 def convert(html_dir: Path, output_dir: Path) -> bool:
     """主转换入口"""
     if html_dir.is_file():
@@ -764,15 +859,20 @@ def convert(html_dir: Path, output_dir: Path) -> bool:
         if ok:
             print(f"\nDone! {len(html_files)} SVGs -> {output_dir}")
             return True
-        print("dom-to-svg failed, falling back to pdf2svg...")
+        print("dom-to-svg failed, falling back to rasterized SVG wrappers...")
 
+    if convert_png_wrapper(html_dir, html_files, output_dir, work_dir):
+        print(f"\nDone! {len(html_files)} SVG wrappers -> {output_dir}")
+        return True
+
+    print("PNG wrapper fallback failed, trying pdf2svg...", file=sys.stderr)
     return convert_pdf2svg(html_files, output_dir, work_dir)
 
 
 def main():
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 2 or sys.argv[1] in {"-h", "--help"}:
         print("Usage: python3 scripts/html2svg.py <html_dir_or_file> [-o output_dir]")
-        sys.exit(1)
+        sys.exit(0 if len(sys.argv) >= 2 else 1)
 
     html_path = Path(sys.argv[1]).resolve()
     if "-o" in sys.argv:

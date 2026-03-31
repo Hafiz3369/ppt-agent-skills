@@ -10,7 +10,7 @@
 在一个 subagent 内完成单页的全链路生产：
 
 ```text
-planning{n}.json -> planning 自审修复 -> slide-{n}.html -> slide-{n}.png -> 第1轮图审修复 -> 第2轮图审修复 -> 通过 -> FINALIZE
+planning{n}.json -> planning 自审修复 -> 图片阶段 -> slide-{n}.html -> slide-{n}.png -> 第1轮图审修复 -> 第2轮图审修复 -> 通过 -> FINALIZE
 ```
 
 ## 输入
@@ -51,6 +51,12 @@ planning{n}.json -> planning 自审修复 -> slide-{n}.html -> slide-{n}.png -> 
 - `search-brief.txt` 的素材
 - `style.json` 的风格合同
 
+使用 `style.json` 时遵守以下分工：
+
+- planning 阶段至少消费 `mood_keywords`、`variation_strategy`、`decoration_dna`
+- HTML 阶段强制消费 `css_variables`、`font_family`，并把 `design_soul` 作为情绪锚点
+- 若存在 `css_snippets`，只把它当作局部样式锚点，不把它当整页骨架
+
 ### 资源消费规则
 
 planning 阶段通过脚本加载资源菜单（所有资源的 `# 标题` + `> 引用`）：
@@ -63,6 +69,15 @@ python3 SKILL_DIR/scripts/resource_loader.py menu --refs-dir SKILL_DIR/reference
 - 根据菜单选择资源，填入 planning JSON 的 `resources` 字段
 - 不读正文（那是 html 阶段的事）
 
+planning 阶段同时必须读取本地图片资产清单：
+
+```bash
+python3 SKILL_DIR/scripts/resource_loader.py images --images-dir OUTPUT_DIR/images
+```
+
+- 若用户已提供图片，优先从清单中绑定
+- 若该页后续准备 AI 文生图，planning 可先规划目标路径，图片阶段再实际生成落盘
+
 ### 必须决定的字段
 
 - `layout_hint` -- 布局
@@ -72,6 +87,7 @@ python3 SKILL_DIR/scripts/resource_loader.py menu --refs-dir SKILL_DIR/reference
 - `cards[]` -- 卡片定义（类型、内容、主次关系）
 - `resource_rationale` -- 为什么选这些资源
 - `handoff_to_design` -- 给 HTML 阶段的不可推翻项
+- `image.mode` -- 本页图片模式（`generate` / `provided` / `manual_slot` / `decorate`）
 
 ### 不可改写
 
@@ -83,6 +99,27 @@ python3 SKILL_DIR/scripts/resource_loader.py menu --refs-dir SKILL_DIR/reference
 
 写入 `planning/{PAGE_NUM}.json`
 
+### 图片策略决策
+
+planning 阶段不是只决定“要不要图”，还要先决定这页图片怎么来：
+
+- `generate`
+  适合封面、章节封面、核心案例页。
+  做法：`image.needed=true`，写明 `usage / placement / content_description / source_hint`，并额外写英文 `image.prompt` 供图片子步骤消费。
+  注意：你只负责把生成需求写清楚，不直接执行文生图。
+
+- `provided`
+  适合用户已给图片、品牌图库、项目截图。
+  做法：`image.needed=true`，`source_hint` 直接绑定本地真实路径。
+
+- `manual_slot`
+  适合用户后续自己补图，但当前流程先继续。
+  做法：`image.needed=false`，在 `handoff_to_design` 里说明图片槽位的位置、比例、裁切方式和替换建议。
+
+- `decorate`
+  适合数据页、纯逻辑页、或不希望引入外部图片的页面。
+  做法：`image.needed=false`，在 `handoff_to_design` 中说明要用什么内部视觉语言补足氛围，例如 SVG 图形、字体装饰、编号水印、渐变纹理、几何图层。
+
 ### 自审
 
 生成后立即运行：
@@ -92,6 +129,29 @@ python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning --refs SKILL
 ```
 
 ERROR 必须修完再进入下一阶段。WARNING 建议修复。
+
+---
+
+## Phase 1.5: 图片阶段（轻量，不单独升级为主链步骤）
+
+planning 通过后，根据 `image.mode` 做一次轻量资源准备：
+
+- `generate`
+  先向主 agent 发送 STATUS `WAIT_IMAGE_SUBAGENT`，带上 `image.prompt`、目标 `image.source_hint` 和当前阻塞项。
+  若环境具备文生图能力且用户需要 AI 出图，主 agent 会创建独立的 `ImageGen` 子代理生成图片；主 agent 确认图片落盘后，你再继续进入 HTML。
+  若环境不具备文生图能力，你必须回写 planning：将 `image.mode` 降级为 `manual_slot` 或 `decorate`，同步修正 `image.needed` / `image.source_hint` / `handoff_to_design`，并重新运行 planning validator，通过后再进入 HTML。
+
+- `provided`
+  校验绑定图片可访问，然后直接进 HTML。
+
+- `manual_slot`
+  不等待图片文件，直接进 HTML，但页面里必须保留一个真实可替换的图片区位。
+
+- `decorate`
+  不等待图片文件，直接进 HTML，但页面必须用内部 SVG / 字体 / 形状装饰完成视觉表达。
+
+这一步只是单页链路里的过渡动作，不额外抽出新的主链 Stage。
+文生图始终由独立的 `ImageGen` 子代理负责，而不是由你直接完成。
 
 ---
 
@@ -116,12 +176,25 @@ python3 SKILL_DIR/scripts/resource_loader.py resolve --refs-dir SKILL_DIR/refere
 - 自动包含 card-styles 和数据类型映射表
 - 不读 `>` 引用（那是 planning 阶段已用过的）
 
+html 阶段开始前必须再次读取图片资产清单并核对 `image.source_hint`：
+
+```bash
+python3 SKILL_DIR/scripts/resource_loader.py images --images-dir OUTPUT_DIR/images
+```
+
+- 若 `image.mode=generate` 或 `provided`，HTML 必须渲染 `source_hint` 对应的真实图片
+- 若 `image.mode=manual_slot`，HTML 必须保留手动替换位，不得擅自删掉图片区
+- 若 `image.mode=decorate`，HTML 必须以内部图形/文字/装饰替代外部图片，而不是留空
+
 ### 执行原则
 
 - 统一语法，不统一长相
 - 忠实执行 planning，不重做 planning
 - 页面要有设计感，不像普通前端页面
-- 必须使用 `style.json` 的 CSS 变量
+- 必须使用 `style.json` 的 CSS 变量和字体栈
+- `design_soul` 用来校准情绪，不可直接抄成文案
+- `variation_strategy` 用来控制这一页的变化幅度，避免 deck 内同构复制
+- `decoration_dna.forbidden` 是硬边界，`recommended_combos` 是优先组合，`signature_move` 是跨页识别锚点
 
 ### 继承自 planning 的不可改项
 
@@ -203,6 +276,7 @@ python3 SKILL_DIR/scripts/html2png.py OUTPUT_DIR/slides/slide-{PAGE_NUM}.html -o
 | planning 合法 | planning_validator 无 ERROR |
 | HTML 存在 | `slides/slide-{n}.html` 非空 |
 | PNG 存在 | `png/slide-{n}.png` 存在（图审执行证据） |
+| 图片合同 | `generate` / `provided` 时 `source_hint` 可访问；`manual_slot` / `decorate` 时 HTML 落地策略明确 |
 | 图审完成 | 至少 1 轮图审 |
 
 ## 生命周期

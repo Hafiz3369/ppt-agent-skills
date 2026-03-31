@@ -53,18 +53,18 @@ _Preview rendering samples:_
 
 ## Workflow Architecture
 
-Executions follow a strict 6-step lifecycle:
+At a high level, the system can still be understood as a 6-stage production line, but the control console now orchestrates it strictly as `Step 0 -> Step 5`:
 
-1. **Discovery**: Extrapolates necessary scopes and audience profiling.
-2. **Aggregated Search**: Parses data with cross-reference validations.
-3. **Outlining**: Establishes structural narrative paths using the Pyramid Principle.
-4. **Draft Generation (JSON)**: Establishes container skeletons and metric encapsulation.
-5. **View Assembly (HTML)**: Scaffolds CSS rules and injects visual blocks.
-6. **Binaries Compile (PPTX)**: Executes Node.js/Python post-processors yielding presentation formats.
+1. **Interview and Routing**: collect requirements, normalize them, and decide between the research and non-research branches.
+2. **Material Preparation**: run Search-Lite or compress user-provided source materials.
+3. **Pyramid Outline**: build the narrative structure and complete self-review.
+4. **Global Style First**: generate a `style.json` contract that downstream planning and HTML stages can consume reliably.
+5. **Per-Slide Planning and Rendering**: produce planning JSON, HTML, PNG, and visual review for each slide.
+6. **Delivery Packaging**: generate `preview.html`, PNG/SVG PPTX exports, and the delivery manifest.
 
 ## Getting Started
 
-As an AI-native Agent Skill, PPT Agent requires strictly zero manual environment setup. All dependencies and runtimes are provisioned automatically by the agent pipeline during execution.
+This project runs as an Agent Skill. The main workflow assumes the current environment provides file I/O, Python execution, Planning tools, and sub-agent capabilities; information retrieval and image generation can degrade by stage when unavailable.
 
 ### Execution 
 
@@ -72,11 +72,11 @@ In a prompt-enabled Agent IDE, instruct the instance to trigger the workflow nat
 
 > _"Assemble a 15-page deck regarding LLM computation footprints."_
 
-Rendered assemblies output entirely towards `ppt-output/`, including standard executables `.pptx` and a local-browser preview state.
+Rendered outputs are written to `ppt-output/runs/<RUN_ID>/`, including browser-previewable `preview.html` and both `presentation-png.pptx` and `presentation-svg.pptx`.
 
 ## Repository Layout
 
-The repository now follows the control-console model defined by `SKILL.md`. Only three areas are runtime sources of truth:
+The repository now follows the control-console model defined by `SKILL.md`. The runtime sources of truth are organized as:
 
 ```text
 ppt-agent-skill/
@@ -85,22 +85,27 @@ ppt-agent-skill/
 │   └── README.md            # Script index
 ├── references/              # Markdown sources of truth
 │   ├── playbooks/           # sub-agent execution guides
-│   ├── runtime/             # runtime shared contracts
-│   ├── design-runtime/      # design/runtime supplemental rules
-│   ├── ops/                 # ops notes and resource map
+│   ├── prompts/             # prompt templates
+│   ├── styles/              # preset styles + runtime style contracts
+│   ├── layouts/             # layout resources
+│   ├── blocks/              # component resources
+│   ├── charts/              # chart resources
+│   ├── principles/          # design principles
+│   ├── page-templates/      # cover / toc / section / end templates
+│   ├── design-runtime/      # data-to-visual bridge rules
 │   └── README.md            # Reference index
 ├── assets/                  # Logo and README screenshots
-├── copy/                    # Manual backup area, not runtime
-└── ppt-output/              # Runtime outputs (git-ignored)
+├── README.md
+└── README_EN.md
 ```
 
 ### Directory Boundaries
 
-- `SKILL.md`: control-console contract only; no embedded sub-agent prompt templates.
-- `scripts/`: executable workflow utilities only; no mirrored markdown copies.
-- `references/`: markdown sources of truth used by the live workflow; the root now stays index-only and grouped docs live in subdirectories.
-- `copy/`: backup only; never treated as a runtime source.
-- `ppt-output/`: generated artifacts only.
+- `SKILL.md`: the control-console contract only, defining the state machine, orchestration skeleton, gates, and recovery rules.
+- `scripts/`: executable workflow utilities and interface indexes only.
+- `references/`: markdown sources of truth consumed by the main chain or subagents on demand.
+- `assets/`: logo and showcase screenshots only.
+- `ppt-output/`: created dynamically in the user's working directory at runtime; not treated as repository source of truth.
 
 ### Entry Index
 

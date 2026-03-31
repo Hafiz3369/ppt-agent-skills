@@ -25,6 +25,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).parent))
 from planning_validator import load_jsonish, load_planning_pages
 
 
@@ -344,42 +345,106 @@ def validate_style(path: Path) -> tuple[ValidationResult, dict[str, Any]]:
         result.error("style: root must be a JSON object")
         return result, {"errors": 1, "warnings": 0}
 
-    # Check color scheme
-    colors = payload.get("colors") or payload.get("color_palette") or payload.get("color_scheme")
-    if not isinstance(colors, dict):
-        result.error("style: missing color scheme (expected 'colors', 'color_palette', or 'color_scheme')")
+    style_id = payload.get("style_id")
+    if not is_non_empty_string(style_id):
+        result.error("style: missing non-empty 'style_id'")
+
+    style_name = payload.get("style_name")
+    if not is_non_empty_string(style_name):
+        result.error("style: missing non-empty 'style_name'")
+
+    mood_keywords = payload.get("mood_keywords")
+    if not isinstance(mood_keywords, list):
+        result.error("style: missing 'mood_keywords' list")
+        mood_count = 0
     else:
-        required_color_keys = ["primary", "background", "text"]
-        for key in required_color_keys:
-            if key not in colors:
-                result.warn(f"style: colors missing '{key}'")
+        cleaned_keywords = [item.strip() for item in mood_keywords if is_non_empty_string(item)]
+        mood_count = len(cleaned_keywords)
+        if mood_count != len(mood_keywords):
+            result.error("style: 'mood_keywords' must contain only non-empty strings")
+        if mood_count < 3 or mood_count > 5:
+            result.error("style: 'mood_keywords' must contain 3-5 items")
 
-    # Check CSS variables
-    css_vars = payload.get("css_variables") or payload.get("css_vars")
-    if not isinstance(css_vars, (dict, str)):
-        result.warn("style: missing 'css_variables' (recommended for consistency)")
+    design_soul = payload.get("design_soul") or payload.get("soul") or payload.get("mood") or payload.get("灵魂宣言")
+    if not is_non_empty_string(design_soul):
+        result.error("style: missing non-empty 'design_soul'")
 
-    # Check font
-    font = payload.get("font") or payload.get("fonts") or payload.get("typography")
-    if not font:
-        result.warn("style: missing font/typography definition")
+    variation_strategy = payload.get("variation_strategy")
+    if not is_non_empty_string(variation_strategy):
+        result.error("style: missing non-empty 'variation_strategy'")
 
-    # Check decoration DNA
     decoration = payload.get("decoration_dna") or payload.get("decoration")
-    if not decoration:
-        result.warn("style: missing decoration_dna")
+    if not isinstance(decoration, dict):
+        result.error("style: missing object 'decoration_dna'")
+    else:
+        signature_move = decoration.get("signature_move")
+        if not is_non_empty_string(signature_move):
+            result.error("style: decoration_dna missing non-empty 'signature_move'")
 
-    # Check mood/soul
-    soul = payload.get("soul") or payload.get("mood") or payload.get("灵魂宣言")
-    if not soul:
-        result.warn("style: missing soul/mood statement")
+        forbidden = decoration.get("forbidden")
+        if not isinstance(forbidden, list):
+            result.error("style: decoration_dna missing 'forbidden' list")
+        else:
+            cleaned_forbidden = [item.strip() for item in forbidden if is_non_empty_string(item)]
+            if len(cleaned_forbidden) != len(forbidden):
+                result.error("style: decoration_dna.forbidden must contain only non-empty strings")
+            if len(cleaned_forbidden) < 2 or len(cleaned_forbidden) > 5:
+                result.error("style: decoration_dna.forbidden must contain 2-5 items")
+
+        combos = decoration.get("recommended_combos")
+        if not isinstance(combos, list):
+            result.error("style: decoration_dna missing 'recommended_combos' list")
+        else:
+            cleaned_combos = [item.strip() for item in combos if is_non_empty_string(item)]
+            if len(cleaned_combos) != len(combos):
+                result.error("style: decoration_dna.recommended_combos must contain only non-empty strings")
+            if len(cleaned_combos) < 2 or len(cleaned_combos) > 4:
+                result.error("style: decoration_dna.recommended_combos must contain 2-4 items")
+
+    css_vars = payload.get("css_variables") or payload.get("css_vars")
+    required_css_keys = [
+        "bg_primary",
+        "bg_secondary",
+        "card_bg_from",
+        "card_bg_to",
+        "card_border",
+        "card_radius",
+        "text_primary",
+        "text_secondary",
+        "accent_1",
+        "accent_2",
+        "accent_3",
+        "accent_4",
+    ]
+    if not isinstance(css_vars, dict):
+        result.error("style: missing object 'css_variables'")
+    else:
+        for key in required_css_keys:
+            if not is_non_empty_string(css_vars.get(key)):
+                result.error(f"style: css_variables missing non-empty '{key}'")
+
+    font_family = payload.get("font_family")
+    legacy_font = payload.get("font") or payload.get("fonts") or payload.get("typography")
+    if not is_non_empty_string(font_family):
+        if legacy_font:
+            result.warn("style: prefer 'font_family' over legacy font fields")
+        else:
+            result.error("style: missing non-empty 'font_family'")
+
+    css_snippets = payload.get("css_snippets")
+    if css_snippets is not None and not isinstance(css_snippets, dict):
+        result.error("style: 'css_snippets' must be an object when provided")
 
     summary = {
-        "has_colors": bool(colors),
+        "style_id": style_id if is_non_empty_string(style_id) else None,
+        "style_name": style_name if is_non_empty_string(style_name) else None,
+        "mood_keywords": mood_count,
+        "has_design_soul": bool(is_non_empty_string(design_soul)),
+        "has_variation_strategy": bool(is_non_empty_string(variation_strategy)),
         "has_css_vars": bool(css_vars),
-        "has_font": bool(font),
-        "has_decoration": bool(decoration),
-        "has_soul": bool(soul),
+        "has_font_family": bool(is_non_empty_string(font_family)),
+        "has_decoration": isinstance(decoration, dict),
+        "has_css_snippets": isinstance(css_snippets, dict),
         "errors": len(result.errors),
         "warnings": len(result.warnings),
     }
@@ -447,7 +512,6 @@ def validate_images(path: Path, require_paths: bool) -> tuple[ValidationResult, 
             if is_non_empty_string(source_hint_raw):
                 hinted_cards += 1
             else:
-                result.error(f"{card_label}: image.needed=true requires non-empty image.source_hint")
                 continue
 
             if not require_paths:

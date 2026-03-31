@@ -101,10 +101,15 @@ def normalize_branch(value: Any) -> str | None:
 
 
 def validate_step_id(step_id: str, result: ValidationResult) -> None:
-    pattern = r"^P(?:0|1|2A|2B|3|4|5)\.\d{2}(?:\[(?:WAIT_USER|WAIT_AGENT)\])?$"
-    if not re.match(pattern, step_id):
+    patterns = (
+        r"^P(?:0|1|3|5)\.\d{2}(?:\[(?:WAIT_USER|WAIT_AGENT)\])?$",
+        r"^P2(?:A|B)\.\d{2}(?:\[(?:WAIT_USER|WAIT_AGENT)\])?$",
+        r"^P3\.5\.\d{2}(?:\[(?:WAIT_USER|WAIT_AGENT)\])?$",
+        r"^P4\.\d{2}\.\d{2}(?:\[(?:WAIT_USER|WAIT_AGENT)\])?$",
+    )
+    if not any(re.match(pattern, step_id) for pattern in patterns):
         result.warn(
-            f"steps[].id={step_id!r}: non-canonical id format; expected e.g. P4.03 or P1.02[WAIT_USER]"
+            f"steps[].id={step_id!r}: non-canonical id format; expected e.g. P3.5.03[WAIT_AGENT] or P4.01.03"
         )
 
 

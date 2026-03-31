@@ -431,6 +431,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Validate PPT planning JSON files")
     parser.add_argument("path", help="Single planning JSON file or directory containing planning*.json")
     parser.add_argument("--refs", help="Path to references directory")
+    parser.add_argument("--page", type=int, help="Validate only one slide_number from the target payload")
     parser.add_argument("--strict", action="store_true", help="Treat warnings as failures")
     parser.add_argument("--report", help="Optional path to write a JSON report")
     args = parser.parse_args()
@@ -446,6 +447,12 @@ def main() -> int:
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
+
+    if args.page is not None:
+        pages = [page for page in pages if int(page.get("slide_number") or 0) == args.page]
+        if not pages:
+            print(f"ERROR: slide_number {args.page} not found in {target}", file=sys.stderr)
+            return 1
 
     page_reports = []
     aggregate = ValidationResult()

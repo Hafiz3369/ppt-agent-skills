@@ -1,10 +1,10 @@
 # 数据类型 -> 视觉呈现映射表
 
-本表是 **Step 2（数据格式化）-> Step 4（Planning）-> Step 5c（HTML）** 的桥梁。
+本表是 **上游资料整理 / brief 结构化 -> Step 4（Planning）-> Step 4（HTML）** 的桥梁。
 
-- Step 2 的主 agent 参考"数据类型"列，识别并格式化原始资料
+- 上游资料整理阶段参考"数据类型"列，识别并格式化原始资料
 - Step 4 的 Planning sub-agent 参考"推荐 card_type"和"推荐布局"列，选择卡片类型
-- Step 5c 的 HTML sub-agent 参考"CSS 实现参考"列，选择渲染技法
+- Step 4 的 HTML sub-agent 参考"CSS 实现参考"列，选择渲染技法
 
 ## 数据展示类
 
@@ -124,7 +124,7 @@ text | data | list | process | tag_cloud | data_highlight | timeline | diagram |
 
 ## 消费规则
 
-- **Step 2 主 agent**：识别原始资料中的数据类型 -> 格式化为对应 schema -> 填入 `content_reference_pack`
+- **上游资料整理 / brief 编制**：识别原始资料中的数据类型 -> 格式化为对应 schema -> 写入可被后续引用的资料摘要
 - **Step 3 大纲**：在 `evidence_packet.source_trace` 中引用具体积木（如 `funnel_data[0]`）
 - **Step 4 Planning**：根据本表选择 `card_type`、`layout_hint`，并在 `resource_rationale` 中说明选择理由
-- **Step 5c HTML**：根据 `card_type` + 本表的"CSS 实现参考" + `references/blocks/` 和 `references/charts/` 下的文档渲染
+- **Step 4 HTML**：根据 `card_type` + 本表的"CSS 实现参考" + `references/blocks/` 和 `references/charts/` 下的文档渲染

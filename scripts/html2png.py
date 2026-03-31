@@ -134,9 +134,9 @@ def convert(html_dir: Path, output_dir: Path, scale: int = 2) -> bool:
 
 
 def main():
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 2 or sys.argv[1] in {"-h", "--help"}:
         print("Usage: python3 scripts/html2png.py <html_dir_or_file> [-o output_dir] [--scale 2]")
-        sys.exit(1)
+        sys.exit(0 if len(sys.argv) >= 2 else 1)
 
     html_path = Path(sys.argv[1]).resolve()
 

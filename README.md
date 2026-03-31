@@ -53,18 +53,18 @@ _主题预览（片段）：_
 
 ## 工作流
 
-标准生成过程遵循严格的 6 步定制生产线：
+高层可视为 6 段生产线，主控制台内部则按 `Step 0 -> Step 5` 严格编排：
 
-1. **需求访谈**：阻断式问询，提取受众与场景。
-2. **并发搜索**：执行多维度信息检索与数据交叉验证。
-3. **金字塔大纲**：规划基础叙事轨迹和论证策略。
-4. **单页结构化 (JSON)**：确认布局分布与信息封装点。
-5. **视图装配 (HTML)**：装载 CSS 变量并渲染终端界面。
-6. **产物打包 (PPTX)**：脚本回调并组装原生 OOXML 文稿。
+1. **需求访谈与分流**：采访、归一化需求、确认 research / 非 research 分支。
+2. **素材准备**：执行 Search-Lite，或压缩用户现有资料。
+3. **金字塔大纲**：规划叙事轨迹和论证策略，并完成自审。
+4. **全局风格前置**：先产出可被下游稳定消费的 `style.json`。
+5. **单页结构化与视图装配**：逐页生成 planning JSON、HTML、PNG，并完成图审。
+6. **交付打包**：生成 `preview.html`、PNG / SVG 双 PPTX 管线与清单。
 
 ## 快速开始
 
-本项目为零配置的 AI 原生技能（Agent Skill），无需任何手动环境配置或前置安装，运行依赖在执行管线中由智能体全自动补齐。
+本项目以 Skill 形式运行。主链默认假设当前环境具备文件读写、Python、Planning 工具与 sub-agent 能力；信息检索与文生图能力可按阶段降级。
 
 ### 运行机制
 
@@ -72,7 +72,7 @@ _主题预览（片段）：_
 
 > _"生成一份关于 AI 大模型算力消耗趋势的 15 页路演 Deck。"_ 
 
-生成产物将自动写入根目录下的 `ppt-output/`：Step 5c 会生成浏览器可翻页版 `preview.html`，用户确认 HTML 并完成 Step 6 转换后产出 `presentation.pptx`。
+生成产物将自动写入 `ppt-output/runs/<RUN_ID>/`：预览阶段会生成浏览器可翻页版 `preview.html`，导出阶段会产出 `presentation-png.pptx` 与 `presentation-svg.pptx` 两条交付管线。
 
 ## 仓库结构
 
@@ -85,22 +85,27 @@ ppt-agent-skill/
 │   └── README.md            # 脚本索引
 ├── references/              # markdown 真源
 │   ├── playbooks/           # sub-agent 执行细则
-│   ├── runtime/             # 运行期共享合同
-│   ├── design-runtime/      # 设计/运行规则补充
-│   ├── ops/                 # 运维与资源映射
+│   ├── prompts/             # prompt 模板
+│   ├── styles/              # 预置风格 + runtime 风格合同
+│   ├── layouts/             # 版式资源
+│   ├── blocks/              # 组件资源
+│   ├── charts/              # 图表资源
+│   ├── principles/          # 设计原则
+│   ├── page-templates/      # 封面 / 目录 / 章节 / 结束页模板
+│   ├── design-runtime/      # 数据到视觉的桥梁规则
 │   └── README.md            # references 索引
 ├── assets/                  # logo 与 README 截图
-├── copy/                    # 手工备份区，不参与 runtime
-└── ppt-output/              # 运行产物目录（忽略提交）
+├── README.md
+└── README_EN.md
 ```
 
 ### 目录边界
 
-- `SKILL.md`：只负责主控制台合同，不再内嵌 sub-agent prompt 模板。
-- `scripts/`：只保留主链实际执行脚本，不放 markdown 镜像副本。
-- `references/`：只保留当前主链引用的 markdown 真源，根目录只放索引，职责文档进入分组子目录。
-- `copy/`：只做备份，不作为任何脚本或 agent 的执行入口。
-- `ppt-output/`：只放运行产物，不放代码和文档真源。
+- `SKILL.md`：只负责主控制台合同，统一定义状态机、调度骨架、Gate 与恢复规则。
+- `scripts/`：只放实际执行脚本与接口索引。
+- `references/`：只放被主链或 subagent 按需消费的 markdown 真源。
+- `assets/`：只放 logo 与展示截图。
+- `ppt-output/`：运行时在用户工作目录下动态创建，不作为仓库真源提交。
 
 ### 入口索引
 

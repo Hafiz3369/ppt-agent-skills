@@ -7,16 +7,21 @@
 | 脚本 | 用途 | 调用方 |
 |------|------|--------|
 | `prompt_harness.py` | 模板变量填充，生成 subagent prompt | 主 agent |
-| `resource_loader.py` | 资源路由器（menu 菜单 / resolve 按需加载） | subagent |
+| `resource_loader.py` | 资源路由器（menu 菜单 / resolve 按需加载 / images 图片清单） | subagent |
 
 ## 校验工具
 
 | 脚本 | 用途 | 调用方 |
 |------|------|--------|
-| `contract_validator.py` | 合同校验（interview/search/outline/style/review/manifest） | 主 agent |
-| `planning_validator.py` | Step 4 planning JSON 单页/全量验证 | subagent 自审 |
+| `contract_validator.py` | 合同校验（`interview` / `requirements-interview` / `search` / `search-brief` / `source-brief` / `outline` / `style` / `images` / `page-review` / `delivery-manifest`） | 主 agent |
+| `planning_validator.py` | Step 4 planning JSON 单页/全量验证 | subagent 自审 + 主 agent gate |
 | `progress_validator.py` | progress.json 生命周期校验 | 主 agent |
 | `milestone_check.py` | 按里程碑阶段验收 | 主 agent |
+
+说明：
+
+- `contract_validator.py style` 现已按 runtime style 合同检查 `style_id`、`style_name`、`mood_keywords`、`design_soul`、`variation_strategy`、`decoration_dna`、`css_variables`、`font_family`
+- `resource_loader.py` 的 `menu` / `resolve` 会跳过 `runtime-*` 文件；这些文件由主链定向注入
 
 ## 导出工具
 
