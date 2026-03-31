@@ -1,8 +1,12 @@
 # 点阵图 Waffle Chart（百分比直觉化）
 
+> 适用数据类型：distribution_data / progress_tracker。100格点阵亮灭=百分比。
+> 数据需求：percentage(0-100)。适合单指标直觉呈现。
+> PPTX 友好实现：10x10 CSS Grid，每格 8x8px gap:2px，亮格用 accent 色，暗格用 opacity:0.15。
+
 `chart_type: waffle`
 
-> **视觉灵魂**："100 个格子里有多少个亮着" -- 最直觉的百分比表达方式。67% 不是一个数字，而是 100 个格子中 67 个发光的存在。
+> 适用数据：distribution_data / progress_tracker。100格点阵亮灭=百分比，最直觉的比例呈现，适合单指标。
 
 ## 结构骨架
 

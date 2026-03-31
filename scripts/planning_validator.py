@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import resource_registry as rr
+# resource_registry removed in v4 refactor; resource lookup inlined below
 from workflow_versions import (
     PLANNING_CONTINUITY_VERSION,
     PLANNING_PACKET_VERSION,
@@ -173,6 +173,16 @@ def load_planning_pages(path: Path) -> list[dict[str, Any]]:
     return pages
 
 
+# Group name -> subdirectory mapping for resource lookup
+_GROUP_DIRS = {
+    "page_template": "page-templates",
+    "layout_refs": "layouts",
+    "block_refs": "blocks",
+    "chart_refs": "charts",
+    "principle_refs": "principles",
+}
+
+
 def resource_exists(refs_dir: Path, group: str, value: str) -> bool:
     if not value:
         return True
@@ -182,10 +192,22 @@ def resource_exists(refs_dir: Path, group: str, value: str) -> bool:
         return direct.exists()
     if raw.startswith("references/"):
         return (refs_dir / raw.removeprefix("references/")).exists()
-    if group == "page_template":
-        path = rr.resolve_page_template(raw)
-        return bool(path and path.exists())
-    return rr.resolve_resource_ref(group, raw).exists()
+    # Resolve via group -> subdirectory mapping
+    subdir = _GROUP_DIRS.get(group)
+    if not subdir:
+        return False
+    # Try exact filename first, then with .md extension
+    base_dir = refs_dir / subdir
+    candidate = base_dir / raw
+    if candidate.exists():
+        return True
+    candidate_md = base_dir / f"{raw}.md"
+    if candidate_md.exists():
+        return True
+    # Try normalized: underscores to hyphens
+    normalized = raw.replace("_", "-")
+    candidate_norm = base_dir / f"{normalized}.md"
+    return candidate_norm.exists()
 
 
 def validate_card(card: dict[str, Any], page_label: str, index: int, refs_dir: Path | None, result: ValidationResult) -> None:
@@ -225,7 +247,7 @@ def validate_card(card: dict[str, Any], page_label: str, index: int, refs_dir: P
     if not isinstance(image, dict):
         result.error(f"{card_label}: missing image contract")
     elif image.get("needed"):
-        for field_name in ("usage", "placement", "content_description"):
+        for field_name in ("usage", "placement", "content_description", "source_hint"):
             if not image.get(field_name):
                 result.error(f"{card_label}: image.needed=true but image.{field_name} is empty")
         usage = image.get("usage")

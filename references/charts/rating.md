@@ -1,8 +1,12 @@
 # 评分指示器（5分制）
 
+> 适用数据类型：score_card / ranked_list。实心vs空心=已达到vs未达到。
+> 数据需求：score(1-5) + label。
+> PPTX 友好实现：5个内联SVG圆点(r=6)，实心用 accent 色 fill，空心用 stroke-only + fill:none。
+
 `chart_type: rating`
 
-> **视觉灵魂**：实心 vs 空心 = 已达到 vs 未达到。人脑对"圆点阵列"的计数速度极快，3/5 和 5/5 的差异一瞬间就能感知。
+> 适用数据：score_card / ranked_list。实心vs空心=已达到vs未达到，5分制评分直觉呈现。
 
 ## 结构原理
 

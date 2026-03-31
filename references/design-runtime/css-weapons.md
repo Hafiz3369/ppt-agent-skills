@@ -1,6 +1,6 @@
 # CSS 高级武器库（W1-W12）
 
-> 由 `scripts/prompt_assembler.py` 根据每页 `decoration_hints`（含 W 编号）按需注入到 prompt-ready 文件中。
+> 由 `scripts/resource_loader.py` 根据每页 `decoration_hints`（含 W 编号）按需注入到 prompt-ready 文件中。
 > 每页只注入被引用的武器代码，不灌全量。相邻页的武器组合应该不同。
 > 策划阶段在 `decoration_hints` 中用 W 编号引用武器：如 `W1 渐变文字 | 标题用 accent-1 → accent-2 135deg`。
 

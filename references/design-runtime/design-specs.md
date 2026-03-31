@@ -1,4 +1,4 @@
-# 设计规格书（A/B/C/D/E -- 稳定参考，由 `scripts/prompt_assembler.py` 自动注入 GLOBAL_RESOURCES）
+# 设计规格书（A/B/C/D/E -- 稳定参考，由 `scripts/resource_loader.py` 自动注入 GLOBAL_RESOURCES）
 
 > 本文件包含画布规范、排版阶梯、卡片规则、色彩装饰、页面类型设计和输出规范。
 > 内容稳定且不需要每次都在 LLM 上下文中占位，由 assembler 机械化注入。

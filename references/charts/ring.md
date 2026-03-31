@@ -1,10 +1,12 @@
 # 环形百分比（推荐用内联 SVG）
 
+> 适用数据类型：pie_data / cost_breakdown。圆弧饱满度=占比。
+> 数据需求：value + total（或 percentage），可选 label。
+> PPTX 友好实现：内联 SVG circle + stroke-dasharray 计算弧长，圆心大数字叠加。不用 canvas。
+
 `chart_type: ring`
 
-> **视觉灵魂**：圆弧的饱满度直观传达"占比" -- 90% 的弧几乎闭合让人安心，30% 的弧孤独地悬着让人紧迫。
->
-> 也可用 `conic-gradient` 实现更简洁的纯 CSS 环形图。内联 SVG 版本在动画和精确控制方面更灵活。
+> 适用数据：pie_data / cost_breakdown。圆弧饱满度=占比，适合单指标百分比，数据需有数值+总量。
 
 ## 结构骨架
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate progress.json lifecycle contracts.
+"""Validate progress.json for the PPT workflow v4.
 
 Usage:
   python3 scripts/progress_validator.py OUTPUT_DIR/progress.json
@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -19,20 +20,28 @@ from typing import Any
 from planning_validator import load_jsonish
 
 
-STATUS_VALUES = {"done", "in_progress", "pending"}
-COMPLEXITY_VALUES = {"light", "standard", "large"}
-STEP_KEYS = (
-    "step_1",
-    "step_2",
-    "step_3",
-    "step_4",
-    "step_5a",
-    "step_5b",
-    "step_5c",
-    "step_5d",
-    "step_6",
-)
-REVIEW_MODE_VALUES = {"auto", "vision", "source"}
+STEP_STATUS_VALUES = {
+    "pending",
+    "in_progress",
+    "wait_user",
+    "wait_agent",
+    "done",
+    "failed",
+    "rolled_back",
+}
+RUN_STATE_VALUES = {"RUNNING", "WAIT_USER", "WAIT_AGENT", "ROLLBACK", "DONE", "FAILED"}
+WAIT_TYPE_VALUES = {"WAIT_USER", "WAIT_AGENT"}
+BRANCH_VALUES = {"research", "direct"}
+PAGE_STATUS_VALUES = {"pending", "in_progress", "failed", "done", "rolled_back"}
+PAGE_PHASE_VALUES = {
+    "planning",
+    "planning_review",
+    "html",
+    "render_png",
+    "image_review_round1",
+    "image_review_round2",
+    "closed",
+}
 
 
 @dataclass
@@ -68,32 +77,6 @@ def parse_iso_timestamp(label: str, value: Any, result: ValidationResult) -> dat
         return None
 
 
-def validate_page_list(
-    value: Any,
-    label: str,
-    total_pages: int | None,
-    result: ValidationResult,
-) -> list[int]:
-    if not isinstance(value, list):
-        result.error(f"{label}: must be a list")
-        return []
-    pages: list[int] = []
-    for index, item in enumerate(value, start=1):
-        if not isinstance(item, int):
-            result.error(f"{label}[{index}]: must be an integer")
-            continue
-        if item < 1:
-            result.error(f"{label}[{index}]: must be >= 1")
-            continue
-        if total_pages is not None and item > total_pages:
-            result.error(f"{label}[{index}]: exceeds total_pages={total_pages}")
-            continue
-        pages.append(item)
-    if len(set(pages)) != len(pages):
-        result.error(f"{label}: duplicate page indexes are not allowed")
-    return pages
-
-
 def read_payload(path: Path) -> dict[str, Any]:
     payload = load_jsonish(path)
     if not isinstance(payload, dict):
@@ -103,62 +86,242 @@ def read_payload(path: Path) -> dict[str, Any]:
     return payload
 
 
-def validate_status_entry(
-    steps: dict[str, Any],
-    step_key: str,
-    result: ValidationResult,
-) -> dict[str, Any]:
-    entry = steps.get(step_key)
-    if not isinstance(entry, dict):
-        result.error(f"steps.{step_key}: must be an object")
-        return {}
-    status = entry.get("status")
-    if status not in STATUS_VALUES:
-        result.error(f"steps.{step_key}.status: must be one of {sorted(STATUS_VALUES)}")
-    return entry
+def normalize_state(value: Any) -> str | None:
+    if not is_non_empty_string(value):
+        return None
+    return str(value).strip().upper()
 
 
-def is_nullish(value: Any) -> bool:
-    return value in (None, "", "null")
+def normalize_branch(value: Any) -> str | None:
+    if value in (None, "", "null"):
+        return None
+    if not isinstance(value, str):
+        return str(value)
+    return value.strip().lower()
 
 
-def validate_pre_step1(
-    steps: dict[str, Any],
-    step_entries: dict[str, dict[str, Any]],
-    result: ValidationResult,
-) -> None:
-    for step_key in STEP_KEYS:
-        status = steps.get(step_key, {}).get("status")
+def validate_step_id(step_id: str, result: ValidationResult) -> None:
+    pattern = r"^P(?:0|1|2A|2B|3|4|5)\.\d{2}(?:\[(?:WAIT_USER|WAIT_AGENT)\])?$"
+    if not re.match(pattern, step_id):
+        result.warn(
+            f"steps[].id={step_id!r}: non-canonical id format; expected e.g. P4.03 or P1.02[WAIT_USER]"
+        )
+
+
+def normalize_steps(raw_steps: Any, result: ValidationResult) -> list[dict[str, Any]]:
+    if isinstance(raw_steps, list):
+        steps = [item for item in raw_steps if isinstance(item, dict)]
+        if len(steps) != len(raw_steps):
+            result.error("steps: list entries must be objects")
+        return steps
+
+    if isinstance(raw_steps, dict):
+        steps: list[dict[str, Any]] = []
+        for step_id, entry in raw_steps.items():
+            if not isinstance(entry, dict):
+                result.error(f"steps.{step_id}: must be an object")
+                continue
+            merged = dict(entry)
+            merged.setdefault("id", str(step_id))
+            steps.append(merged)
+        return steps
+
+    result.error("steps: must be a list or object")
+    return []
+
+
+def validate_steps(steps: list[dict[str, Any]], result: ValidationResult) -> dict[str, Any]:
+    ids: set[str] = set()
+    status_counts: dict[str, int] = {key: 0 for key in STEP_STATUS_VALUES}
+    in_progress: list[str] = []
+    wait_user: list[str] = []
+    wait_agent: list[str] = []
+    rolled_back: list[str] = []
+
+    for index, step in enumerate(steps, start=1):
+        label = f"steps[{index}]"
+        step_id_raw = step.get("id")
+        if not is_non_empty_string(step_id_raw):
+            result.error(f"{label}.id: must be a non-empty string")
+            continue
+        step_id = str(step_id_raw).strip()
+        validate_step_id(step_id, result)
+
+        if step_id in ids:
+            result.error(f"{label}.id: duplicate step id {step_id!r}")
+            continue
+        ids.add(step_id)
+
+        action = step.get("action")
+        if not is_non_empty_string(action):
+            result.error(f"{label}.action: must be a non-empty string")
+
+        status = str(step.get("status") or "").strip().lower()
+        if status not in STEP_STATUS_VALUES:
+            result.error(f"{label}.status: must be one of {sorted(STEP_STATUS_VALUES)}")
+            continue
+
+        status_counts[status] = status_counts.get(status, 0) + 1
+        if status == "in_progress":
+            in_progress.append(step_id)
+        elif status == "wait_user":
+            wait_user.append(step_id)
+        elif status == "wait_agent":
+            wait_agent.append(step_id)
+        elif status == "rolled_back":
+            rolled_back.append(step_id)
+
+        wait_type = step.get("wait_type")
+        if status in {"wait_user", "wait_agent"}:
+            if not is_non_empty_string(wait_type):
+                result.error(f"{label}.wait_type: required when status={status}")
+            else:
+                wait_type_norm = str(wait_type).strip().upper()
+                if wait_type_norm not in WAIT_TYPE_VALUES:
+                    result.error(f"{label}.wait_type: must be one of {sorted(WAIT_TYPE_VALUES)}")
+                elif status == "wait_user" and wait_type_norm != "WAIT_USER":
+                    result.error(f"{label}.wait_type must be WAIT_USER when status=wait_user")
+                elif status == "wait_agent" and wait_type_norm != "WAIT_AGENT":
+                    result.error(f"{label}.wait_type must be WAIT_AGENT when status=wait_agent")
+        elif wait_type not in (None, "", "null"):
+            result.warn(f"{label}.wait_type: should be empty when status={status}")
+
+        rollback_to = step.get("rollback_to")
+        if status == "rolled_back" and not is_non_empty_string(rollback_to):
+            result.error(f"{label}.rollback_to: required when status=rolled_back")
+        if status != "rolled_back" and rollback_to not in (None, "", "null"):
+            result.warn(f"{label}.rollback_to: should be empty when status={status}")
+
+        updated_at = step.get("updated_at")
+        if updated_at not in (None, "", "null"):
+            parse_iso_timestamp(f"{label}.updated_at", updated_at, result)
+
+        if "[WAIT_USER]" in step_id and status != "wait_user":
+            result.error(f"{label}: step id suffix [WAIT_USER] requires status=wait_user")
+        if "[WAIT_AGENT]" in step_id and status != "wait_agent":
+            result.error(f"{label}: step id suffix [WAIT_AGENT] requires status=wait_agent")
+
+    if len(in_progress) > 1:
+        result.error(f"at most one step can be in_progress, got: {in_progress}")
+
+    return {
+        "step_ids": ids,
+        "status_counts": status_counts,
+        "in_progress": in_progress,
+        "wait_user": wait_user,
+        "wait_agent": wait_agent,
+        "rolled_back": rolled_back,
+    }
+
+
+def validate_page_items(pages_obj: dict[str, Any], result: ValidationResult) -> dict[str, Any]:
+    total_raw = pages_obj.get("total")
+    if not isinstance(total_raw, int) or total_raw <= 0:
+        result.error("pages.total: must be a positive integer")
+        total = None
+    else:
+        total = total_raw
+
+    items_raw = pages_obj.get("items")
+    if not isinstance(items_raw, list):
+        result.error("pages.items: must be a list")
+        items: list[dict[str, Any]] = []
+    else:
+        items = [item for item in items_raw if isinstance(item, dict)]
+        if len(items) != len(items_raw):
+            result.error("pages.items: each entry must be an object")
+
+    seen_pages: set[int] = set()
+    completed_pages: list[int] = []
+    in_progress_pages: list[int] = []
+    failed_pages: list[int] = []
+
+    for index, item in enumerate(items, start=1):
+        label = f"pages.items[{index}]"
+        page = item.get("page")
+        if not isinstance(page, int) or page <= 0:
+            result.error(f"{label}.page: must be a positive integer")
+            continue
+        if total is not None and page > total:
+            result.error(f"{label}.page: exceeds pages.total={total}")
+        if page in seen_pages:
+            result.error(f"{label}.page: duplicate page index {page}")
+            continue
+        seen_pages.add(page)
+
+        status = str(item.get("status") or "").strip().lower()
+        if status not in PAGE_STATUS_VALUES:
+            result.error(f"{label}.status: must be one of {sorted(PAGE_STATUS_VALUES)}")
+        elif status == "done":
+            completed_pages.append(page)
+        elif status == "in_progress":
+            in_progress_pages.append(page)
+        elif status == "failed":
+            failed_pages.append(page)
+
+        phase = item.get("current_phase")
+        if not is_non_empty_string(phase):
+            result.error(f"{label}.current_phase: must be a non-empty string")
+        else:
+            phase_norm = str(phase).strip().lower()
+            if phase_norm not in PAGE_PHASE_VALUES:
+                result.error(f"{label}.current_phase: must be one of {sorted(PAGE_PHASE_VALUES)}")
+            if status == "done" and phase_norm != "closed":
+                result.warn(f"{label}: status=done but current_phase is {phase_norm!r}, expected 'closed'")
+
+        artifacts = item.get("artifacts")
+        if artifacts is not None and not isinstance(artifacts, dict):
+            result.error(f"{label}.artifacts: must be an object when provided")
+
+    if total is not None and len(items) > total:
+        result.error("pages.items: entry count cannot exceed pages.total")
+
+    return {
+        "total": total,
+        "items": len(items),
+        "completed_pages": sorted(completed_pages),
+        "in_progress_pages": sorted(in_progress_pages),
+        "failed_pages": sorted(failed_pages),
+    }
+
+
+def validate_pre_step1(data: dict[str, Any], steps: list[dict[str, Any]], page_summary: dict[str, Any], result: ValidationResult) -> None:
+    for index, step in enumerate(steps, start=1):
+        step_id = str(step.get("id") or "")
+        status = str(step.get("status") or "").strip().lower()
+        if step_id.startswith("P0."):
+            continue
         if status != "pending":
-            result.error(f"--require-pre-step1: steps.{step_key}.status must be 'pending'")
+            result.error(f"--require-pre-step1: steps[{index}] ({step_id}) must be pending")
 
-    step4 = step_entries.get("step_4", {})
-    if step4.get("completed_pages") not in (None, []):
-        result.error("--require-pre-step1: steps.step_4.completed_pages must be []")
-    if not is_nullish(step4.get("current_page")):
-        result.error("--require-pre-step1: steps.step_4.current_page must be null")
+    current_step = data.get("current_step")
+    if current_step not in (None, "", "null") and not str(current_step).startswith("P0."):
+        result.error("--require-pre-step1: current_step must be empty or a P0.* step")
 
-    for step_key in ("step_5b", "step_5c"):
-        entry = step_entries.get(step_key, {})
-        if entry.get("completed_pages") not in (None, []):
-            result.error(f"--require-pre-step1: steps.{step_key}.completed_pages must be []")
+    branch = normalize_branch(data.get("branch"))
+    if branch in BRANCH_VALUES:
+        result.error("--require-pre-step1: branch must be empty before Step 1 decision")
 
-    step5d = step_entries.get("step_5d", {})
-    if step5d.get("round") not in (None, 0):
-        result.error("--require-pre-step1: steps.step_5d.round must be 0")
-    if not is_nullish(step5d.get("mode")):
-        result.error("--require-pre-step1: steps.step_5d.mode must be null")
-
-    step6 = step_entries.get("step_6", {})
-    if not is_nullish(step6.get("pipeline")):
-        result.error("--require-pre-step1: steps.step_6.pipeline must be null")
+    for name in ("completed_pages", "in_progress_pages", "failed_pages"):
+        values = page_summary.get(name) or []
+        if values:
+            result.error(f"--require-pre-step1: pages.{name} must be empty")
 
 
 def validate_progress(path: Path, require_pre_step1: bool) -> tuple[ValidationResult, dict[str, Any]]:
     result = ValidationResult()
     data = read_payload(path)
 
-    for field_name in ("version", "topic", "complexity", "total_pages", "started_at", "last_updated", "steps"):
+    required_fields = (
+        "version",
+        "run_id",
+        "topic",
+        "state",
+        "started_at",
+        "last_updated",
+        "steps",
+    )
+    for field_name in required_fields:
         if field_name not in data:
             result.error(f"missing required field: {field_name}")
 
@@ -167,91 +330,74 @@ def validate_progress(path: Path, require_pre_step1: bool) -> tuple[ValidationRe
 
     if not is_non_empty_string(data.get("version")):
         result.error("version: must be a non-empty string")
+    if not is_non_empty_string(data.get("run_id")):
+        result.error("run_id: must be a non-empty string")
     if not is_non_empty_string(data.get("topic")):
         result.error("topic: must be a non-empty string")
 
-    complexity = data.get("complexity")
-    if complexity not in COMPLEXITY_VALUES:
-        result.error(f"complexity: must be one of {sorted(COMPLEXITY_VALUES)}")
+    state = normalize_state(data.get("state"))
+    if state not in RUN_STATE_VALUES:
+        result.error(f"state: must be one of {sorted(RUN_STATE_VALUES)}")
 
-    total_pages_raw = data.get("total_pages")
-    total_pages: int | None = None
-    if not isinstance(total_pages_raw, int) or total_pages_raw <= 0:
-        result.error("total_pages: must be a positive integer")
-    else:
-        total_pages = total_pages_raw
+    branch = normalize_branch(data.get("branch"))
+    if branch is not None and branch not in BRANCH_VALUES:
+        result.error(f"branch: must be null or one of {sorted(BRANCH_VALUES)}")
 
     started_at = parse_iso_timestamp("started_at", data.get("started_at"), result)
     last_updated = parse_iso_timestamp("last_updated", data.get("last_updated"), result)
     if started_at and last_updated and last_updated < started_at:
         result.error("last_updated: must be >= started_at")
 
-    steps = data.get("steps")
-    if not isinstance(steps, dict):
-        result.error("steps: must be an object")
-        return result, {"errors": len(result.errors), "warnings": len(result.warnings)}
+    steps = normalize_steps(data.get("steps"), result)
+    if not steps:
+        result.error("steps: must contain at least one step")
 
-    missing_steps = [key for key in STEP_KEYS if key not in steps]
-    if missing_steps:
-        result.error(f"steps missing keys: {missing_steps}")
+    step_summary = validate_steps(steps, result)
+    step_ids = step_summary.get("step_ids", set())
 
-    extra_steps = [key for key in steps.keys() if key not in STEP_KEYS]
-    if extra_steps:
-        result.warn(f"steps has unknown keys: {extra_steps}")
+    current_step = data.get("current_step")
+    if current_step not in (None, "", "null"):
+        if not is_non_empty_string(current_step):
+            result.error("current_step: must be string or null")
+        elif str(current_step).strip() not in step_ids:
+            result.error("current_step: must match an existing steps[].id")
 
-    step_entries: dict[str, dict[str, Any]] = {}
-    in_progress_steps: list[str] = []
-    for step_key in STEP_KEYS:
-        if step_key not in steps:
-            continue
-        entry = validate_status_entry(steps, step_key, result)
-        step_entries[step_key] = entry
-        if entry.get("status") == "in_progress":
-            in_progress_steps.append(step_key)
+    page_summary = {
+        "total": None,
+        "items": 0,
+        "completed_pages": [],
+        "in_progress_pages": [],
+        "failed_pages": [],
+    }
+    pages = data.get("pages")
+    if pages is not None:
+        if not isinstance(pages, dict):
+            result.error("pages: must be an object when provided")
+        else:
+            page_summary = validate_page_items(pages, result)
 
-    if len(in_progress_steps) > 1:
-        result.error(f"at most one step can be in_progress, got: {in_progress_steps}")
-
-    step4 = step_entries.get("step_4", {})
-    step4_pages = validate_page_list(step4.get("completed_pages", []), "steps.step_4.completed_pages", total_pages, result)
-    current_page = step4.get("current_page")
-    if not is_nullish(current_page):
-        if not isinstance(current_page, int):
-            result.error("steps.step_4.current_page: must be integer or null")
-        elif current_page < 1:
-            result.error("steps.step_4.current_page: must be >= 1")
-        elif total_pages is not None and current_page > total_pages:
-            result.error(f"steps.step_4.current_page: exceeds total_pages={total_pages}")
-    if step4.get("status") == "done" and total_pages is not None and len(step4_pages) != total_pages:
-        result.warn("steps.step_4.status=done but completed_pages does not cover all pages")
-
-    for step_key in ("step_5b", "step_5c"):
-        entry = step_entries.get(step_key, {})
-        pages = validate_page_list(entry.get("completed_pages", []), f"steps.{step_key}.completed_pages", total_pages, result)
-        if entry.get("status") == "done" and total_pages is not None and len(pages) != total_pages:
-            result.warn(f"steps.{step_key}.status=done but completed_pages does not cover all pages")
-
-    step5d = step_entries.get("step_5d", {})
-    round_value = step5d.get("round")
-    if not isinstance(round_value, int) or round_value < 0:
-        result.error("steps.step_5d.round: must be an integer >= 0")
-    mode = step5d.get("mode")
-    if not is_nullish(mode) and mode not in REVIEW_MODE_VALUES:
-        result.error(f"steps.step_5d.mode: must be null or one of {sorted(REVIEW_MODE_VALUES)}")
-
-    step6 = step_entries.get("step_6", {})
-    pipeline = step6.get("pipeline")
-    if not is_nullish(pipeline) and not is_non_empty_string(pipeline):
-        result.error("steps.step_6.pipeline: must be null or non-empty string")
+    if state == "WAIT_USER" and not step_summary.get("wait_user"):
+        result.error("state=WAIT_USER but no step has status=wait_user")
+    if state == "WAIT_AGENT" and not step_summary.get("wait_agent"):
+        result.error("state=WAIT_AGENT but no step has status=wait_agent")
+    if state == "ROLLBACK" and not step_summary.get("rolled_back"):
+        result.error("state=ROLLBACK but no step has status=rolled_back")
+    if state == "DONE":
+        if step_summary.get("in_progress") or step_summary.get("wait_user") or step_summary.get("wait_agent"):
+            result.error("state=DONE requires no in_progress/wait_* steps")
 
     if require_pre_step1:
-        validate_pre_step1(steps, step_entries, result)
+        validate_pre_step1(data, steps, page_summary, result)
 
     summary = {
         "version": data.get("version"),
-        "complexity": data.get("complexity"),
-        "total_pages": total_pages,
-        "in_progress_steps": in_progress_steps,
+        "run_id": data.get("run_id"),
+        "state": state,
+        "branch": branch,
+        "current_step": data.get("current_step"),
+        "step_count": len(steps),
+        "status_counts": step_summary.get("status_counts", {}),
+        "pages": page_summary,
         "require_pre_step1": require_pre_step1,
         "errors": len(result.errors),
         "warnings": len(result.warnings),
@@ -275,7 +421,7 @@ def write_report(path: str | None, payload: dict[str, Any]) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate progress.json lifecycle contracts")
+    parser = argparse.ArgumentParser(description="Validate progress.json lifecycle contracts (v4)")
     parser.add_argument("path", help="Path to progress.json")
     parser.add_argument(
         "--require-pre-step1",

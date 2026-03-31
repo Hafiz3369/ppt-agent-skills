@@ -1,6 +1,8 @@
 # 顶部英雄式版式
 
-> 重力场：顶部横贯的力量大坝 + 底部分散的轻量溪流
+> 2-4张卡片。Grid: 1fr 行 + auto 行。顶部大横幅占50-60%高度+底部小卡片横排。
+> 适用数据：1个 headline 数据/大图 + 多个辅助指标。常见于 metrics 汇总页。
+> 顶部 anchor 用 elevated/accent，底部 supports 用 outline/transparent 横排。
 
 适用：总分结构。一个统领全局的综述区铺满顶部，下方 2-4 个子项承接细节。
 

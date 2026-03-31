@@ -1,6 +1,9 @@
 # timeline（时间线块）-- 时间的河流
 
-> 让观众感受到事件的流动、进程的动力、历史的脉络。
+> 适用数据类型：timelines / journey_map / gantt_data。横向/纵向轴线+节点。
+> 结构：orientation(horizontal/vertical) + nodes[]({time, title, description, highlight})。
+> 设计要点：highlight 节点用 accent 实心+更大尺寸，普通节点描边+小尺寸。4-8节点为宜，超过8个拆页。
+> 推荐 card_style：transparent（自带轴线骨架）。推荐布局：l-shape / waterfall。
 
 ## JSON 结构不变（策划稿中的数据格式）
 ```json

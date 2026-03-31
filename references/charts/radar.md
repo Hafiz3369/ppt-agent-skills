@@ -1,8 +1,12 @@
 # 雷达图 / 蜘蛛网图（多维度对比）
 
+> 适用数据类型：score_card。多边形面积=综合实力。
+> 数据需求：3-6个维度，每维度需有 dimension_name + value(0-100)。
+> PPTX 友好实现：内联 SVG polygon，网格线用 stroke-dasharray，数据多边形用 fill-opacity:0.3。不用 canvas。
+
 `chart_type: radar`
 
-> **视觉灵魂**：多边形的"饱满度"直观传达"综合实力" -- 面积越大越强，凹陷越深越是短板。
+> 适用数据：score_card。多边形面积=综合实力，3-6维度为宜，需有维度名+数值。
 
 ## 结构骨架
 

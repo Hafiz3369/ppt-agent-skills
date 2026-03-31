@@ -1,8 +1,12 @@
 # 对比柱（两项对比）
 
+> 适用数据类型：before_after / scenario_comparison。两根柱子高度差=结论。
+> 数据需求：2组数据，每组需有 label + value。柱宽 >=40px，间距16px，总宽度自适应容器。
+> PPTX 友好实现：纯 CSS div 高度百分比（不用 canvas/chart.js），柱体直接用 var(--accent-1) 和 var(--accent-2)。
+
 `chart_type: comparison_bar`
 
-> **视觉灵魂**：两根柱子的高度差就是结论 -- 观众一眼就能看出"谁更高"，不需要读数字就能理解对比结果。
+> 适用数据：before_after / scenario_comparison。两根柱子高度差=结论，适合2项直接对比，数据需有数值和标签。
 
 ## 结构骨架
 

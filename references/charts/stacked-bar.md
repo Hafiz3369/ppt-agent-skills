@@ -1,8 +1,12 @@
 # 堆叠条形图（多分类占比对比）
 
+> 适用数据类型：distribution_data / cost_breakdown。一根柱子内的成分分析。
+> 数据需求：2-5个分类，每分类需有 label + value + color。多根并排时可对比不同类别。
+> PPTX 友好实现：flex 横排 div，每段宽度按比例，用 var(--accent-N) 配色。
+
 `chart_type: stacked_bar`
 
-> **视觉灵魂**：一根柱子里的"成分分析" -- 不同颜色的色段长度直观展示各部分在总量中的占比。多根并排时可以快速对比"不同类别的成分构成差异"。
+> 适用数据：distribution_data / cost_breakdown。一根柱子内的成分分析，不同色段=不同组成，适合多类别占比对比。
 
 ## 结构原理
 

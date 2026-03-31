@@ -1,6 +1,9 @@
 # people（人物组块）-- 面孔的力量
 
-> 用面孔拉近与观众的距离。人天生对面孔有最强的注意力反应。
+> 适用数据类型：team_profiles / user_testimonials。
+> 结构：persons[]({name, title, avatar_desc, quote?})，3-6人一组。
+> 设计要点：圆形头像占位+姓名+职位，引述用斜体+小字号。无真实照片时用渐变色块+首字母。
+> 推荐 card_style：filled/outline。推荐布局：symmetric / three-column。
 
 ## JSON 结构
 ```json

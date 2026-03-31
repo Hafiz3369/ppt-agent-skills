@@ -71,7 +71,7 @@ style.json 不仅是 CSS 变量的容器，更是整个 PPT **视觉灵魂的基
 | `variation_strategy` | 跨页变奏策略 -- 描述页间变化的节奏和手法 | 引导设计师在统一基因下制造灵动跳变 |
 | `decoration_dna` | 装饰基因（标志手法/禁止手法/推荐组合） | 确保装饰选择既灵动又不跳戏 |
 | `css_variables` | 纯色值变量 -- 全局一致性的硬保证 | 直接映射为 CSS :root 变量 |
-| `css_snippets` | 固化 CSS 片段 -- 标题样式/列表标记/正文字号/间距等**非颜色**维度的跨页一致性硬锚点 | 由 `scripts/prompt_assembler.py` 注入每页 prompt-ready，LLM 必须严格使用这些固定样式 |
+| `css_snippets` | 固化 CSS 片段 -- 标题样式/列表标记/正文字号/间距等**非颜色**维度的跨页一致性硬锚点 | 由 `scripts/resource_loader.py` 注入每页 prompt-ready，LLM 必须严格使用这些固定样式 |
 
 > **关键区分**：`design_soul` 和 `variation_strategy` 是给 LLM 的"设计意图上下文"，而非具体的 CSS 代码。它们解决的是"为什么选这些颜色、页间怎么变化"的灵魂问题，而不是"这个元素用什么 CSS"的实现问题。
 

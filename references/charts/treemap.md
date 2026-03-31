@@ -1,8 +1,12 @@
 # 矩形树图 Treemap（层级结构占比）
 
+> 适用数据类型：distribution_data / cost_breakdown。面积大小=重要性大小。
+> 数据需求：4-12个项目，每项需有 label + value。
+> PPTX 友好实现：CSS Grid 计算面积占比，每格用不同 accent 色+白色标签。不用 D3。
+
 `chart_type: treemap`
 
-> **视觉灵魂**：面积大小 = 重要性大小。人脑对面积差异的感知是本能的 -- 不需要数字就能看出"谁是大块头"。
+> 适用数据：distribution_data / cost_breakdown。面积大小=重要性大小，适合层级结构占比可视化，需有标签+数值。
 
 ## 结构原理
 

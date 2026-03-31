@@ -1,6 +1,8 @@
 # 三栏等宽版式
 
-> 重力场：三个均衡的信息脉冲横向排列，如三面旗帜并立
+> 3张卡片。Grid: 1fr 1fr 1fr 列。三栏等宽并列。
+> 适用数据：parallel_items / pricing_plans / team_profiles（3个等重并列元素）。
+> 每列 card_style 必须至少用2种（如 filled+accent+outline），禁止3个全 filled。
 
 适用：3 个并列比较（三大优势、三个阶段、三个产品线）
 

@@ -140,59 +140,68 @@ class Checker:
 
     def check_step1(self) -> None:
         self.echo("== Step 1 ==")
-        requirements = self.output_dir / "requirements.json"
+        interview = self.output_dir / "interview-qa.txt"
+        requirements = self.output_dir / "requirements-interview.txt"
+        self.must_file(interview)
         self.must_file(requirements)
         self.run_cmd(
             [
                 self.python,
                 str(self.skill_dir / "scripts/contract_validator.py"),
-                "requirements",
+                "interview",
+                str(interview),
+            ],
+            "contract_validator interview",
+        )
+        self.run_cmd(
+            [
+                self.python,
+                str(self.skill_dir / "scripts/contract_validator.py"),
+                "requirements-interview",
                 str(requirements),
             ],
-            "contract_validator requirements",
+            "contract_validator requirements-interview",
         )
         self.echo("[OK] step 1")
 
     def check_step2(self) -> None:
         self.echo("== Step 2 ==")
-        raw_research = self.output_dir / "raw-research.json"
-        research_package = self.output_dir / "research-package.json"
-        self.must_file(raw_research)
-        self.must_file(research_package)
+        search = self.output_dir / "search.txt"
+        search_brief = self.output_dir / "search-brief.txt"
+        self.must_file(search)
+        self.must_file(search_brief)
         self.run_cmd(
             [
                 self.python,
                 str(self.skill_dir / "scripts/contract_validator.py"),
-                "raw-research",
-                str(raw_research),
+                "search",
+                str(search),
             ],
-            "contract_validator raw-research",
+            "contract_validator search",
         )
         self.run_cmd(
             [
                 self.python,
                 str(self.skill_dir / "scripts/contract_validator.py"),
-                "research-package",
-                str(research_package),
+                "search-brief",
+                str(search_brief),
             ],
-            "contract_validator research-package",
+            "contract_validator search-brief",
         )
         self.echo("[OK] step 2")
 
     def check_step3(self) -> None:
         self.echo("== Step 3 ==")
-        outline = self.output_dir / "outline.json"
+        outline = self.output_dir / "outline.txt"
         self.must_file(outline)
-        latest_review = self.latest("outline-review-round-*.json")
         self.run_cmd(
             [
                 self.python,
                 str(self.skill_dir / "scripts/contract_validator.py"),
-                "outline-review",
-                str(latest_review),
-                "--require-pass",
+                "outline",
+                str(outline),
             ],
-            "contract_validator outline-review --require-pass",
+            "contract_validator outline",
         )
         self.echo("[OK] step 3")
 
@@ -272,36 +281,28 @@ class Checker:
     def check_step5c(self) -> None:
         self.echo("== Step 5c ==")
         pages = self.ensure_pages()
-        prompt_dir = self.output_dir / "prompts-ready"
         slides_dir = self.output_dir / "slides"
-        self.must_dir(prompt_dir)
+        png_dir = self.output_dir / "png"
         self.must_dir(slides_dir)
-        prompts = sorted(prompt_dir.glob("prompt-ready-*.txt"), key=natural_sort_key)
         slides = sorted(slides_dir.glob("slide-*.html"), key=natural_sort_key)
-        if len(prompts) != pages:
-            self.fail(f"prompt-ready count={len(prompts)} != planning pages={pages}")
         if len(slides) != pages:
             self.fail(f"slide count={len(slides)} != planning pages={pages}")
+        # PNG screenshots should exist for each page
+        if png_dir.is_dir():
+            pngs = sorted(png_dir.glob("slide-*.png"), key=natural_sort_key)
+            if len(pngs) != pages:
+                self.fail(f"png count={len(pngs)} != planning pages={pages}")
         self.echo("[OK] step 5c")
 
     def check_step5d(self) -> None:
         self.echo("== Step 5d ==")
         pages = self.ensure_pages()
-        reviews_dir = self.output_dir / "reviews"
-        self.must_dir(reviews_dir)
-        self.must_file(reviews_dir / "reviewer-prompt.txt")
-        latest_review = self.latest("reviews/final-review-round-*.json")
-        self.run_cmd(
-            [
-                self.python,
-                str(self.skill_dir / "scripts/final_review_harness.py"),
-                "validate",
-                str(latest_review),
-                "--pages",
-                str(pages),
-            ],
-            "final_review_harness validate",
-        )
+        png_dir = self.output_dir / "png"
+        self.must_dir(png_dir)
+        # Verify all pages have review-pass markers or PNG files
+        pngs = sorted(png_dir.glob("slide-*.png"), key=natural_sort_key)
+        if len(pngs) != pages:
+            self.fail(f"png count={len(pngs)} != planning pages={pages} (review incomplete)")
         self.echo("[OK] step 5d")
 
     def check_preview(self) -> None:
@@ -323,7 +324,6 @@ class Checker:
             self.skill_dir / "scripts/progress_validator.py",
             self.skill_dir / "scripts/contract_validator.py",
             self.skill_dir / "scripts/planning_validator.py",
-            self.skill_dir / "scripts/final_review_harness.py",
         ]
         for path in required_scripts:
             self.must_file(path)

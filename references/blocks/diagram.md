@@ -1,6 +1,9 @@
 # diagram（图解块）-- 结构的星图
 
-> 让抽象的架构、关系、层级变得可触摸、可感知。
+> 适用数据类型：hierarchies / architecture_diagram / cycle_flow / decision_tree / pyramid_layers / stakeholder_map。
+> 结构：nodes[]节点 + edges[]连线，支持 layered/radial/tree/flowchart 四种布局模式。
+> 实现方式不限：CSS Grid嵌套盒子、内联SVG节点连线、Flexbox+伪元素连接线。
+> 推荐 card_style：transparent（自带视觉骨架，方块包裹会干扰）。推荐布局：single-focus / t-shape。
 
 ## JSON 结构
 ```json

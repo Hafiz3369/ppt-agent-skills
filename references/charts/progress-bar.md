@@ -1,8 +1,12 @@
 # 进度条（百分比/完成度）
 
+> 适用数据类型：progress_tracker。填充长度=完成度。
+> 数据需求：percentage(0-100) + label + 可选 milestone_markers[]。
+> PPTX 友好实现：外层 div(background:轨道色) + 内层 div(width:N%, background:渐变)，高度 8-12px 圆角。
+
 `chart_type: progress_bar`
 
-> **视觉灵魂**：一条横向的"已完成 vs 未完成"对比 -- 填充长度就是答案，观众瞬间理解"到了哪里"。
+> 适用数据：progress_tracker。填充长度=完成度，需有百分比数值+标签，适合单指标进度展示。
 
 ## 结构骨架
 

@@ -1,8 +1,13 @@
 # KPI 指标卡（数字+趋势箭头+标签）
 
+> 适用数据类型：metrics / number_highlights / milestone_results。
+> 数据需求：单个核心数字 + 趋势方向(up/down/flat) + 变化百分比 + 标签。
+> 结构：大数字 font-size:40-64px font-weight:800 + SVG三角箭头(16x16) + 变化值 + 标签。
+> PPTX 友好实现：纯 HTML+CSS，箭头用内联SVG polygon，tabular-nums 对齐数字。
+
 `chart_type: kpi`
 
-> **视觉灵魂**：一个大数字 + 一个趋势箭头 = PPT 中最有冲击力的数据组合。大数字是"是什么"，箭头是"往哪走"，标签是"在说谁"。
+> 适用数据：metrics / number_highlights / milestone_results。大数字+趋势箭头+标签，单个核心指标的极致冲击力呈现。
 
 ## 结构骨架
 

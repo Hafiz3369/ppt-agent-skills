@@ -5,7 +5,7 @@
 >
 > **消费方式**：
 > - Planning sub-agent 根据页面消费的数据类型，从本表查推荐 T/W 组合
-> - `scripts/prompt_assembler_density.py` 根据页面 card_type 组合计算 `decoration_budget` 精细化档位
+> - `scripts/resource_loader.py` 根据页面 card_type 组合计算 `decoration_budget` 精细化档位
 > - 同一页面存在多种数据类型时，取各自推荐的并集，但总量不超过 3T + 3W
 
 ## 装饰密度分级

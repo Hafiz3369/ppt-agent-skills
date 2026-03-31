@@ -1,6 +1,9 @@
 # comparison（对比块）-- 碰撞的擂台
 
-> 让两个方案/概念/路径在视觉上正面交锋，让观众自己得出结论。
+> 适用数据类型：before_after / pros_cons / scenario_comparison / competitive_matrix。
+> 结构：双面板正面对比，left+right各含label、points[]、accent色设定，底部可选verdict总结句。
+> 设计要点：右侧推荐方案用更强accent色+更大字号+更丰满内容，左侧中性色+克制排版 -- 视觉上引导结论。
+> 推荐 card_style：outline（轻轻分隔两面板）。推荐布局：symmetric。
 
 ## JSON 结构
 ```json

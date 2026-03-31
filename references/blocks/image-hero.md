@@ -1,6 +1,9 @@
 # image_hero（大图+叠加文字块）-- 画面的沉浸
 
-> 用一张精心构图的图片制造情感冲击波，文字在图像之上轻盈悬浮。
+> 适用数据类型：image_candidates。全幅图片+叠加文字，制造情感冲击。
+> 结构：需指定 image.usage(hero-background/inline-illustration) + image.placement(full-bleed/left-half) + image.content_description。
+> 推荐 card_style：transparent/glass（大图不需边框束缚，或毛玻璃让文字浮在图上）。
+> 适用页面类型：cover / section 等氛围页。一页最多1个 image_hero。
 
 ## JSON 结构
 ```json

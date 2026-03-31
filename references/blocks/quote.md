@@ -1,6 +1,9 @@
 # quote（引用/金句块）-- 灵魂的锚点
 
-> 用权威之声或颠覆性观点，让全场安静一秒。金句是演讲中最有力量的"减速带"。
+> 适用数据类型：expert_quotes / user_testimonials。大引号+金句独立悬浮。
+> 结构：quote_text + attribution(name, title, organization)。
+> 设计要点：超大装饰引号(font-size:120px, opacity:0.1)、引文 font-size:28-36px、来源 font-size:14px。
+> 推荐 card_style：transparent（文字靠自身重力撑住画面），1页最多1个 quote 卡。
 
 ## JSON 结构
 ```json

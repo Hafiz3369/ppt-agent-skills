@@ -1,104 +1,76 @@
 # References Index
 
-本目录现在只保留“按职责分层后的 markdown 真源”。根目录不再堆放 playbook、runtime、design/runtime 规则和 ops 文档。
+本目录包含 PPT 工作流的全部资源文件。由 `resource_loader.py` 动态加载到 subagent 上下文中。
 
-## 热路径
+## 目录结构
 
-主控制台或被调用脚本会直接命中的第一层入口：
+```
+references/
+  playbooks/          -- subagent 执行细则（3 个）
+  prompts/            -- prompt 模板（5 个 tpl-*.md）
+  layouts/            -- 版式资源（10 种）
+  blocks/             -- 区域展示组件（8 种 + card-styles）
+  charts/             -- 图表组件（13 种 + runtime-chart-rules）
+  styles/             -- 风格主题（8 种 + runtime-style-rules）
+  principles/         -- 设计原则（7 种 + runtime-failure-modes）
+  page-templates/     -- 页面结构模板（cover/toc/section/end）
+  design-runtime/     -- 数据类型映射 + 设计规格 + CSS 武器库
+```
 
-- `ops/workflow-ops.md`
-- `ops/resource-registry.md`
-- `runtime/resource-menu.md`
-- `runtime/image-generation.md`
-- `runtime/narrative-rhythm.md`
-- `runtime/technique-cards.md`
-- `prompts/prompt-1-research.md`
-- `prompts/prompt-2-outline.md`
-- `prompts/prompt-3-planning.md`
-- `prompts/prompt-4-design.md`
-- `playbooks/*.md`
+## 核心入口
 
-理解仓库时，先读这些，不要从资源库细项开始。
+先读这些，再看资源库细项：
 
-## 1. Playbooks
+1. `SKILL.md` -- 编排合同（唯一真源）
+2. `playbooks/page-agent-playbook.md` -- 单页全链路执行细则
+3. `playbooks/research-synth-playbook.md` -- 搜集整理执行细则
+4. `playbooks/outline-subagent-playbook.md` -- 大纲+自审执行细则
 
-sub-agent 执行细则真源：
+## Prompt 模板
 
-- `playbooks/research-subagent-playbook.md`
-- `playbooks/material-prep-subagent-playbook.md`
-- `playbooks/outline-subagent-playbook.md`
-- `playbooks/outline-review-subagent-playbook.md`
-- `playbooks/planning-subagent-playbook.md`
-- `playbooks/html-subagent-playbook.md`
-- `playbooks/review-subagent-playbook.md`
+`tpl-*.md` 文件由 `scripts/prompt_harness.py` 填充 `{{VAR}}` 变量后发给 subagent：
 
-## 2. Runtime
+| 模板 | 阶段 | 变量 |
+|------|------|------|
+| `tpl-interview.md` | Step 1 采访 | TOPIC |
+| `tpl-research-synth.md` | Step 2A 搜集 | TOPIC, REQUIREMENTS_PATH, TOOLS_AVAILABLE |
+| `tpl-outline.md` | Step 3 大纲 | REQUIREMENTS_PATH, BRIEF_PATH, OUTLINE_OUTPUT |
+| `tpl-style.md` | Step 3.5 风格 | REQUIREMENTS_PATH, OUTLINE_PATH, STYLE_OUTPUT |
+| `tpl-page-agent.md` | Step 4-5 单页 | PAGE_NUM, PLANNING_OUTPUT, SLIDE_OUTPUT, ... |
 
-运行期共享合同和主链参考：
+## 资源库
 
-- `runtime/resource-menu.md`
-- `runtime/image-generation.md`
-- `runtime/narrative-rhythm.md`
-- `runtime/technique-cards.md`
+6 个资源目录由 `scripts/resource_loader.py` 管理：
 
-## 3. Design Runtime
+- **menu 模式**：提取所有 `# 标题` + `> 引用`（多行 blockquote）-> planning 阶段消费
+- **resolve 模式**：按 planning JSON 字段路由加载对应资源正文 -> html 阶段消费
 
-设计/运行规则补充：
+字段路由表：
 
-- `design-runtime/design-specs.md`
-- `design-runtime/css-weapons.md`
-- `design-runtime/director-command-rules.md`
-- `design-runtime/director-command-examples.md`
-- `design-runtime/data-type-visual-mapping.md`
-- `design-runtime/data-type-decoration-mapping.md`
+| planning 字段 | 资源目录 |
+|---------------|---------|
+| `layout_hint` | `layouts/` |
+| `card_type` | `blocks/` |
+| `chart_type` | `charts/` |
+| `page_type` | `page-templates/` |
+| `resources.*_refs` | 对应目录 |
 
-## 4. Ops
+## Design Runtime
 
-运行辅助与资源映射：
+数据到视觉的桥梁文件：
 
-- `ops/workflow-ops.md`
-- `ops/resource-registry.md`
+| 文件 | 用途 |
+|------|------|
+| `data-type-visual-mapping.md` | 数据类型 -> card_type + layout + CSS 实现参考 |
+| `data-type-decoration-mapping.md` | 数据类型 -> 装饰技法(T) + 武器(W) + 密度 |
+| `design-specs.md` | 画布规范、排版阶梯、卡片规则 |
+| `css-weapons.md` | CSS 高级武器库 W1-W12 |
+| `director-command-rules.md` | director_command 运行规则 |
+| `director-command-examples.md` | 10 种页面类型示例库 |
 
-## 5. Prompts
+## 维护规则
 
-- `prompts/prompt-1-research.md`
-- `prompts/prompt-2-outline.md`
-- `prompts/prompt-3-planning.md`
-- `prompts/prompt-4-design.md`
-- `prompts/prompt-4-design-global.md`
-- `prompts/prompt-4-design-compact.md`
-
-## 6. Resource Libraries
-
-- `layouts/`
-- `blocks/`
-- `charts/`
-- `page-templates/`
-- `styles/`
-- `principles/`
-
-这些目录是 `scripts/prompt_assembler.py`、`scripts/planning_validator.py`、`scripts/resource_registry.py` 的静态资源来源。它们数量多，但不是主链入口。
-
-## 目录边界
-
-不应再出现：
-
-- `copy/` 里的 markdown 备份进入 runtime
-- `scripts/` 下的 markdown 镜像副本目录（例如历史上的 scripts references 镜像目录）
-- 与当前主链无关的历史 prompt 或过时 playbook 混回根目录
-
-如果新增 markdown：
-
-1. 先判断职责是 `playbooks / runtime / design-runtime / ops / prompts / resource library`
-2. 根目录只保留 `README.md`
-3. 入口文档放对应职责子目录，不再回到 `references/` 根目录
-4. 不要再复制一份到 `scripts/` 或 `copy/`
-
-## 当前阅读顺序建议
-
-1. `SKILL.md`
-2. `references/README.md`
-3. `scripts/README.md`
-4. `references/ops/` 与 `references/playbooks/`
-5. `references/runtime/` 与 `references/prompts/`
-6. 最后才是 `layouts/`、`blocks/`、`charts/`、`styles/`、`principles/`
+- 新增资源文件放到对应目录，`resource_loader.py` 自动发现
+- 每个资源文件必须有 `# 标题` + `> 多行引用`（数据类型、适用场景、约束）
+- 不要在根目录放文件，不要创建新的子目录
+- `runtime-*` 前缀的文件被 resource_loader 跳过（仅供主链直接读取）

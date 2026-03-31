@@ -1,6 +1,9 @@
 # matrix_chart（象限矩阵块）-- 象限的定位
 
-> 用二维坐标揭示战略位置。象限图是商业决策中最直觉、最有说服力的工具。
+> 适用数据类型：matrix_data / swot / competitive_matrix。2x2象限坐标定位。
+> 结构：axes(x_label, y_label) + quadrants[4]({label, items[], color})。
+> 设计要点：每象限独立色块，items用定位圆点标记，适合战略分析和多维评估。
+> 推荐布局：single-focus / primary-secondary。
 
 ## JSON 结构
 ```json

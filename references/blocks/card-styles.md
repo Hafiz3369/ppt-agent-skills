@@ -1,7 +1,9 @@
 # 卡片视觉变体（card_style）-- PPTX 演讲设计语言
 
-> card_type 决定卡片"内容做什么"，card_style 决定卡片"长什么样"。
-> 同一页必须使用至少 2 种 card_style，打破"一堆同色方块"的单调感。
+> card_style 决策表：6种视觉存在感 -- filled(实体基底) / transparent(无界悬浮) / outline(虚境描边) / accent(灼焰核心) / glass(雾中幻影) / elevated(悬崖浮岩)。
+> 规则：每页 >=2 种混用打破单调，accent 和 elevated 各最多1个/页。
+> card_type 与 card_style 的内在共鸣：data_highlight 用 transparent/accent、quote 用 transparent、timeline/diagram 用 transparent（自带骨架不需方块）、comparison 用 outline、data/text/list 用 filled/outline。
+> 极致反差组合：accent+transparent+filled（燃烧vs虚空vs大地）、elevated+outline+transparent（浮岩vs气泡vs幽灵）。
 
 ## 设计哲学：每种变体是一种"空间存在感"
 
