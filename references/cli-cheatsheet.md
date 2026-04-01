@@ -108,13 +108,18 @@ python3 SKILL_DIR/scripts/contract_validator.py style OUTPUT_DIR/style.json
 
 ---
 
-## Step 4 单页生产
+## Step 4 单页生产（单 Subagent 分阶段注入上下文）
 
-Prompt 生成（每页一次，N 替换为页码，TOTAL 替换为总页数）：
+> **流程核心说明**：为每页创建一个独立的 `PageAgent-N`，它将通过主代理不同阶段的 **RUN** 继续累积记忆和执行专业任务。
+
+**创建该页专用子代理：**
+`创建 PageAgent-N (必须显性传递 --model MAIN_MODEL)`
+
+**4A. 给 PageAgent-N 发送 Planning 阶段上下文：**
 
 ```bash
 python3 SKILL_DIR/scripts/prompt_harness.py \
-  --template SKILL_DIR/references/prompts/tpl-page-agent.md \
+  --template SKILL_DIR/references/prompts/step4/tpl-page-planning.md \
   --var PAGE_NUM=N \
   --var TOTAL_PAGES=TOTAL \
   --var REQUIREMENTS_PATH=OUTPUT_DIR/requirements-interview.txt \
@@ -123,22 +128,50 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --var STYLE_PATH=OUTPUT_DIR/style.json \
   --var IMAGES_DIR=OUTPUT_DIR/images \
   --var PLANNING_OUTPUT=OUTPUT_DIR/planning/planningN.json \
-  --var SLIDE_OUTPUT=OUTPUT_DIR/slides/slide-N.html \
-  --var PNG_OUTPUT=OUTPUT_DIR/png/slide-N.png \
   --var SKILL_DIR=SKILL_DIR \
   --var REFS_DIR=SKILL_DIR/references \
-  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/page-agent-playbook.md \
-  --output OUTPUT_DIR/runtime/prompt-page-N.md
+  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/step4/page-planning-playbook.md \
+  --output OUTPUT_DIR/runtime/prompt-page-planning-N.md
 ```
+Gate 校验：
+`test -s OUTPUT_DIR/planning/planningN.json`
+ Gate 校验通过后，主代理继续生成下一条指令，在同一次对话内发放给 `PageAgent-N`。
 
-Gate 校验（每页）：
+**4B. 给 PageAgent-N 发送 HTML 阶段上下文：**
 
 ```bash
-test -s OUTPUT_DIR/planning/planningN.json
-python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning --refs SKILL_DIR/references --page N
-test -s OUTPUT_DIR/slides/slide-N.html
-test -s OUTPUT_DIR/png/slide-N.png
+python3 SKILL_DIR/scripts/prompt_harness.py \
+  --template SKILL_DIR/references/prompts/step4/tpl-page-html.md \
+  --var PAGE_NUM=N \
+  --var TOTAL_PAGES=TOTAL \
+  --var PLANNING_OUTPUT=OUTPUT_DIR/planning/planningN.json \
+  --var SLIDE_OUTPUT=OUTPUT_DIR/slides/slide-N.html \
+  --var IMAGES_DIR=OUTPUT_DIR/images \
+  --var STYLE_PATH=OUTPUT_DIR/style.json \
+  --var SKILL_DIR=SKILL_DIR \
+  --var REFS_DIR=SKILL_DIR/references \
+  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/step4/page-html-playbook.md \
+  --output OUTPUT_DIR/runtime/prompt-page-html-N.md
 ```
+Gate 校验通过后，主代理再次向 `PageAgent-N` 发放终极审查指令。
+
+**4C. 给 PageAgent-N 发送图片图审与自我修复代码上下文：**
+
+```bash
+python3 SKILL_DIR/scripts/prompt_harness.py \
+  --template SKILL_DIR/references/prompts/step4/tpl-page-review.md \
+  --var PAGE_NUM=N \
+  --var TOTAL_PAGES=TOTAL \
+  --var PLANNING_OUTPUT=OUTPUT_DIR/planning/planningN.json \
+  --var SLIDE_OUTPUT=OUTPUT_DIR/slides/slide-N.html \
+  --var PNG_OUTPUT=OUTPUT_DIR/png/slide-N.png \
+  --var STYLE_PATH=OUTPUT_DIR/style.json \
+  --var SKILL_DIR=SKILL_DIR \
+  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/step4/page-review-playbook.md \
+  --output OUTPUT_DIR/runtime/prompt-page-review-N.md
+```
+Gate 校验：
+`test -s OUTPUT_DIR/png/slide-N.png`
 
 ---
 

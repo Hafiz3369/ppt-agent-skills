@@ -238,12 +238,12 @@ P3.5.03 [WAIT_AGENT] 等待 FINALIZE
 P3.5.04 回收校验 style.json
 P3.5.05 关闭 Style subagent
 
-P4.NN.01 harness 生成 PageAgent-NN prompt
-P4.NN.02 创建 PageAgent-NN subagent
-P4.NN.03 [WAIT_AGENT] 等待 FINALIZE
-P4.NN.04 回收校验（planning{NN}.json + slide-{NN}.html + slide-{NN}.png + 图审通过）
-P4.NN.05 关闭 PageAgent-NN
-（所有页并行，流式推进）
+P4.NN.01 创建 PageAgent-NN subagent
+P4.NN.02 harness 生成 Planning prompt -> 发送 RUN -> 回收 planning{NN}.json
+P4.NN.03 harness 生成 HTML prompt -> 发送 RUN -> 回收 slide-{NN}.html
+P4.NN.04 harness 生成 Review prompt -> 发送 RUN -> 自动闭环图审修复 -> 回收并验证
+P4.NN.05 关闭 PageAgent-NN subagent
+（所有页并行或流式推进，各自独立拥有一个生命周期跨越 3 阶段的 PageAgent）
 
 P5.01  生成 preview.html
 P5.02  PNG 导出 -> presentation-png.pptx
@@ -304,7 +304,9 @@ Harness 统一规则：
 - `references/playbooks/research-synth-playbook.md`
 - `references/playbooks/outline-subagent-playbook.md`
 - `references/playbooks/style-subagent-playbook.md`
-- `references/playbooks/page-agent-playbook.md`
+- `references/playbooks/step4/page-planning-playbook.md`
+- `references/playbooks/step4/page-html-playbook.md`
+- `references/playbooks/step4/page-review-playbook.md`
 
 Style 真源：
 
@@ -404,38 +406,19 @@ CURRENT_BRIEF_PATH
 - 风格阶段的输入由需求、大纲、runtime 风格规则和预置风格入口共同组成
 - 输出必须是可被 planning 与 html 稳定消费的完整 `style.json`
 
-### 6.8 Step 4 页面并行生产（核心执行层）
+### 6.8 Step 4 页面生产（核心执行层 - 同代理多阶段解耦）
 
-目标：为每页生成 `OUTPUT_DIR/planning/planning{n}.json`、`OUTPUT_DIR/slides/slide-{n}.html`、`OUTPUT_DIR/png/slide-{n}.png`；必要时使用 `OUTPUT_DIR/images/`；并完成双轮图审。
+目标：为每页生成 `planning{n}.json`、`slide-{n}.html`、`slide-{n}.png`。
 
-主调度规则：
+为了防止大语言模型**注意力分散**，本阶段将业务解耦为三个阶段的 Prompt，但**共用同一个 `PageAgent-NN` subagent** 实例，由主代理分阶段将上下文注入并触发动作。这样子代理就保留着前一阶段的对话记忆和设计推理。
 
-- 按页创建 subagent，一个 subagent 负责一页全链路
-- 采用流式并行，不等待全部页完成
-- 任一页失败只回退该页，不阻塞其他页推进
-- 先完成先推进
-- `BRIEF_PATH` 必须遵守 5.3 CURRENT_BRIEF_PATH 统一约定
+1. **4A. Planning 阶段**：主代理解析 `tpl-page-planning.md` 并 RUN，子代理负责写出自审过的 `planning{n}.json`，不写 HTML。
+2. **4B. HTML 阶段**：主代理解析 `tpl-page-html.md` 并 RUN，子代理基于记忆中的策划稿和刚拿到的 HTML 指引，严格获取资源并输出单页 HTML。
+3. **4C. Review 阶段**：主代理解析 `tpl-page-review.md` 并 RUN，子代理转变为 QA 角色，跑截图后利用 5 大视觉红线审查，亲自修改自己刚才写的 HTML 源码直到完美（最多改 3 轮）。
 
-单页固定链路（subagent 内部）：
-
-```text
-1. planning{n}.json    -- 策划稿生成
-2. planning 自审修复    -- 运行 planning_validator.py
-3. 图片阶段          -- 轻量决策并执行（AI生成 / 绑定现成图 / 预留手动图位 / 纯装饰化）
-4. slide-{n}.html      -- HTML 设计稿生成
-5. slide-{n}.png       -- 截图（html2png.py）
-6. 第 1 轮图审修复     -- 对照 PNG 审查并修复
-7. 第 2 轮图审修复     -- 二次审查确认
-8. 通过 -> FINALIZE    -- 交回产物路径
-```
-
-图片阶段合同（主链职责，细节见 `page-agent-playbook.md`）：
-
-- 图片阶段不新增主链 StepID，仍属 P4.NN 内部链路
-- planning 阶段先决定图片策略，HTML 阶段不得临时改模式
-- 仅允许 4 种模式：`generate` / `provided` / `manual_slot` / `decorate`
-- `generate` 模式下主 agent 的职责：收到 PageAgent 的 `WAIT_IMAGE_SUBAGENT` STATUS 后，判断环境文生图能力，有则创建 `ImageGen-NN` 并回填图片路径，无则通知 PageAgent 降级
-- 各模式的具体执行规则以 `tpl-page-agent.md` 与 `page-agent-playbook.md` 为准
+执行：
+- 多页可并行操作。单页仅创建一次 `PageAgent`。
+- 只有前置阶段的 Prompt 收到 `FINALIZE` 并在此侧完成 Gate 校验，主 Agent 才能 Harness 生成并发送下一阶段的指令给该子代理。
 
 通过条件：
 
