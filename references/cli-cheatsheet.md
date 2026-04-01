@@ -37,7 +37,7 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --var REQUIREMENTS_PATH=OUTPUT_DIR/requirements-interview.txt \
   --var SEARCH_OUTPUT=OUTPUT_DIR/search.txt \
   --var BRIEF_OUTPUT=OUTPUT_DIR/search-brief.txt \
-  --var TOOLS_AVAILABLE="从环境感知 Search 工具清单取值，如: search_web,read_url_content,grok-search" \
+  --var TOOLS_AVAILABLE="由主 agent 根据感知结果动态填入可用的检索工具及其功能简述" \
   --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/research-synth-playbook.md \
   --output OUTPUT_DIR/runtime/prompt-research-synth.md
 ```

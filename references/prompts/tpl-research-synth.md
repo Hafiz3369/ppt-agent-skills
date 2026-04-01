@@ -18,7 +18,7 @@
 
 主题：{{TOPIC}}
 需求文件：`{{REQUIREMENTS_PATH}}`
-可用搜索工具：{{TOOLS_AVAILABLE}}
+可用搜索工具及说明：{{TOOLS_AVAILABLE}}
 
 ---
 

@@ -145,9 +145,9 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 1. 自检当前环境中所有与 web search、URL 读取相关的工具和 skill
 2. 按优先级排序：用户自定义 skill（如 grok-search） > 内置工具（如 search_web、read_url_content）
-3. 以表格形式输出到对话中（标题固定为 `## Search 工具清单`）
+3. 以表格形式整理好工具名、参数、功能描述，输出到对话中（标题固定为 `## Search 工具清单`）
 
-Step 2A 的 harness 调用中 `TOOLS_AVAILABLE` 变量必须从此清单取值。
+Step 2A 的 harness 调用中，主 agent 必须**直接将环境感知到的可用工具列表及概要描述**，内联拼接进 `TOOLS_AVAILABLE` 变量传给子代理。
 
 #### 3.1.3 其他能力检查
 
