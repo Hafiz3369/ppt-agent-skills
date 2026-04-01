@@ -276,6 +276,51 @@ def check_resource_route_docs(result: CheckResult) -> None:
                 result.error(f"{format_rel(path)}: missing documented resource route pattern `{pattern}`")
 
 
+def check_step0_interview_contract(result: CheckResult) -> None:
+    required_patterns = {
+        ROOT_DIR / "SKILL.md": [
+            r"tpl-interview\.md",
+            r"prompt-interview\.md",
+            r"BLOCKED_SCRIPT_INTERFACE",
+            r"Step 0 默认强制模板化",
+            r"结构化采访 UI",
+        ],
+        ROOT_DIR / "references/cli-cheatsheet.md": [
+            r"tpl-interview\.md",
+            r"prompt-interview\.md",
+            r"BLOCKED_SCRIPT_INTERFACE",
+            r"Prompt 生成（默认强制）",
+            r"STRUCTURED_INTERVIEW_UI_MODULE",
+        ],
+    }
+    banned_snippets = {
+        ROOT_DIR / "references/cli-cheatsheet.md": [
+            "Prompt 生成（可选，主 agent 也可直接发问）",
+        ],
+    }
+
+    for path, patterns in required_patterns.items():
+        text = read_text(path)
+        for pattern in patterns:
+            if not re.search(pattern, text):
+                result.error(f"{format_rel(path)}: missing Step 0 interview contract pattern `{pattern}`")
+
+    for path, snippets in banned_snippets.items():
+        text = read_text(path)
+        for snippet in snippets:
+            if snippet in text:
+                result.error(f"{format_rel(path)}: deprecated Step 0 interview wording still present: `{snippet}`")
+
+    module_path = ROOT_DIR / "references/prompts/module-structured-interview-ui.md"
+    if not module_path.exists():
+        result.error(f"{format_rel(module_path)}: missing structured interview UI module")
+    else:
+        module_text = read_text(module_path)
+        for token in ("AskUserQuestion", "request_user_input", "结构化采访", "question/header/id/options"):
+            if token not in module_text:
+                result.error(f"{format_rel(module_path)}: missing structured interview module token `{token}`")
+
+
 def run_all_checks() -> CheckResult:
     result = CheckResult()
     check_prompt_harness_coverage(result)
@@ -284,6 +329,7 @@ def run_all_checks() -> CheckResult:
     check_planning_example(result)
     check_truth_source_docs(result)
     check_resource_route_docs(result)
+    check_step0_interview_contract(result)
     return result
 
 

@@ -7,15 +7,23 @@
 
 ## Step 0 采访
 
-Prompt 生成（可选，主 agent 也可直接发问）：
+Prompt 生成（默认强制）：
 
 ```bash
 python3 SKILL_DIR/scripts/prompt_harness.py \
   --template SKILL_DIR/references/prompts/tpl-interview.md \
   --var TOPIC="用户主题" \
   --var USER_CONTEXT="用户已提供的背景信息" \
+  --inject-file STRUCTURED_INTERVIEW_UI_MODULE=SKILL_DIR/references/prompts/module-structured-interview-ui.md \
   --output OUTPUT_DIR/runtime/prompt-interview.md
 ```
+
+执行规则：
+
+1. 默认先执行上面的 harness，生成 `OUTPUT_DIR/runtime/prompt-interview.md`
+2. 主 agent 读取渲染后的采访 prompt，优先让当前 CLI 执行其中定义的**结构化采访 UI 协议**；只要环境存在等价于 `AskUserQuestion` / `request_user_input` 的原生提问能力，就必须优先使用
+3. 若当前 CLI 不支持结构化采访 UI，再回退为文本问答；可以润色语气，但**不得**把覆盖面缩水成一小段简短问题
+4. 仅当 `prompt_harness.py` 在 Step 0 发生真实接口故障，并已判定 `BLOCKED_SCRIPT_INTERFACE` 时，才允许完全绕过 `prompt-interview.md` 直接发问；覆盖维度不得低于 `tpl-interview.md`
 
 Gate 校验：
 

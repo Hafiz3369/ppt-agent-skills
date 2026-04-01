@@ -3,9 +3,10 @@
 
 This script intentionally stays within the current markdown/code architecture.
 It exercises the most failure-prone integration points:
-1. Step 4 planning example -> planning_validator.py
-2. resource_loader.py menu / resolve / images
-3. prompt_harness.py for the Step 4 prompt chain
+1. Step 0 interview prompt rendering
+2. Step 4 planning example -> planning_validator.py
+3. resource_loader.py menu / resolve / images
+4. prompt_harness.py for the Step 4 prompt chain
 """
 
 from __future__ import annotations
@@ -183,6 +184,7 @@ def build_fixture_tree(tmp_dir: Path) -> dict[str, Path]:
         "png": tmp_dir / "png/slide-3.png",
         "images": tmp_dir / "images",
         "runtime": tmp_dir / "runtime",
+        "prompt_interview": tmp_dir / "runtime/prompt-interview.md",
         "prompt_style_phase1": tmp_dir / "runtime/prompt-style-phase1.md",
         "prompt_planning": tmp_dir / "runtime/prompt-page-planning-3.md",
         "prompt_html": tmp_dir / "runtime/prompt-page-html-3.md",
@@ -349,6 +351,24 @@ def run_smoke() -> SmokeResult:
 
         prompt_specs = [
             (
+                "prompt-interview",
+                fx["prompt_interview"],
+                [
+                    py,
+                    str(SCRIPTS_DIR / "prompt_harness.py"),
+                    "--template",
+                    str(REFERENCES_DIR / "prompts/tpl-interview.md"),
+                    "--var",
+                    "TOPIC=Linux.do 社区介绍",
+                    "--var",
+                    "USER_CONTEXT=4 页介绍型 PPT，目标是快速讲清社区定位、氛围、价值与加入理由。",
+                    "--inject-file",
+                    f"STRUCTURED_INTERVIEW_UI_MODULE={REFERENCES_DIR / 'prompts/module-structured-interview-ui.md'}",
+                    "--output",
+                    str(fx["prompt_interview"]),
+                ],
+            ),
+            (
                 "prompt-style-phase1",
                 fx["prompt_style_phase1"],
                 [
@@ -505,6 +525,22 @@ def run_smoke() -> SmokeResult:
             if proc.returncode == 0:
                 rendered = output_path.read_text(encoding="utf-8")
                 assert_no_unfilled_vars(label, rendered, result)
+                if label == "prompt-interview":
+                    assert_contains(
+                        label,
+                        rendered,
+                        [
+                            "# 采访问卷",
+                            "主题：Linux.do 社区介绍",
+                            "用户背景：4 页介绍型 PPT",
+                            "# Structured Interview UI Module -- CLI 原生结构化采访协议",
+                            "AskUserQuestion",
+                            "request_user_input",
+                            "## 必须覆盖的问题结构",
+                            "## 最终要求",
+                        ],
+                        result,
+                    )
                 if label == "prompt-style-phase1":
                     assert_contains(
                         label,
