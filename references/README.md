@@ -22,11 +22,10 @@ references/
 先读这些，再看资源库细项：
 
 1. `SKILL.md` -- 主控制台合同：状态机、统一调度骨架、Gate、恢复规则
-2. `playbooks/research-synth-playbook.md` -- Step 2A 搜集整理执行细则
-3. `playbooks/source-synth-playbook.md` -- Step 2B 本地资料整合执行细则
-4. `playbooks/outline-subagent-playbook.md` -- Step 3 大纲 + 自审执行细则
-5. `playbooks/style-subagent-playbook.md` -- Step 3.5 全局风格合同执行细则
-6. `playbooks/page-agent-playbook.md` -- Step 4 单页全链路执行细则（总览）
+2. `playbooks/research-phase{1,2}-playbook.md` -- Step 2A 搜集整理执行细则与审查
+3. `playbooks/source-phase{1,2}-playbook.md` -- Step 2B 资料整合执行细则与审查
+4. `playbooks/outline-phase{1,2}-playbook.md` -- Step 3 大纲编写与自审执行细则
+5. `playbooks/style-phase{1,2}-playbook.md` -- Step 3.5 全局风格合同与字段自审
 7. `playbooks/step4/page-planning-playbook.md` -- Step 4A 页面规划执行细则
 8. `playbooks/step4/page-html-playbook.md` -- Step 4B HTML 落地执行细则
 9. `playbooks/step4/page-review-playbook.md` -- Step 4C 图审修复执行细则
@@ -35,19 +34,30 @@ references/
 
 ## Prompt 模板
 
-`tpl-*.md` 文件由 `scripts/prompt_harness.py` 填充 `{{VAR}}` 变量后发给 subagent：
+`tpl-*.md` 文件由 `scripts/prompt_harness.py` 填充 `{{VAR}}` 变量后发给 subagent。
 
-| 模板 | 阶段 | 变量 |
+P2A/P2B/P3/P3.5/P4 均采用渐进式上下文注入：每个节点有 orchestrator + phase1 + phase2（Step4 为 phase1/2/3），subagent 内部按阶段自主读取。
+
+| 模板 | 阶段 | 说明 |
 |------|------|------|
-| `tpl-interview.md` | Step 0 采访 | TOPIC, USER_CONTEXT |
-| `tpl-research-synth.md` | Step 2A 搜集 | TOPIC, REQUIREMENTS_PATH, SEARCH_OUTPUT, BRIEF_OUTPUT, TOOLS_AVAILABLE, MAX_SEARCH_ROUNDS, TARGET_PAGES |
-| `tpl-source-synth.md` | Step 2B 资料整合 | REQUIREMENTS_PATH, SOURCE_INPUT, BRIEF_OUTPUT |
-| `tpl-outline.md` | Step 3 大纲 | REQUIREMENTS_PATH, BRIEF_PATH, OUTLINE_OUTPUT |
-| `tpl-style.md` | Step 3.5 风格 | REQUIREMENTS_PATH, OUTLINE_PATH, SKILL_DIR, STYLE_OUTPUT |
-| `tpl-page-agent.md` | ~~Step 4 单页~~ **DEPRECATED** | 已被 step4/ 下三阶段模板取代 |
-| `step4/tpl-page-planning.md` | Step 4A 页面规划 | PAGE_NUM, TOTAL_PAGES, REQUIREMENTS_PATH, OUTLINE_PATH, BRIEF_PATH, STYLE_PATH, IMAGES_DIR, PLANNING_OUTPUT, SKILL_DIR, REFS_DIR |
-| `step4/tpl-page-html.md` | Step 4B HTML 落地 | PAGE_NUM, TOTAL_PAGES, PLANNING_OUTPUT, SLIDE_OUTPUT, IMAGES_DIR, STYLE_PATH, SKILL_DIR, REFS_DIR |
-| `step4/tpl-page-review.md` | Step 4C 图审修复 | PAGE_NUM, TOTAL_PAGES, PLANNING_OUTPUT, SLIDE_OUTPUT, PNG_OUTPUT, STYLE_PATH, SKILL_DIR |
+| `tpl-interview.md` | Step 0 采访 | 单阶段，无渐进式 |
+| `tpl-research-synth-orchestrator.md` | Step 2A 调度 | 轻量 orchestrator |
+| `tpl-research-synth-phase1.md` | Step 2A 搜索 | 搜索与搜集 |
+| `tpl-research-synth-phase2.md` | Step 2A 整理 | 数据格式化+自审 |
+| `tpl-source-synth-orchestrator.md` | Step 2B 调度 | 轻量 orchestrator |
+| `tpl-source-synth-phase1.md` | Step 2B 提炼 | 资料读取与提炼 |
+| `tpl-source-synth-phase2.md` | Step 2B 自审 | 质量自审+边界校验 |
+| `tpl-outline-orchestrator.md` | Step 3 调度 | 轻量 orchestrator |
+| `tpl-outline-phase1.md` | Step 3 编写 | 大纲编写 |
+| `tpl-outline-phase2.md` | Step 3 自审 | 严格自审+修复 |
+| `tpl-style-orchestrator.md` | Step 3.5 调度 | 轻量 orchestrator |
+| `tpl-style-phase1.md` | Step 3.5 决策 | 约束提炼+风格输出 |
+| `tpl-style-phase2.md` | Step 3.5 自审 | 字段合同自审 |
+| `step4/tpl-page-orchestrator.md` | Step 4 调度 | Claude 模式轻量 orchestrator |
+| `step4/tpl-page-planning.md` | Step 4A 规划 | 页面策划 |
+| `step4/tpl-page-html.md` | Step 4B HTML | 设计稿生成 |
+| `step4/tpl-page-review.md` | Step 4C 审查 | 图审修复 |
+
 
 ## 资源库
 

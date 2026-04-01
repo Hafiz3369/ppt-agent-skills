@@ -49,37 +49,59 @@ python3 SKILL_DIR/scripts/contract_validator.py requirements-interview OUTPUT_DI
 
 ---
 
-## Step 2A Research
+## Step 2A Research（渐进式上下文注入）
 
 > **Subagent 强制**：本步产物必须由 ResearchSynth subagent 生成，主 agent 禁止内联生产。
+> subagent 内部自主按阶段渐进：搜索 -> 数据格式化+整理+自审。
 
-**1. Prompt 生成（主 agent 执行）：**
+**1. 生成阶段 prompt 文件（主 agent 执行）：**
 
 ```bash
+# Phase 1: 搜索与搜集
 python3 SKILL_DIR/scripts/prompt_harness.py \
-  --template SKILL_DIR/references/prompts/tpl-research-synth.md \
+  --template SKILL_DIR/references/prompts/tpl-research-synth-phase1.md \
   --var TOPIC="主题" \
   --var REQUIREMENTS_PATH=OUTPUT_DIR/requirements-interview.txt \
   --var SEARCH_OUTPUT=OUTPUT_DIR/search.txt \
-  --var BRIEF_OUTPUT=OUTPUT_DIR/search-brief.txt \
   --var TOOLS_AVAILABLE="由主 agent 根据感知结果动态填入可用的检索工具及其功能简述" \
   --var MAX_SEARCH_ROUNDS="主 agent 根据主题复杂度预估：简单2/中等3/高复杂4" \
   --var TARGET_PAGES="目标页数（来自采访）" \
-  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/research-synth-playbook.md \
-  --output OUTPUT_DIR/runtime/prompt-research-synth.md
+  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/research-phase1-playbook.md \
+  --output OUTPUT_DIR/runtime/prompt-research-phase1.md
+
+# Phase 2: 数据格式化、整理与自审
+python3 SKILL_DIR/scripts/prompt_harness.py \
+  --template SKILL_DIR/references/prompts/tpl-research-synth-phase2.md \
+  --var SEARCH_OUTPUT=OUTPUT_DIR/search.txt \
+  --var BRIEF_OUTPUT=OUTPUT_DIR/search-brief.txt \
+  --var TARGET_PAGES="目标页数（来自采访）" \
+  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/research-phase2-playbook.md \
+  --output OUTPUT_DIR/runtime/prompt-research-phase2.md
 ```
 
-**2. 创建 Subagent 并执行（按《自适应调用协议》执行）：**
+**2. 生成 orchestrator 调度 prompt：**
 
-回查《Subagent 操作手册》取出调用模板，替换变量后**显式输出到对话**再执行：
+```bash
+python3 SKILL_DIR/scripts/prompt_harness.py \
+  --template SKILL_DIR/references/prompts/tpl-research-synth-orchestrator.md \
+  --var PHASE1_PROMPT_PATH=OUTPUT_DIR/runtime/prompt-research-phase1.md \
+  --var PHASE2_PROMPT_PATH=OUTPUT_DIR/runtime/prompt-research-phase2.md \
+  --var SEARCH_OUTPUT=OUTPUT_DIR/search.txt \
+  --var BRIEF_OUTPUT=OUTPUT_DIR/search-brief.txt \
+  --output OUTPUT_DIR/runtime/prompt-research-orchestrator.md
+```
+
+**3. 创建 Subagent 并执行：**
+
 ```
 {{SUBAGENT_NAME}} = ResearchSynth
-{{MODEL}}         = MAIN_MODEL
-{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-research-synth.md
+{{MODEL}}         = SUBAGENT_MODEL
+{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-research-orchestrator.md
 ```
-> subagent 是完全隔离的：它只能看到上述 prompt 文件的内容，看不到主 agent 的对话历史或内部状态。所有 subagent 需要的上下文已由 harness 打包进 prompt 文件。
 
-**3. Gate 校验（主 agent 复检）：**
+> subagent 内部会自主渐进：先读 phase1 完成搜索 -> 再读 phase2 完成格式化+自审 -> FINALIZE
+
+**4. Gate 校验（主 agent 复检）：**
 
 ```bash
 python3 SKILL_DIR/scripts/contract_validator.py search OUTPUT_DIR/search.txt
@@ -91,33 +113,54 @@ python3 SKILL_DIR/scripts/contract_validator.py search-brief OUTPUT_DIR/search-b
 ---
 
 
-## Step 2B 非 Search 分支（用户现有资料整合）
+## Step 2B 非 Search 分支（渐进式上下文注入）
 
 > **Subagent 强制**：本步产物必须由 SourceSynth subagent 生成，主 agent 禁止内联生产。
+> subagent 内部自主按阶段渐进：资料读取+提炼 -> 质量自审+边界校验。
 
-**1. Prompt 生成（主 agent 执行）：**
+**1. 生成阶段 prompt 文件（主 agent 执行）：**
 
 ```bash
+# Phase 1: 资料读取与结构化提炼
 python3 SKILL_DIR/scripts/prompt_harness.py \
-  --template SKILL_DIR/references/prompts/tpl-source-synth.md \
+  --template SKILL_DIR/references/prompts/tpl-source-synth-phase1.md \
   --var REQUIREMENTS_PATH=OUTPUT_DIR/requirements-interview.txt \
   --var SOURCE_INPUT=用户资料路径（目录或文件） \
   --var BRIEF_OUTPUT=OUTPUT_DIR/source-brief.txt \
-  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/source-synth-playbook.md \
-  --output OUTPUT_DIR/runtime/prompt-source-synth.md
+  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/source-phase1-playbook.md \
+  --output OUTPUT_DIR/runtime/prompt-source-phase1.md
+
+# Phase 2: 质量自审与边界校验
+python3 SKILL_DIR/scripts/prompt_harness.py \
+  --template SKILL_DIR/references/prompts/tpl-source-synth-phase2.md \
+  --var BRIEF_OUTPUT=OUTPUT_DIR/source-brief.txt \
+  --var REQUIREMENTS_PATH=OUTPUT_DIR/requirements-interview.txt \
+  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/source-phase2-playbook.md \
+  --output OUTPUT_DIR/runtime/prompt-source-phase2.md
 ```
 
-**2. 创建 Subagent 并执行（按《自适应调用协议》执行）：**
+**2. 生成 orchestrator 调度 prompt：**
 
-回查《Subagent 操作手册》取出调用模板，替换变量后**显式输出到对话**再执行：
+```bash
+python3 SKILL_DIR/scripts/prompt_harness.py \
+  --template SKILL_DIR/references/prompts/tpl-source-synth-orchestrator.md \
+  --var PHASE1_PROMPT_PATH=OUTPUT_DIR/runtime/prompt-source-phase1.md \
+  --var PHASE2_PROMPT_PATH=OUTPUT_DIR/runtime/prompt-source-phase2.md \
+  --var BRIEF_OUTPUT=OUTPUT_DIR/source-brief.txt \
+  --output OUTPUT_DIR/runtime/prompt-source-orchestrator.md
+```
+
+**3. 创建 Subagent 并执行：**
+
 ```
 {{SUBAGENT_NAME}} = SourceSynth
-{{MODEL}}         = MAIN_MODEL
-{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-source-synth.md
+{{MODEL}}         = SUBAGENT_MODEL
+{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-source-orchestrator.md
 ```
-> subagent 是完全隔离的：它只能看到上述 prompt 文件的内容。
 
-**3. Gate 校验（主 agent 复检）：**
+> subagent 内部会自主渐进：先读 phase1 完成资料提炼 -> 再读 phase2 完成自审 -> FINALIZE
+
+**4. Gate 校验（主 agent 复检）：**
 
 ```bash
 python3 SKILL_DIR/scripts/contract_validator.py source-brief OUTPUT_DIR/source-brief.txt
@@ -127,33 +170,55 @@ python3 SKILL_DIR/scripts/contract_validator.py source-brief OUTPUT_DIR/source-b
 
 
 
-## Step 3 大纲
+## Step 3 大纲（渐进式上下文注入）
 
 > **Subagent 强制**：本步产物必须由 Outline subagent 生成，主 agent 禁止内联生产。
+> subagent 内部自主按阶段渐进：大纲编写 -> 严格自审+修复。
 
-**1. Prompt 生成（主 agent 执行）：**
+**1. 生成阶段 prompt 文件（主 agent 执行）：**
 
 ```bash
+# Phase 1: 大纲编写
 python3 SKILL_DIR/scripts/prompt_harness.py \
-  --template SKILL_DIR/references/prompts/tpl-outline.md \
+  --template SKILL_DIR/references/prompts/tpl-outline-phase1.md \
   --var REQUIREMENTS_PATH=OUTPUT_DIR/requirements-interview.txt \
   --var BRIEF_PATH=CURRENT_BRIEF_PATH \
   --var OUTLINE_OUTPUT=OUTPUT_DIR/outline.txt \
-  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/outline-subagent-playbook.md \
-  --output OUTPUT_DIR/runtime/prompt-outline.md
+  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/outline-phase1-playbook.md \
+  --output OUTPUT_DIR/runtime/prompt-outline-phase1.md
+
+# Phase 2: 严格自审与修复
+python3 SKILL_DIR/scripts/prompt_harness.py \
+  --template SKILL_DIR/references/prompts/tpl-outline-phase2.md \
+  --var OUTLINE_OUTPUT=OUTPUT_DIR/outline.txt \
+  --var REQUIREMENTS_PATH=OUTPUT_DIR/requirements-interview.txt \
+  --var BRIEF_PATH=CURRENT_BRIEF_PATH \
+  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/outline-phase2-playbook.md \
+  --output OUTPUT_DIR/runtime/prompt-outline-phase2.md
 ```
 
-**2. 创建 Subagent 并执行（按《自适应调用协议》执行）：**
+**2. 生成 orchestrator 调度 prompt：**
 
-回查《Subagent 操作手册》取出调用模板，替换变量后**显式输出到对话**再执行：
+```bash
+python3 SKILL_DIR/scripts/prompt_harness.py \
+  --template SKILL_DIR/references/prompts/tpl-outline-orchestrator.md \
+  --var PHASE1_PROMPT_PATH=OUTPUT_DIR/runtime/prompt-outline-phase1.md \
+  --var PHASE2_PROMPT_PATH=OUTPUT_DIR/runtime/prompt-outline-phase2.md \
+  --var OUTLINE_OUTPUT=OUTPUT_DIR/outline.txt \
+  --output OUTPUT_DIR/runtime/prompt-outline-orchestrator.md
+```
+
+**3. 创建 Subagent 并执行：**
+
 ```
 {{SUBAGENT_NAME}} = Outline
-{{MODEL}}         = MAIN_MODEL
-{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-outline.md
+{{MODEL}}         = SUBAGENT_MODEL
+{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-outline-orchestrator.md
 ```
-> subagent 是完全隔离的：它只能看到上述 prompt 文件的内容。Outline subagent 内部自带审查闭环，主 agent 不介入。
 
-**3. Gate 校验（主 agent 复检）：**
+> subagent 内部会自主渐进：先读 phase1 完成大纲编写 -> 再读 phase2 完成自审修复 -> FINALIZE
+
+**4. Gate 校验（主 agent 复检）：**
 
 ```bash
 python3 SKILL_DIR/scripts/contract_validator.py outline OUTPUT_DIR/outline.txt
@@ -161,36 +226,56 @@ python3 SKILL_DIR/scripts/contract_validator.py outline OUTPUT_DIR/outline.txt
 
 ---
 
-## Step 3.5 风格
+## Step 3.5 风格（渐进式上下文注入）
 
 > **Subagent 强制**：本步产物必须由 Style subagent 生成，主 agent 禁止内联生产。
+> subagent 内部自主按阶段渐进：约束提炼+风格输出 -> 字段合同自审。
 
-**1. Prompt 生成（主 agent 执行）：**
+**1. 生成阶段 prompt 文件（主 agent 执行）：**
 
 ```bash
+# Phase 1: 约束提炼与风格输出
 python3 SKILL_DIR/scripts/prompt_harness.py \
-  --template SKILL_DIR/references/prompts/tpl-style.md \
+  --template SKILL_DIR/references/prompts/tpl-style-phase1.md \
   --var REQUIREMENTS_PATH=OUTPUT_DIR/requirements-interview.txt \
   --var OUTLINE_PATH=OUTPUT_DIR/outline.txt \
   --var SKILL_DIR=SKILL_DIR \
   --var STYLE_OUTPUT=OUTPUT_DIR/style.json \
-  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/style-subagent-playbook.md \
   --inject-file STYLE_RUNTIME_RULES=SKILL_DIR/references/styles/runtime-style-rules.md \
   --inject-file STYLE_PRESET_INDEX=SKILL_DIR/references/styles/runtime-style-palette-index.md \
-  --output OUTPUT_DIR/runtime/prompt-style.md
+  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/style-phase1-playbook.md \
+  --output OUTPUT_DIR/runtime/prompt-style-phase1.md
+
+# Phase 2: 字段合同自审
+python3 SKILL_DIR/scripts/prompt_harness.py \
+  --template SKILL_DIR/references/prompts/tpl-style-phase2.md \
+  --var STYLE_OUTPUT=OUTPUT_DIR/style.json \
+  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/style-phase2-playbook.md \
+  --output OUTPUT_DIR/runtime/prompt-style-phase2.md
 ```
 
-**2. 创建 Subagent 并执行（按《自适应调用协议》执行）：**
+**2. 生成 orchestrator 调度 prompt：**
 
-回查《Subagent 操作手册》取出调用模板，替换变量后**显式输出到对话**再执行：
+```bash
+python3 SKILL_DIR/scripts/prompt_harness.py \
+  --template SKILL_DIR/references/prompts/tpl-style-orchestrator.md \
+  --var PHASE1_PROMPT_PATH=OUTPUT_DIR/runtime/prompt-style-phase1.md \
+  --var PHASE2_PROMPT_PATH=OUTPUT_DIR/runtime/prompt-style-phase2.md \
+  --var STYLE_OUTPUT=OUTPUT_DIR/style.json \
+  --output OUTPUT_DIR/runtime/prompt-style-orchestrator.md
+```
+
+**3. 创建 Subagent 并执行：**
+
 ```
 {{SUBAGENT_NAME}} = Style
-{{MODEL}}         = MAIN_MODEL
-{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-style.md
+{{MODEL}}         = SUBAGENT_MODEL
+{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-style-orchestrator.md
 ```
-> subagent 是完全隔离的：它只能看到上述 prompt 文件的内容。
 
-**3. Gate 校验（主 agent 复检）：**
+> subagent 内部会自主渐进：先读 phase1 完成风格决策 -> 再读 phase2 完成自审 -> FINALIZE
+
+**4. Gate 校验（主 agent 复检）：**
 
 ```bash
 python3 SKILL_DIR/scripts/contract_validator.py style OUTPUT_DIR/style.json
@@ -233,7 +318,7 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
 回查《Subagent 操作手册》取出调用模板，替换变量后**显式输出到对话**再执行：
 ```
 {{SUBAGENT_NAME}} = PageAgent-N
-{{MODEL}}         = MAIN_MODEL
+{{MODEL}}         = SUBAGENT_MODEL
 {{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-page-planning-N.md
 ```
 > subagent 是完全隔离的：它只能看到上述 prompt 文件的内容。
@@ -348,7 +433,7 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
 回查《Subagent 操作手册》取出调用模板，替换变量后**显式输出到对话**再执行：
 ```
 {{SUBAGENT_NAME}} = PageAgent-N
-{{MODEL}}         = MAIN_MODEL
+{{MODEL}}         = SUBAGENT_MODEL
 {{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-page-orchestrator-N.md
 ```
 > subagent 是完全隔离的：它只能看到 orchestrator prompt 的内容，内部按 orchestrator 指示自主渐进读取各阶段 prompt。

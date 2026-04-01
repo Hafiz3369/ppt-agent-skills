@@ -6,7 +6,7 @@ This script does ONLY text transformation -- no scheduling, no subagent manageme
 
 Usage:
     python3 prompt_harness.py \
-        --template path/to/tpl-page-agent.md \
+        --template path/to/tpl-outline-orchestrator.md \
         --var PAGE_NUM=3 \
         --var TOTAL_PAGES=12 \
         --inject-file PLAYBOOK=path/to/playbook.md \
@@ -77,7 +77,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--template", required=True,
-        help="Path to template file (e.g. references/prompts/tpl-page-agent.md)"
+        help="Path to template file (e.g. references/prompts/tpl-outline-orchestrator.md)"
     )
     parser.add_argument(
         "--var", action="append", default=[],
