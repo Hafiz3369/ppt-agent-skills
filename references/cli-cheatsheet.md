@@ -110,6 +110,8 @@ python3 SKILL_DIR/scripts/contract_validator.py search-brief OUTPUT_DIR/search-b
 
 > `CURRENT_BRIEF_PATH`（后续步骤用）= `OUTPUT_DIR/search-brief.txt`
 
+若 Gate 已过但素材仍明显单薄，**回退 Step 2A.01**：重新生成 phase1/phase2/orchestrator prompt（扩大 `TOOLS_AVAILABLE`、查询维度或 `MAX_SEARCH_ROUNDS`），并新建 ResearchSynth。**不要**在已 FINALIZE 的旧 session 上继续补搜。
+
 ---
 
 
@@ -224,6 +226,8 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
 python3 SKILL_DIR/scripts/contract_validator.py outline OUTPUT_DIR/outline.txt
 ```
 
+若 validator 未通过，回退 Step 3.01 重新生成 prompt 并**重建新的 Outline subagent**；不要复用已 FINALIZE 的旧 session。
+
 ---
 
 ## Step 3.5 风格（渐进式上下文注入）
@@ -280,6 +284,8 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
 ```bash
 python3 SKILL_DIR/scripts/contract_validator.py style OUTPUT_DIR/style.json
 ```
+
+若 validator 未通过，回退 Step 3.5.01 重新生成 prompt 并**重建新的 Style subagent**；不要复用已 FINALIZE 的旧 session。
 
 ---
 
@@ -400,6 +406,8 @@ Gate 校验：
 test -s OUTPUT_DIR/png/slide-N.png
 ```
 
+同时核对子代理返回的 FINALIZE：若 `P0 状态 = QUALITY_DEGRADED`，则本页视为失败，触发整页从 4A 重跑。
+
 ---
 
 ### Claude 模式：渐进式上下文注入（单次 PageAgent 端到端）
@@ -453,6 +461,8 @@ test -s OUTPUT_DIR/slides/slide-N.html
 test -s OUTPUT_DIR/png/slide-N.png
 ```
 
+同时核对子代理返回的 FINALIZE：若 `P0 状态 = QUALITY_DEGRADED`，则本页视为失败，触发整页从 4A 重跑。
+
 ---
 
 ### Step 4 失败重试指南
@@ -460,6 +470,7 @@ test -s OUTPUT_DIR/png/slide-N.png
 **触发条件（任一成立）：**
 - `slide-N.html` 不存在或为空
 - `slide-N.png` 视觉审查不通过
+- PageAgent 的 FINALIZE 中 `P0 状态 = QUALITY_DEGRADED`
 
 **无论同对话还是跨对话，统一两步走：**
 

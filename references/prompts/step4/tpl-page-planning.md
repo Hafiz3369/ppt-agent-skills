@@ -4,8 +4,8 @@
 > 本 prompt 已包含了你在此阶段所需的**全部**任务目标与 Playbook 细则。
 > **严格禁止调用工具去读取外层的 `SKILL.md` 或主控全局规则文件！**
 >
-> 本阶段的唯一目标：产出 `{{PLANNING_OUTPUT}}`。完成后发送 FINALIZE 信号。
-> 后续阶段的推进方式取决于调度模式（Codex session-resume / Claude 自主渐进），你不需要关心。
+> 本阶段的唯一目标：产出 `{{PLANNING_OUTPUT}}`。字段名和枚举值**以 validator 合同为准**，不要自创别名。
+> 若外层 orchestrator 已提供阶段推进协议，则外层协议优先于本 prompt 中的完成信号描述。
 
 这是你为第 {{PAGE_NUM}} 页执行的**第一阶段核心任务**：策划定骨稿。
 你暂时不要写 HTML 代码，全力填好并校验 `{{PLANNING_OUTPUT}}`。
@@ -15,6 +15,12 @@
 ## Playbook（执行细则）
 
 {{PLAYBOOK}}
+
+---
+
+## Design Principles Quick Reference
+
+{{PRINCIPLES_CHEATSHEET}}
 
 ---
 
@@ -36,6 +42,7 @@
 ## 产物路径
 
 - 策划稿 JSON：`{{PLANNING_OUTPUT}}`
+- 文件内容必须是**纯 JSON 对象**（可直接写对象，也可包在 ```json fenced block 中），不要夹杂说明性 prose。
 
 ---
 
@@ -53,33 +60,35 @@
    ```bash
    python3 {{SKILL_DIR}}/scripts/resource_loader.py menu --refs-dir {{REFS_DIR}}
    ```
-7. **按下方映射表做资源选择决策**，然后决定 `image.mode`、`layout_hint`、`card_type`、排版策略等。
+7. **按下方映射表做资源选择决策**，然后决定 `page_type`、`layout_hint`、`cards[].card_type`、`chart.chart_type`、`resource_ref`、`image.mode`、排版策略等。
 
 ### 数据类型 → 推荐资源映射（决策辅助）
 
 根据本页的 `proof_type` 和实际数据类型，优先按以下映射选择资源：
 
-| 本页数据特征 | 推荐 layout_hint | 推荐 card_type / chart_type | 选择理由 |
-|------------|-----------------|---------------------------|---------|
-| 单一核心数字/KPI | hero / split-left | kpi、metric-row | 大字突出，视觉冲击 |
-| 多项横向比较 | bento-grid / columns | comparison、comparison-bar | 左右对称利于对比 |
-| 时间线/里程碑 | timeline-flow | timeline | 自带时序叙事 |
-| 步骤/流程 | steps-horizontal / steps-vertical | process | 顺序清晰 |
-| 排行榜/Top-N | list-ranked | data_highlight、list | 层级视觉 |
-| 图文并茂 | split-left / split-right | image + text | 图文互补 |
-| 大段引言/金句 | centered-statement | quote | 聚焦单一信息 |
-| 数据图表 | chart-focus | bar、line、pie、ring | 图表主导 |
-| 多卡片并列信息 | bento-grid | feature-card、info-card | 模块化呈现 |
+| 本页数据特征 | 推荐 layout_hint | 推荐 `card_type` / `chart.chart_type` | 选择理由 |
+|------------|-----------------|--------------------------------------|---------|
+| 单一核心数字/KPI | `hero-top` / `single-focus` | `data_highlight` + `kpi` / `metric_row` | 大字突出，视觉锚点清晰 |
+| 多项横向比较 | `symmetric` / `three-column` | `comparison` + `comparison_bar` | 左右对称利于对比 |
+| 时间线/里程碑 | `l-shape` / `waterfall` | `timeline` + `timeline` | 自带时序叙事 |
+| 步骤/流程 | `l-shape` / `t-shape` / `waterfall` | `process` / `diagram` + `funnel` / `progress_bar`（如有明确数据） | 顺序清晰，可带流程骨架 |
+| 排行榜/Top-N | `asymmetric` / `l-shape` | `list` / `data_highlight` + `comparison_bar`（如需） | 层级视觉明确 |
+| 图文并茂 | `primary-secondary` / `asymmetric` | `image_hero` / `text` / `data` | 图文互补，主次分明 |
+| 大段引言/金句 | `single-focus` / `asymmetric` | `quote` | 聚焦单一信息 |
+| 数据图表 | `primary-secondary` / `single-focus` | `data` + `sparkline` / `ring` / `radar` / `treemap` / `stacked_bar` / `waffle` | 图表主导，论据可视化 |
+| 多卡片并列信息 | `mixed-grid` / `three-column` | `text` / `data` / `list` | 模块化呈现 |
 
-**填写 `resources` 字段时必须说明选择理由**（`resource_rationale` 字段），例如："本页展示 3 个 KPI 指标对比，选择 bento-grid + metric-row 实现模块化数据呈现"。
+**填写 `resources` 字段时必须说明选择理由**（推荐写入 `resources.resource_rationale`），例如："本页展示 3 个 KPI 指标对比，选择 hero-top + metric-row 强化主次层级"。
 8. 将完整 planning 写入 `{{PLANNING_OUTPUT}}`。
 9. 自审（必须执行，不得跳过）：
    ```bash
    python3 {{SKILL_DIR}}/scripts/planning_validator.py $(dirname {{PLANNING_OUTPUT}}) --refs {{REFS_DIR}} --page {{PAGE_NUM}}
    ```
 10. 修复所有 ERROR（WARNING 建议修复）。
-11. 发送 FINALIZE 信号，格式：`FINALIZE: planning 完成，产物路径 {{PLANNING_OUTPUT}}`
-12. 发送 FINALIZE 信号后，按调度模式的指示推进（Codex 模式等待主 agent 续写；Claude 渐进模式自主读取下一阶段 prompt）。
+11. 完成信号规则：
+   - **若本阶段由主 agent 直接下发（Codex 模式 4A）**：发送 `FINALIZE: planning 完成，产物路径 {{PLANNING_OUTPUT}}`
+   - **若本阶段由 Page orchestrator 在同一 session 内渐进调度（Claude 模式）**：只输出 `--- STAGE 1 COMPLETE: {{PLANNING_OUTPUT}} ---`，然后按外层协议继续
+12. 不要把当前阶段的完成信号误当作整页任务结束。
 
 ---
 

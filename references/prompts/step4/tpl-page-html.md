@@ -6,6 +6,7 @@
 >
 > **前置条件**：Planning 阶段已完成，`{{PLANNING_OUTPUT}}` 已就绪。
 > 本阶段的唯一目标：基于 planning JSON 产出 `{{SLIDE_OUTPUT}}`。完成后发送 FINALIZE 信号。
+> 若外层 orchestrator 已提供阶段推进协议，则外层协议优先于本 prompt 中的完成信号描述。
 
 这是你为第 {{PAGE_NUM}} 页执行的**第二阶段核心任务**：HTML 设计稿生成。
 你的策划稿（`{{PLANNING_OUTPUT}}`）是本阶段的主要输入，严格忠实还原其骨架。
@@ -34,13 +35,13 @@
 
 ## 执行链路（固定顺序，不得跳步）
 
-1. 读取 `{{PLANNING_OUTPUT}}`，提取完整骨架（layout_hint、cards、image.mode、handoff_to_design.non_negotiables 等）
+1. 读取 `{{PLANNING_OUTPUT}}`，提取完整骨架（`page_type`、`layout_hint`、`focus_zone`、`negative_space_target`、`cards[].card_id/role/card_type/card_style/headline/body/data_points/chart/image/resource_ref`、`director_command`、`decoration_hints`、`source_guidance`、`resources`、`must_avoid`）
 2. 读取 `{{STYLE_PATH}}`，提取 `css_variables`、`font_family`、`design_soul`、`variation_strategy`、`decoration_dna`
 3. **必须执行** —— 获取 planning 引用资源的**正文层实现细节**（不能跳过，里面有组件级 CSS 参数和骨架建议）：
    ```bash
    python3 {{SKILL_DIR}}/scripts/resource_loader.py resolve --refs-dir {{REFS_DIR}} --planning {{PLANNING_OUTPUT}}
    ```
-   **resolve 输出的 HTML 结构骨架、CSS 类名、参数规范是强制执行的实现合同，不是参考建议。** 你可以在细节上微调（间距±5px、圆角±2px），但结构、类名、数据格式不得自行发明替代方案。如果 resolve 返回了某个组件的 HTML 骨架，你的最终 HTML 必须包含该骨架的核心结构。
+   **resolve 输出的 HTML 结构骨架、语义类锚点、参数规范是强制执行的实现合同，不是参考建议。** 你可以在细节上微调（间距±5px、圆角±2px），也可以额外追加 page-local modifier class，但不得替换它给出的核心结构、语义类锚点和数据格式。
 4. 核对图片素材，确认 `image.source_hint` 路径可访问：
    ```bash
    python3 {{SKILL_DIR}}/scripts/resource_loader.py images --images-dir {{IMAGES_DIR}}
@@ -54,19 +55,21 @@
    - 禁止 `transform: scale()` 缩放 hack
    - 所有 CSS 内联在 `<style>` 标签中，禁止引用外部 CSS 文件
    - 字体从 `style.json` 的 `font_family` 取值，通过 Google Fonts 或系统字体栈引入
-6. 按 `image.mode` 处理图片（**mode 在 planning 阶段已锁定，此处不得临时变更**）：
+7. 按 `image.mode` 处理图片（**mode 在 planning 阶段已锁定，此处不得临时变更**）：
    - `generate` / `provided`（`image.needed=true`）：将 `source_hint` 路径绑定到 `<img src>` 或 `background-image`，图片必须实际渲染
    - `manual_slot`（`image.needed=false`）：渲染明确可替换的图片占位区（带边框/提示文字），不得偷偷删除占位区
    - `decorate`（`image.needed=false`）：不使用外部图片，用内联 SVG、色块、渐变、字体装饰补足视觉氛围，不得留空白大洞
-7. **720px 高度内的视觉节奏**（设计要求，非可选建议）：
+8. **720px 高度内的视觉节奏**（设计要求，非可选建议）：
    - 标题区（y=20~70）：大字+强对比度，一眼抓住主题
    - 焦点区（y=70~450）：承载 primary 卡片，视觉权重最大
    - 支撑区（y=450~640）：secondary 卡片或补充数据，字号缩小、对比度降低
    - 装饰层：signature_move 锚点 + 渐变/几何点缀，不占用内容空间
    - **禁止平铺直叙**：不得让所有卡片等大小、等间距、等字号排列，必须有主次层级
-8. 将完整 HTML 写入 `{{SLIDE_OUTPUT}}`
-9. 发送 FINALIZE 信号，格式：`FINALIZE: HTML 完成，产物路径 {{SLIDE_OUTPUT}}`
-10. 发送 FINALIZE 信号后，按调度模式的指示推进（Codex 模式等待主 agent 续写；Claude 渐进模式自主读取下一阶段 prompt）。
+9. **每个 planning card 都必须在 HTML 中有对应渲染根节点**，并为根节点补上 `data-card-id="<planning.card_id>"` 便于 review 对账；如果某卡含 `chart.chart_type`，渲染结果必须与该类型匹配。
+10. 将完整 HTML 写入 `{{SLIDE_OUTPUT}}`
+11. 完成信号规则：
+   - **若本阶段由主 agent 直接下发（Codex 模式 4B）**：发送 `FINALIZE: HTML 完成，产物路径 {{SLIDE_OUTPUT}}`
+   - **若本阶段由 Page orchestrator 在同一 session 内渐进调度（Claude 模式）**：只输出 `--- STAGE 2 COMPLETE: {{SLIDE_OUTPUT}} ---`，然后按外层协议继续
 
 ---
 

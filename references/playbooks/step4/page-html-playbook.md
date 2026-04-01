@@ -12,11 +12,14 @@
 
 | 字段 | HTML 阶段的含义 |
 |------|--------------|
-| `layout_hint` | 决定 grid/flex 结构的整体骨架 |
+| `page_type` / `layout_hint` | 决定整体骨架与页面自由度 |
 | `focus_zone` | 决定哪个卡片/区域应该有最大视觉权重 |
 | `negative_space_target` | 决定留白比例（high=宽松 / medium=适中 / low=密集）|
-| `cards[].visual_weight` | primary 卡片用最大字号+最强对比度，secondary 次之 |
-| `handoff_to_design.non_negotiables` | 这些设计决策不得修改，必须照做 |
+| `cards[].role` / `cards[].card_style` | 决定主次顺序与卡片存在感 |
+| `cards[].card_id` | 要在 HTML 中逐一落地，并映射到 `data-card-id` |
+| `cards[].content_budget` | 限制每张卡片的承载量，防止溢出 |
+| `director_command` / `decoration_hints` | 决定镜头感、装饰层次和实现边界 |
+| `source_guidance` / `must_avoid` | 决定证据呈现方式与禁止动作 |
 | `image.mode` | 严格按下面第 3 条执行 |
 
 ---
@@ -34,6 +37,11 @@ python3 SKILL_DIR/scripts/resource_loader.py resolve --refs-dir REFS_DIR --plann
 
 **你必须照着实现，细节可微调，结构不得绕过。**
 
+特别注意：
+- 若 resolve 返回了组件的**语义类锚点**，必须保留这些锚点；你可以附加 page-local modifier class，但不要替换掉核心结构。
+- 若 planning 的 `resources.*_refs` 与 `card.resource_ref.*` 同时存在，优先保证两者都被消费，不要只看其中一层。
+- `process` 这类没有独立 block 文件的 card_type，优先从 `layout_refs`、`principle_refs`、`director_command` 和相关 chart 资源中组装实现。
+
 ---
 
 ## Phase 3：图片模式严格执行
@@ -46,7 +54,17 @@ python3 SKILL_DIR/scripts/resource_loader.py resolve --refs-dir REFS_DIR --plann
 
 ---
 
-## Phase 4：画布物理红线（不可违反）
+## Phase 4：卡片落地对账（强制）
+
+- `planning.cards[]` 中的每一张卡都必须有一个对应的 HTML 根节点。
+- 每个根节点都要带 `data-card-id="<card_id>"`，便于 Review 阶段与 planning 对账。
+- `role = anchor` 的卡必须成为全页第一视觉落点；`support/context` 退后，但不能消失。
+- 若卡片带 `chart.chart_type`，最终图表类型必须与 planning 保持一致；不要把 `comparison_bar` 偷换成普通 list。
+- 若 `source_guidance` 要求保留来源，至少在卡片 footer / caption / 注释位中给出来源提示。
+
+---
+
+## Phase 5：画布物理红线（不可违反）
 
 ```css
 body {
@@ -67,7 +85,7 @@ body {
 
 ---
 
-## Phase 5：风格变量严格绑定
+## Phase 6：风格变量严格绑定
 
 从 `style.json` 的 `css_variables` 提取所有变量，写入 HTML 的 `:root`：
 
@@ -97,19 +115,21 @@ body {
 
 ---
 
-## Phase 6：设计多样性要求
+## Phase 7：设计多样性要求
 
-- 每张卡片的 class 命名**全部独立自定义**，禁止复用上一页的 class 结构
-- CSS 实现方式每页独立设计，不套模板
+- 页面级 wrapper、modifier class 应该带有本页差异性，避免连续两页像复制模板
+- **但**如果 resolve 提供了核心结构或语义类锚点，必须保留，不得为了“全都自定义”而破坏资源合同
+- CSS 实现方式每页独立设计，但仍需服从 `style.json`、`director_command` 与资源正文的共同约束
 - 同一套 deck 中每页都应有视觉差异感（不同色块比例/不同排版中心/不同装饰位置）
 
 ---
 
-## Phase 7：完成条件
+## Phase 8：完成条件
 
 写入 `{{SLIDE_OUTPUT}}` 后：
 - 文件非空
 - 无语法错误（HTML 标签闭合完整）
 - 没有明显乱码或缺失的 CSS 变量引用
+- `planning.cards[]` 全部能在 HTML 中找到对应的 `data-card-id`
 
 发送 FINALIZE 信号，然后等待 Review 阶段指令。

@@ -5,7 +5,7 @@
 > **严格禁止调用工具去读取外层的 `SKILL.md` 或主控全局规则文件！**
 >
 > 本阶段的唯一目标：读取用户资料并提炼为结构化素材，写入 `{{BRIEF_OUTPUT}}`。
-> 完成后发送 FINALIZE 信号。
+> 完成后**只输出阶段完成信号**，不要发送最终 FINALIZE。
 
 你是隔离的资料整合 subagent，当前执行资料读取与提炼工作。
 
@@ -32,5 +32,5 @@
 
 ## 执行摘要
 
-按照 Playbook 的阅读策略与提炼指南执行任务，将结构化提炼结果写入 `{{BRIEF_OUTPUT}}`。完成后发送 FINALIZE 信号：
-`FINALIZE: 提炼完成，产物路径 {{BRIEF_OUTPUT}}`
+按照 Playbook 的阅读策略与提炼指南执行任务，将结构化提炼结果写入 `{{BRIEF_OUTPUT}}`。完成后只输出阶段完成信号：
+`--- STAGE 1 COMPLETE: {{BRIEF_OUTPUT}} ---`

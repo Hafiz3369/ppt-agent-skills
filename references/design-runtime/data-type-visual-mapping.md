@@ -12,11 +12,11 @@
 |---------|---------------|---------|-------------|------------|
 | `data_tables` | `data` / `comparison` | symmetric / three-column | 标准 `<table>` + 斑马纹 + 高亮行 | evidence / comparison |
 | `metrics` | `data_highlight` | hero-top / primary-secondary | `charts/kpi.md` `charts/metric-row.md` | cover / evidence / close |
-| `kv_pairs` | `data` / `list` | symmetric / two-column | 标签+值两列布局，标签半透明 | setup / evidence |
+| `kv_pairs` | `data` / `list` | symmetric / primary-secondary | 标签+值两列布局，标签半透明 | setup / evidence |
 | `matrix_data` | `matrix_chart` | single-focus / primary-secondary | `blocks/matrix-chart.md` 2x2 grid | comparison / framework |
 | `funnel_data` | `data` | single-focus / primary-secondary | `charts/funnel.md` 梯形递减 | process / evidence |
 | `pie_data` | `data` | primary-secondary | `charts/ring.md` 环形图 + 图例 | evidence / comparison |
-| `trend_series` | `data` | primary-secondary / hero-top | `charts/sparkline.md` 折线 + 标注 | evidence / trend |
+| `trend_series` | `data` | primary-secondary / hero-top | `charts/sparkline.md` 折线 + 标注 | evidence / close |
 | `ranked_list` | `list` / `data_highlight` | l-shape / asymmetric | 排名编号 + 渐变条 + 数值 | evidence / comparison |
 | `score_card` | `data` | single-focus | `charts/radar.md` 雷达图 | evidence / comparison |
 | `distribution_data` | `data` | primary-secondary | `charts/stacked-bar.md` 堆叠柱状 | evidence |
@@ -103,6 +103,8 @@
 ```
 text | data | list | process | tag_cloud | data_highlight | timeline | diagram | quote | comparison | people | image_hero | matrix_chart
 ```
+
+说明：`process` 是 validator 合法的原生 `card_type`，但当前没有独立的 `blocks/process.md`。使用它时，不要期待 `resource_loader resolve` 自动拿到专属 block 正文；应结合 `layout_refs`、`principle_refs`、`director_command` 和必要的 chart 资源共同落地。
 
 建议扩展（+9 种）：
 

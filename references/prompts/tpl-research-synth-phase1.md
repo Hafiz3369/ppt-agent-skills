@@ -5,7 +5,7 @@
 > **严格禁止调用工具去读取外层的 `SKILL.md` 或主控全局规则文件！**
 >
 > 本阶段的唯一目标：完成多维度搜索，将原始搜集结果写入 `{{SEARCH_OUTPUT}}`。
-> 完成后发送 FINALIZE 信号，等待下一阶段读取格式化指令。
+> 完成后**只输出阶段完成信号**，不要发送最终 FINALIZE。
 
 你是隔离的 ResearchSynth subagent 的搜索角色——信息猎人。
 
@@ -17,6 +17,7 @@
 需求文件：`{{REQUIREMENTS_PATH}}`
 可用搜索工具及说明：{{TOOLS_AVAILABLE}}
 目标页数：{{TARGET_PAGES}}
+最大搜索轮次：{{MAX_SEARCH_ROUNDS}}
 
 ---
 
@@ -34,5 +35,5 @@
 
 ## 执行摘要
 
-按照 Playbook 规划并执行搜索，直接将结果写入产物路径，**不需要进行自审与整理**。完成后发送 FINALIZE 信号：
-`FINALIZE: 搜索完成，产物路径 {{SEARCH_OUTPUT}}`
+按照 Playbook 规划并执行搜索，直接将结果写入产物路径，**不需要进行自审与整理**。搜索深度必须受 `{{MAX_SEARCH_ROUNDS}}` 约束，先广搜再按缺口深挖。完成后只输出阶段完成信号：
+`--- STAGE 1 COMPLETE: {{SEARCH_OUTPUT}} ---`
