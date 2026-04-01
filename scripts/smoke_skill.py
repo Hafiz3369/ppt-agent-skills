@@ -19,11 +19,24 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from workflow_versions import (  # noqa: E402
+    PLANNING_CONTINUITY_VERSION,
+    PLANNING_PACKET_VERSION,
+    PLANNING_SCHEMA_VERSION,
+    WORKFLOW_VERSION,
+)
+
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = ROOT_DIR / "scripts"
 REFERENCES_DIR = ROOT_DIR / "references"
 PLAYBOOK_PATH = REFERENCES_DIR / "playbooks/step4/page-planning-playbook.md"
+PAGE_TEMPLATE_EXPECTATIONS = {
+    "cover": "# 封面页 -- 演讲的第一声呼吸",
+    "toc": "# 目录页 -- 演讲的地图俯瞰",
+    "section": "# 章节封面页 -- 演讲中的呼吸",
+    "end": "# 结束页 -- 演讲的最后一个视觉印记",
+}
 
 
 @dataclass
@@ -89,6 +102,76 @@ def assert_no_unfilled_vars(label: str, text: str, result: SmokeResult) -> None:
         result.error(f"{label}: unfilled template vars remain: {leftovers}")
 
 
+def build_non_content_page(page_type: str) -> dict[str, object]:
+    return {
+        "page": {
+            "slide_number": 1,
+            "page_type": page_type,
+            "narrative_role": "opening" if page_type == "cover" else "transition",
+            "title": f"Smoke {page_type}",
+            "page_goal": f"验证 {page_type} 页面模板路由",
+            "audience_takeaway": f"{page_type} page template resolve",
+            "visual_weight": 7,
+            "focus_zone": "center",
+            "negative_space_target": "medium",
+            "page_text_strategy": "短句为主",
+            "rhythm_action": "推进",
+            "must_avoid": [],
+            "variation_guardrails": {
+                "same_gene_as_deck": "保留统一风格变量",
+                "different_from_previous": ["验证 page template 路由"],
+            },
+            "director_command": {
+                "mood": "测试态",
+                "spatial_strategy": "居中聚焦",
+                "anchor_treatment": "标题优先",
+                "techniques": ["T1"],
+                "prose": "用于验证非 content 页的模板消费链。",
+            },
+            "decoration_hints": {
+                "background": {"feel": "轻量背景", "restraint": "不抢主标题", "techniques": ["T1"]},
+                "floating": {"feel": "弱装饰", "restraint": "仅做陪衬", "techniques": []},
+                "page_accent": {"feel": "少量强调色", "restraint": "仅一处强调", "techniques": []},
+            },
+            "resources": {
+                "page_template": None,
+                "layout_refs": [],
+                "block_refs": [],
+                "chart_refs": [],
+                "principle_refs": [],
+                "resource_rationale": "验证 page_type 自动路由到 page-templates/",
+            },
+            "cards": [
+                {
+                    "card_id": "s01-anchor",
+                    "role": "anchor",
+                    "card_type": "text",
+                    "card_style": "accent",
+                    "headline": f"{page_type} smoke",
+                    "body": ["最小非 content 页冒烟样例"],
+                    "content_budget": {"headline_max_chars": 12, "body_max_bullets": 1, "body_max_lines": 2},
+                    "image": {
+                        "mode": "decorate",
+                        "needed": False,
+                        "usage": None,
+                        "placement": None,
+                        "content_description": None,
+                        "source_hint": None,
+                        "decorate_brief": "只做轻量占位，不引入外部图片。",
+                    },
+                }
+            ],
+            "workflow_metadata": {
+                "stage": "planning",
+                "workflow_version": WORKFLOW_VERSION,
+                "planning_schema_version": PLANNING_SCHEMA_VERSION,
+                "planning_packet_version": PLANNING_PACKET_VERSION,
+                "planning_continuity_version": PLANNING_CONTINUITY_VERSION,
+            },
+        }
+    }
+
+
 def build_fixture_tree(tmp_dir: Path) -> dict[str, Path]:
     fixtures = {
         "requirements": tmp_dir / "requirements-interview.txt",
@@ -100,6 +183,7 @@ def build_fixture_tree(tmp_dir: Path) -> dict[str, Path]:
         "png": tmp_dir / "png/slide-3.png",
         "images": tmp_dir / "images",
         "runtime": tmp_dir / "runtime",
+        "prompt_style_phase1": tmp_dir / "runtime/prompt-style-phase1.md",
         "prompt_planning": tmp_dir / "runtime/prompt-page-planning-3.md",
         "prompt_html": tmp_dir / "runtime/prompt-page-html-3.md",
         "prompt_review": tmp_dir / "runtime/prompt-page-review-3.md",
@@ -226,7 +310,70 @@ def run_smoke() -> SmokeResult:
         if images.returncode == 0:
             assert_contains("resource-loader-images", images.stdout, ["count: 0", "(empty)"], result)
 
+        for page_type, expected_title in PAGE_TEMPLATE_EXPECTATIONS.items():
+            planning_dir = tmp_dir / f"planning-{page_type}"
+            planning_path = planning_dir / "planning1.json"
+            write_text(planning_path, json.dumps(build_non_content_page(page_type), ensure_ascii=False, indent=2))
+            non_content_validate = run_cmd(
+                f"planning-validator-{page_type}",
+                [
+                    py,
+                    str(SCRIPTS_DIR / "planning_validator.py"),
+                    str(planning_dir),
+                    "--refs",
+                    str(REFERENCES_DIR),
+                    "--page",
+                    "1",
+                ],
+                result,
+            )
+            if non_content_validate.returncode == 0:
+                assert_contains(f"planning-validator-{page_type}", non_content_validate.stdout, ["OK"], result)
+
+            non_content_resolve = run_cmd(
+                f"resource-loader-resolve-{page_type}",
+                [
+                    py,
+                    str(SCRIPTS_DIR / "resource_loader.py"),
+                    "resolve",
+                    "--refs-dir",
+                    str(REFERENCES_DIR),
+                    "--planning",
+                    str(planning_path),
+                ],
+                result,
+            )
+            if non_content_resolve.returncode == 0:
+                assert_contains(f"resource-loader-resolve-{page_type}", non_content_resolve.stdout, [expected_title], result)
+                assert_no_unfilled_vars(f"resource-loader-resolve-{page_type}", non_content_resolve.stdout, result)
+
         prompt_specs = [
+            (
+                "prompt-style-phase1",
+                fx["prompt_style_phase1"],
+                [
+                    py,
+                    str(SCRIPTS_DIR / "prompt_harness.py"),
+                    "--template",
+                    str(REFERENCES_DIR / "prompts/tpl-style-phase1.md"),
+                    "--var",
+                    f"REQUIREMENTS_PATH={fx['requirements']}",
+                    "--var",
+                    f"OUTLINE_PATH={fx['outline']}",
+                    "--var",
+                    f"SKILL_DIR={ROOT_DIR}",
+                    "--var",
+                    f"STYLE_OUTPUT={fx['style']}",
+                    "--inject-file",
+                    f"STYLE_RUNTIME_RULES={REFERENCES_DIR / 'styles/runtime-style-rules.md'}",
+                    "--inject-file",
+                    f"STYLE_PRESET_INDEX={REFERENCES_DIR / 'styles/runtime-style-palette-index.md'}",
+                    "--inject-file",
+                    f"PLAYBOOK={REFERENCES_DIR / 'playbooks/style-phase1-playbook.md'}",
+                    "--output",
+                    str(fx["prompt_style_phase1"]),
+                ],
+            ),
             (
                 "prompt-page-planning",
                 fx["prompt_planning"],
@@ -358,6 +505,33 @@ def run_smoke() -> SmokeResult:
             if proc.returncode == 0:
                 rendered = output_path.read_text(encoding="utf-8")
                 assert_no_unfilled_vars(label, rendered, result)
+                if label == "prompt-style-phase1":
+                    assert_contains(
+                        label,
+                        rendered,
+                        [
+                            "# Runtime Style Rules",
+                            "# Runtime Style Palette Index",
+                            "# Style Phase 1 Playbook -- 风格合同的定义与输出",
+                        ],
+                        result,
+                    )
+                if label == "prompt-page-planning":
+                    assert_contains(
+                        label,
+                        rendered,
+                        ["# Page Planning Playbook -- 单页策划稿", "# 设计原则速查表 -- Step 4 字段级操作手册"],
+                        result,
+                    )
+                if label == "prompt-page-html":
+                    assert_contains(label, rendered, ["# Page HTML Playbook -- 单页 HTML 设计稿"], result)
+                if label == "prompt-page-review":
+                    assert_contains(
+                        label,
+                        rendered,
+                        ["# Page Visual Review & Fix Playbook -- 单页图审与 HTML 修复", "# Runtime Failure Modes"],
+                        result,
+                    )
 
     return result
 

@@ -76,6 +76,11 @@ P2A/P2B/P3/P3.5/P4 均采用渐进式上下文注入：每个节点有 orchestra
 | `page_type` | `page-templates/` |
 | `resources.*_refs` | 对应目录 |
 
+说明：
+
+- `cover` / `toc` / `section` / `end` 这类非 `content` 页，主消费链是 `page_type -> page-templates/`
+- `resources.page_template` 是显式覆盖口，只有需要强制钉住某个模板正文时才额外填写
+
 ## Design Runtime
 
 数据到视觉的桥梁文件：

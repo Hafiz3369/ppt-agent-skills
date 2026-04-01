@@ -81,6 +81,21 @@ STEP4_DOCS = [
     ROOT_DIR / "references/playbooks/step4/page-html-playbook.md",
 ]
 
+RESOURCE_ROUTE_DOC_RULES = {
+    ROOT_DIR / "SKILL.md": [
+        r"layout_hint→layouts/",
+        r"page_type→page-templates/",
+        r"card_type→blocks/",
+        r"chart_type→charts/",
+    ],
+    ROOT_DIR / "references/README.md": [
+        r"\|\s*`layout_hint`\s*\|\s*`layouts/`\s*\|",
+        r"\|\s*`page_type`\s*\|\s*`page-templates/`\s*\|",
+        r"\|\s*`card_type`\s*\|\s*`blocks/`\s*\|",
+        r"\|\s*`chart_type`\s*\|\s*`charts/`\s*\|",
+    ],
+}
+
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
@@ -253,6 +268,14 @@ def check_truth_source_docs(result: CheckResult) -> None:
                 result.warn(f"{format_rel(path)}: missing maintenance hint `{token}`")
 
 
+def check_resource_route_docs(result: CheckResult) -> None:
+    for path, patterns in RESOURCE_ROUTE_DOC_RULES.items():
+        text = read_text(path)
+        for pattern in patterns:
+            if not re.search(pattern, text):
+                result.error(f"{format_rel(path)}: missing documented resource route pattern `{pattern}`")
+
+
 def run_all_checks() -> CheckResult:
     result = CheckResult()
     check_prompt_harness_coverage(result)
@@ -260,6 +283,7 @@ def run_all_checks() -> CheckResult:
     check_step4_legacy_aliases(result)
     check_planning_example(result)
     check_truth_source_docs(result)
+    check_resource_route_docs(result)
     return result
 
 
