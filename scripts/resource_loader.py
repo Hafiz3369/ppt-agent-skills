@@ -51,6 +51,10 @@ ALWAYS_INCLUDE = {
     "design-runtime/data-type-decoration-mapping.md": lambda pages: True,
     # Canvas specs (1280x720 hard constraint) -- MUST always inject
     "design-runtime/design-specs.md": lambda pages: True,
+    # CSS advanced techniques (W1-W12) -- always inject so HTML subagent can use without planning preselection
+    "design-runtime/css-weapons.md": lambda pages: True,
+    # Director command rules -- always inject so HTML subagent understands director_command field conventions
+    "design-runtime/director-command-rules.md": lambda pages: True,
 }
 
 # Explicit ref fields in planning JSON resources section
