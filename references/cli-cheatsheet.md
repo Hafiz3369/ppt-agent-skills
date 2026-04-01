@@ -93,13 +93,9 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-source-synth.md
 ```
 
-启动：
-
-```bash
-codex exec -m MAIN_MODEL --full-auto -s workspace-write \
-  - < OUTPUT_DIR/runtime/prompt-source-synth.md \
-  --output-last-message OUTPUT_DIR/runtime/source-synth-finalize.txt
-```
+主代理执行：
+`依据《Subagent 操作手册》唤起/创建 SourceSynth Subagent 并显性赋予主要模型参数 --model MAIN_MODEL`
+`对该代理发送 RUN OUTPUT_DIR/runtime/prompt-source-synth.md 指令`
 
 Gate 校验：
 
@@ -163,7 +159,7 @@ python3 SKILL_DIR/scripts/contract_validator.py style OUTPUT_DIR/style.json
 
 ## Step 4 单页生产（单 Subagent 分阶段注入上下文）
 
-> **流程核心说明**：为每页创建一个独立的 `PageAgent-N`。主 agent（Codex TUI 交互模式）直接监控自己启动的 subagent，天然知道每页对应的 session。4A 完成后主 agent 立刻续接 4B，用 `--last` 即可（此时最近的 session 就是刚跑完的 4A）。
+> **流程核心说明**：为每页创建一个独立的 `PageAgent-N`。主 agent 直接监控自己启动的 subagent，天然记录对应页的 session。4A FINALIZE 后，主 agent 立刻依据协议对同一个 session 续写 4B 后续指令。
 
 ---
 
@@ -184,17 +180,16 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --var PLANNING_OUTPUT=OUTPUT_DIR/planning/planningN.json \
   --var SKILL_DIR=SKILL_DIR \
   --var REFS_DIR=SKILL_DIR/references \
+  --inject-file PRINCIPLES_CHEATSHEET=SKILL_DIR/references/principles/design-principles-cheatsheet.md \
   --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/step4/page-planning-playbook.md \
   --output OUTPUT_DIR/runtime/prompt-page-planning-N.md
 ```
 
-**启动 PageAgent-N（必须传递 MAIN_MODEL）：**
+**启动 PageAgent-N（新建 session，必须传递 MAIN_MODEL）：**
 
-```bash
-codex exec -m MAIN_MODEL --full-auto -s workspace-write \
-  - < OUTPUT_DIR/runtime/prompt-page-planning-N.md \
-  --output-last-message OUTPUT_DIR/runtime/page-N-finalize.txt
-```
+主代理执行：
+`依据《Subagent 操作手册》唤起/创建 PageAgent-N 并显性赋予主要模型参数 --model MAIN_MODEL`
+`对该代理发送 RUN OUTPUT_DIR/runtime/prompt-page-planning-N.md 指令`
 
 Gate 校验（收到 FINALIZE 且文件存在）：
 
@@ -224,13 +219,11 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-page-html-N.md
 ```
 
-**主 agent 确认 FINALIZE 后，立刻续接同一 session（主 agent 监控到的就是刚完成的 4A session）：**
+**主 agent 确认 4A 成功后，立刻对同一个 PageAgent-N session 续写会话发送下一步指令：**
 
-```bash
-codex exec resume --last -m MAIN_MODEL --full-auto -s workspace-write \
-  - < OUTPUT_DIR/runtime/prompt-page-html-N.md \
-  --output-last-message OUTPUT_DIR/runtime/page-N-html-finalize.txt
-```
+主代理执行：
+`针对当前的 PageAgent-N session 发送后续指令`
+`发送 RUN OUTPUT_DIR/runtime/prompt-page-html-N.md 指令`
 
 Gate 校验：
 
@@ -259,13 +252,11 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-page-review-N.md
 ```
 
-**主 agent 确认 FINALIZE 后，再次续接同一 session（PageAgent-N 拥有 4A+4B 的完整设计记忆）：**
+**主 agent 确认 4B 成功后，再次对同一个 PageAgent-N session 续写会话发送审查指令（因为是在同一个 session 里续写，所以该环境拥有 4A+4B 的完整设计记忆）：**
 
-```bash
-codex exec resume --last -m MAIN_MODEL --full-auto -s workspace-write \
-  - < OUTPUT_DIR/runtime/prompt-page-review-N.md \
-  --output-last-message OUTPUT_DIR/runtime/page-N-review-finalize.txt
-```
+主代理执行：
+`针对当前的 PageAgent-N session 发送后续审查指令`
+`发送 RUN OUTPUT_DIR/runtime/prompt-page-review-N.md 指令`
 
 Gate 校验：
 
@@ -301,7 +292,7 @@ python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning --refs SKILL
 rm -f OUTPUT_DIR/planning/planningN.json
 rm -f OUTPUT_DIR/slides/slide-N.html
 rm -f OUTPUT_DIR/png/slide-N.png
-# 并行 codex exec（各自新建 session，4A→4B→4C）
+# 基于《Subagent 操作手册》并行发起所有对应的 PageAgent-N（各自新建 session，4A→4B→4C）
 ```
 
 > session 一律视为不可续接（subagent 死亡=上下文全无），整页从 4A 开始重跑。  
