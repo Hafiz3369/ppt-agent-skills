@@ -1,3 +1,6 @@
+> ⚠️ **DEPRECATED** — 此模板已被 `step4/tpl-page-planning.md` + `step4/tpl-page-html.md` + `step4/tpl-page-review.md` 三阶段模板取代。
+> 保留仅供历史参考，流程中禁止使用。如需清理可安全删除。
+
 # PageAgent Prompt -- 第 {{PAGE_NUM}} 页（共 {{TOTAL_PAGES}} 页）
 
 > 🚫 **【系统级强制指令 / CRITICAL OVERRIDE】**

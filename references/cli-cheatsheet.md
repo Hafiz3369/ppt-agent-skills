@@ -61,8 +61,12 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --var SEARCH_OUTPUT=OUTPUT_DIR/search.txt \
   --var BRIEF_OUTPUT=OUTPUT_DIR/search-brief.txt \
   --var TOOLS_AVAILABLE="由主 agent 根据感知结果动态填入可用的检索工具及其功能简述" \
+  --var MAX_SEARCH_ROUNDS="主 agent 根据主题复杂度预估：简单2/中等3/高复杂4" \
+  --var TARGET_PAGES="目标页数（来自采访）" \
   --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/research-synth-playbook.md \
   --output OUTPUT_DIR/runtime/prompt-research-synth.md
+```
+
 Gate 校验通过后，主代理：
 `唤起/创建 ResearchSynth Subagent 并显性赋予其参数 --model MAIN_MODEL`
 `RUN OUTPUT_DIR/runtime/prompt-research-synth.md`
@@ -157,15 +161,17 @@ python3 SKILL_DIR/scripts/contract_validator.py style OUTPUT_DIR/style.json
 
 ---
 
-## Step 4 单页生产（单 Subagent 分阶段注入上下文）
+## Step 4 单页生产（双模式：按环境感知选择执行后端）
 
-> **流程核心说明**：为每页创建一个独立的 `PageAgent-N`。主 agent 直接监控自己启动的 subagent，天然记录对应页的 session。4A FINALIZE 后，主 agent 立刻依据协议对同一个 session 续写 4B 后续指令。
+> **模式判定**：Section 3.1 环境感知时确定，写入《Subagent 操作手册》。
+> - **Codex 模式**：subagent 支持 session 续写 → 4A/4B/4C 分三次注入同一 session
+> - **Claude 模式**：subagent 不支持可靠续写 → 三份 prompt 合并为单次 PageAgent 端到端完成
 
 ---
 
-### 4A. Planning 阶段（新建 session）
+### 4A. Planning 阶段
 
-**先生成 prompt 文件：**
+**生成 prompt 文件：**
 
 ```bash
 python3 SKILL_DIR/scripts/prompt_harness.py \
@@ -185,13 +191,15 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-page-planning-N.md
 ```
 
-**启动 PageAgent-N（新建 session，必须传递 MAIN_MODEL）：**
+**[Codex 模式] 启动 PageAgent-N（新建 session）：**
 
 主代理执行：
 `依据《Subagent 操作手册》唤起/创建 PageAgent-N 并显性赋予主要模型参数 --model MAIN_MODEL`
 `对该代理发送 RUN OUTPUT_DIR/runtime/prompt-page-planning-N.md 指令`
 
-Gate 校验（收到 FINALIZE 且文件存在）：
+**[Claude 模式] 见底部「Claude 模式：单次 PageAgent 端到端」节。**
+
+Gate 校验（Codex 模式收到 FINALIZE 后执行；Claude 模式在整页终检时统一执行）：
 
 ```bash
 test -s OUTPUT_DIR/planning/planningN.json
@@ -200,9 +208,9 @@ python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning --refs SKILL
 
 ---
 
-### 4B. HTML 阶段（续接同一 session）
+### 4B. HTML 阶段
 
-**先生成 prompt 文件：**
+**生成 prompt 文件：**
 
 ```bash
 python3 SKILL_DIR/scripts/prompt_harness.py \
@@ -219,11 +227,11 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-page-html-N.md
 ```
 
-**主 agent 确认 4A 成功后，立刻对同一个 PageAgent-N session 续写会话发送下一步指令：**
+**[Codex 模式] 对同一 PageAgent-N session 续写发送后续指令：**
 
 主代理执行：
-`针对当前的 PageAgent-N session 发送后续指令`
-`发送 RUN OUTPUT_DIR/runtime/prompt-page-html-N.md 指令`
+`针对当前 PageAgent-N session 发送后续指令`
+`RUN OUTPUT_DIR/runtime/prompt-page-html-N.md`
 
 Gate 校验：
 
@@ -233,9 +241,9 @@ test -s OUTPUT_DIR/slides/slide-N.html
 
 ---
 
-### 4C. Review 阶段（再次续接同一 session）
+### 4C. Review 阶段
 
-**先生成 prompt 文件：**
+**生成 prompt 文件：**
 
 ```bash
 python3 SKILL_DIR/scripts/prompt_harness.py \
@@ -252,15 +260,45 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-page-review-N.md
 ```
 
-**主 agent 确认 4B 成功后，再次对同一个 PageAgent-N session 续写会话发送审查指令（因为是在同一个 session 里续写，所以该环境拥有 4A+4B 的完整设计记忆）：**
+**[Codex 模式] 对同一 PageAgent-N session 再次续写发送审查指令：**
 
 主代理执行：
-`针对当前的 PageAgent-N session 发送后续审查指令`
-`发送 RUN OUTPUT_DIR/runtime/prompt-page-review-N.md 指令`
+`针对当前 PageAgent-N session 发送后续审查指令`
+`RUN OUTPUT_DIR/runtime/prompt-page-review-N.md`
 
 Gate 校验：
 
 ```bash
+test -s OUTPUT_DIR/png/slide-N.png
+```
+
+---
+
+### Claude 模式：单次 PageAgent 端到端
+
+> 当环境感知判定为 Claude 模式时，**跳过上面的分段注入流程**，改用以下方式。
+
+**第一步**：依次执行上面 4A/4B/4C 三个 harness 命令，生成三份 prompt 文件：
+- `OUTPUT_DIR/runtime/prompt-page-planning-N.md`
+- `OUTPUT_DIR/runtime/prompt-page-html-N.md`
+- `OUTPUT_DIR/runtime/prompt-page-review-N.md`
+
+**第二步**：创建单个 PageAgent-N，将三份 prompt 文件路径**一次性注入**，要求其按序完成：
+1. 读取 planning prompt → 产出 `planningN.json`
+2. 读取 html prompt → 落地 `slide-N.html`
+3. 读取 review prompt → 截图审查修复 → 产出 `slide-N.png`
+4. 三件套齐全后 `FINALIZE`
+
+主代理执行：
+`依据《Subagent 操作手册》唤起/创建 PageAgent-N 并显性赋予主要模型参数 --model MAIN_MODEL`
+`一次性发送包含三份 prompt 路径的端到端指令`
+
+**第三步**：回收 FINALIZE 后，主 agent 执行**整页终检**：
+
+```bash
+test -s OUTPUT_DIR/planning/planningN.json
+python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning --refs SKILL_DIR/references --page N
+test -s OUTPUT_DIR/slides/slide-N.html
 test -s OUTPUT_DIR/png/slide-N.png
 ```
 
@@ -288,10 +326,8 @@ python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning --refs SKILL
 **第二步：并行重跑** — 收集完毕，一次性并行启动所有缺失页（不串行逐页）：
 
 ```bash
-# 对缺失页列表 [N1, N2, ...] 中每页：
-rm -f OUTPUT_DIR/planning/planningN.json
-rm -f OUTPUT_DIR/slides/slide-N.html
-rm -f OUTPUT_DIR/png/slide-N.png
+# 对缺失页列表 [N1, N2, ...] 中每页，清理旧产物：
+python3 -c "import os; [os.remove(p) for p in ['OUTPUT_DIR/planning/planningN.json','OUTPUT_DIR/slides/slide-N.html','OUTPUT_DIR/png/slide-N.png'] if os.path.exists(p)]"
 # 基于《Subagent 操作手册》并行发起所有对应的 PageAgent-N（各自新建 session，4A→4B→4C）
 ```
 
@@ -317,8 +353,30 @@ python3 SKILL_DIR/scripts/html2svg.py OUTPUT_DIR/slides -o OUTPUT_DIR/svg
 python3 SKILL_DIR/scripts/svg2pptx.py OUTPUT_DIR/svg -o OUTPUT_DIR/presentation-svg.pptx --html-dir OUTPUT_DIR/slides
 
 # 4. 交付清单
-# 主 agent 写入 delivery-manifest.json
+# 主 agent 按以下 schema 写入 delivery-manifest.json
 ```
+
+**delivery-manifest.json 必填 schema**：
+
+```json
+{
+  "run_id": "RUN_ID（与 OUTPUT_DIR 对应）",
+  "generated_at": "ISO 8601 时间戳（如 2026-04-01T14:30:00Z）",
+  "summary": {
+    "total_pages": 页数（正整数）
+  },
+  "artifacts": {
+    "preview_html": "preview.html（相对于 OUTPUT_DIR 的路径）",
+    "presentation_png_pptx": "presentation-png.pptx",
+    "presentation_svg_pptx": "presentation-svg.pptx"
+  },
+  "pages": [
+    { "page": 1, "planning": "planning/planning1.json", "html": "slides/slide-1.html", "png": "png/slide-1.png" }
+  ]
+}
+```
+
+> `run_id`、`generated_at`、`artifacts`（含三个路径）为 validator 强制校验字段；`summary` 和 `pages` 建议填写。
 
 Gate 校验：
 

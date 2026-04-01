@@ -6,8 +6,8 @@
 
 ```
 references/
-  playbooks/          -- subagent 执行细则（4 个）
-  prompts/            -- prompt 模板（5 个 tpl-*.md）
+  playbooks/          -- subagent 执行细则（5 个 + step4/ 下 3 个）
+  prompts/            -- prompt 模板（6 个 tpl-*.md + step4/ 下 3 个）
   layouts/            -- 版式资源（10 种）
   blocks/             -- 区域展示组件（8 种 + card-styles）
   charts/             -- 图表组件（13 种 + runtime-chart-rules）
@@ -23,11 +23,15 @@ references/
 
 1. `SKILL.md` -- 主控制台合同：状态机、统一调度骨架、Gate、恢复规则
 2. `playbooks/research-synth-playbook.md` -- Step 2A 搜集整理执行细则
-3. `playbooks/outline-subagent-playbook.md` -- Step 3 大纲 + 自审执行细则
-4. `playbooks/style-subagent-playbook.md` -- Step 3.5 全局风格合同执行细则
-5. `playbooks/page-agent-playbook.md` -- Step 4 单页全链路执行细则
-6. `styles/runtime-style-rules.md` -- Step 3.5 runtime 风格字段合同
-7. `styles/runtime-style-palette-index.md` -- Step 3.5 预置风格基底入口
+3. `playbooks/source-synth-playbook.md` -- Step 2B 本地资料整合执行细则
+4. `playbooks/outline-subagent-playbook.md` -- Step 3 大纲 + 自审执行细则
+5. `playbooks/style-subagent-playbook.md` -- Step 3.5 全局风格合同执行细则
+6. `playbooks/page-agent-playbook.md` -- Step 4 单页全链路执行细则（总览）
+7. `playbooks/step4/page-planning-playbook.md` -- Step 4A 页面规划执行细则
+8. `playbooks/step4/page-html-playbook.md` -- Step 4B HTML 落地执行细则
+9. `playbooks/step4/page-review-playbook.md` -- Step 4C 图审修复执行细则
+10. `styles/runtime-style-rules.md` -- Step 3.5 runtime 风格字段合同
+11. `styles/runtime-style-palette-index.md` -- Step 3.5 预置风格基底入口
 
 ## Prompt 模板
 
@@ -36,10 +40,14 @@ references/
 | 模板 | 阶段 | 变量 |
 |------|------|------|
 | `tpl-interview.md` | Step 0 采访 | TOPIC, USER_CONTEXT |
-| `tpl-research-synth.md` | Step 2A 搜集 | TOPIC, REQUIREMENTS_PATH, TOOLS_AVAILABLE |
+| `tpl-research-synth.md` | Step 2A 搜集 | TOPIC, REQUIREMENTS_PATH, SEARCH_OUTPUT, BRIEF_OUTPUT, TOOLS_AVAILABLE, MAX_SEARCH_ROUNDS, TARGET_PAGES |
+| `tpl-source-synth.md` | Step 2B 资料整合 | REQUIREMENTS_PATH, SOURCE_INPUT, BRIEF_OUTPUT |
 | `tpl-outline.md` | Step 3 大纲 | REQUIREMENTS_PATH, BRIEF_PATH, OUTLINE_OUTPUT |
 | `tpl-style.md` | Step 3.5 风格 | REQUIREMENTS_PATH, OUTLINE_PATH, SKILL_DIR, STYLE_OUTPUT |
-| `tpl-page-agent.md` | Step 4 单页 | PAGE_NUM, TOTAL_PAGES, REQUIREMENTS_PATH, OUTLINE_PATH, BRIEF_PATH, STYLE_PATH, IMAGES_DIR, PLANNING_OUTPUT, SLIDE_OUTPUT, PNG_OUTPUT, SKILL_DIR, REFS_DIR |
+| `tpl-page-agent.md` | ~~Step 4 单页~~ **DEPRECATED** | 已被 step4/ 下三阶段模板取代 |
+| `step4/tpl-page-planning.md` | Step 4A 页面规划 | PAGE_NUM, TOTAL_PAGES, REQUIREMENTS_PATH, OUTLINE_PATH, BRIEF_PATH, STYLE_PATH, IMAGES_DIR, PLANNING_OUTPUT, SKILL_DIR, REFS_DIR |
+| `step4/tpl-page-html.md` | Step 4B HTML 落地 | PAGE_NUM, TOTAL_PAGES, PLANNING_OUTPUT, SLIDE_OUTPUT, IMAGES_DIR, STYLE_PATH, SKILL_DIR, REFS_DIR |
+| `step4/tpl-page-review.md` | Step 4C 图审修复 | PAGE_NUM, TOTAL_PAGES, PLANNING_OUTPUT, SLIDE_OUTPUT, PNG_OUTPUT, STYLE_PATH, SKILL_DIR |
 
 ## 资源库
 

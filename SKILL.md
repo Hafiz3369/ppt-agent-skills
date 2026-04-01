@@ -25,7 +25,7 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 - 显式周期：`create → RUN → STATUS… → FINALIZE → close`；完成即关，不复用
 - 创建时**必须**显式传 `--model MAIN_MODEL`；禁止省略依赖默认值
-- P2A/P3/P3.5/P4 步骤：主 agent 禁止内联执行内容生产，违反视为合同违规
+- P2A/P2B/P3/P3.5/P4 步骤：主 agent 禁止内联执行内容生产，违反视为合同违规
 - 图片模式 `generate` 且用户需要文生图时，额外创建 `ImageGen` 子代理；PageAgent 不承担文生图
 - 所有 subagent 操作以 Section 3.1 输出的《Subagent 操作手册》为准
 
@@ -144,9 +144,12 @@ P2A.04 回收校验（search.txt + search-brief.txt）
 P2A.05 [可选] 补检索
 P2A.06 关闭
 
-P2B.01 文本化预处理
-P2B.02 写入 source-brief.txt
-P2B.03 [如 pptx][WAIT_USER] 模式确认
+P2B.01 [如 pptx][WAIT_USER] 模式确认
+P2B.02 harness → SourceSynth prompt
+P2B.03 创建 SourceSynth subagent
+P2B.04 [WAIT_AGENT] FINALIZE
+P2B.05 回收校验（source-brief.txt）
+P2B.06 关闭
 
 P3.01  harness → Outline prompt
 P3.02  创建 Outline subagent
@@ -160,12 +163,13 @@ P3.5.03 [WAIT_AGENT] FINALIZE
 P3.5.04 回收校验 style.json
 P3.5.05 关闭
 
-P4.NN.01 创建 PageAgent-NN（4A 新建 session）
-P4.NN.02 harness → Planning prompt → RUN → 回收 planningNN.json
-P4.NN.03 harness → HTML prompt → resume --last → 回收 slide-NN.html
-P4.NN.04 harness → Review prompt → resume --last → 审查修复 → 回收验证
+P4.NN.01 创建 PageAgent-NN
+P4.NN.02 [Codex 模式] harness → Planning prompt → RUN → 回收 planningNN.json
+P4.NN.03 [Codex 模式] harness → HTML prompt → resume --last → 回收 slide-NN.html
+P4.NN.04 [Codex 模式] harness → Review prompt → resume --last → 审查修复 → 回收验证
+        [Claude 模式] harness 一次性生成三段 prompt → 单次 PageAgent 端到端完成 4A→4B→4C → 回收验证
 P4.NN.05 关闭 PageAgent-NN
-（所有页并行推进）
+（所有页并行推进；执行模式按 3.1 环境感知结果选择）
 
 P5.01  生成 preview.html
 P5.02  PNG 导出 → presentation-png.pptx
@@ -177,7 +181,7 @@ P5.04  写入 delivery-manifest.json
 
 ## 5. 调度骨架与真源
 
-### 5.1 统一 Subagent 调度骨架（P2A/P3/P3.5/P4 共用）
+### 5.1 统一 Subagent 调度骨架（P2A/P2B/P3/P3.5/P4 共用）
 
 1. 查 cheatsheet 对应步骤 → harness 生成 prompt 文件
 2. 按《Subagent 操作手册》创建 subagent（必须传 `--model MAIN_MODEL`）
@@ -205,7 +209,7 @@ P5.04  写入 delivery-manifest.json
 | P1 | 识别输入确定分支 | 分支写入 requirements-interview.txt | 逻辑判断 | WAIT_USER |
 | P2A | 检索并压缩资料 | search.txt / search-brief.txt | `contract_validator search` + `search-brief` | 同 agent 追加检索 |
 | P2B | 压缩用户现有资料 | source-brief.txt | `contract_validator source-brief` | 回 P2B 重写 |
-| P3 | 生成大纲（内部自审） | outline.txt | `contract_validator outline` | 同 agent 修复，最多 2 轮 |
+| P3 | 生成大纲（内部自审） | outline.txt | `contract_validator outline` | 同 agent 修复，最多 2 轮；仍失败则 `BLOCKED_OUTLINE` 呼叫用户裁决 |
 | P3.5 | 固定全局风格 | style.json | `contract_validator style` | 回 P3.5 |
 | P4 | 并行生产各页 | planningN.json / slide-N.html / slide-N.png | `planning_validator` + 文件存在性 | 只回退该页，整页重跑 |
 | P5 | 导出交付 | preview.html / 双 pptx / delivery-manifest.json | `contract_validator delivery-manifest` | 只回退导出 |
@@ -228,17 +232,30 @@ P5.04  写入 delivery-manifest.json
 
 ### 6.4 Step 2A Search-Lite（Research 分支专有）
 
-此阶段极易发生内容单薄的问题。
-- **强制检查项**：产出的 `search-brief.txt` 必须包含专为 PPTX 设计的独立结构化数据包区块。必须至少含 3 种不同数据类型（Metrics指标、Comparisons对标、Timelines时间线等）。
-- 若搜索质量偏低，主 agent 有权发回给 ResearchSynth 追加一轮搜索后再关闭它。
+此阶段极易发生两个极端：内容单薄 或 无限制搜索烧 Token。
+
+**搜索深度预估（主 agent 在生成 prompt 前必须完成）**：
+- **丰富度优先**：搜索的首要目标是为每页提供足够丰富的素材（数据、案例、引用），宁可多搜一轮也不要内容单薄。
+- 根据主题复杂度和目标页数，预估搜索轮次上限（`MAX_SEARCH_ROUNDS`）并写入 prompt 变量：
+  - 简单/熟知主题（公司介绍、产品宣讲等）：**2 轮**
+  - 中等复杂度（行业趋势、技术方案等）：**3 轮**
+  - 高复杂度（深度研究报告、多维竞品分析等）：**4 轮**
+- 每轮搜索后 subagent 须自评覆盖率：若数据类型已覆盖目标页数需求且素材充裕，可提前终止；若某维度明显空缺，应继续搜索直到达到上限。
+- `MAX_SEARCH_ROUNDS` 是硬上限而非目标——鼓励在上限内尽可能搜全，但到达上限后必须收敛出 brief，禁止无限追加。
+
+**强制检查项**：产出的 `search-brief.txt` 必须包含专为 PPTX 设计的独立结构化数据包区块。必须至少含 3 种不同数据类型（Metrics指标、Comparisons对标、Timelines时间线等）。
+- 若搜索质量偏低且未达 `MAX_SEARCH_ROUNDS`，主 agent 有权发回给 ResearchSynth 追加一轮搜索后再关闭它。
+- 若已达上限仍不满足，标记 `SEARCH_QUALITY_LOW` 并向用户说明缺口，由用户决定是否补充资料或降低预期。
 
 ### 6.5 Step 2B 本地资料压缩（非 Research 分支）
 
-用户丢来的一堆资料必须先处理好再跑大纲。
-1. **多文件降维**：使用文件处理能力将 doc/excel/pdf 甚至代码全部转换为纯文本。
-2. **前置理解**：读取前 1000 个字进行主题粗建构。
-3. **输出**：全部整合入 `source-brief.txt`。
-4. **特例**：若用户直接传了 `.pptx`，则**强制询问**其期望的处理模式（仅美化排版 / 彻底重构大纲 / 美化排版并重构内容）。
+用户丢来的一堆资料必须先处理好再跑大纲。**此步同样走 subagent 模式**（SourceSynth subagent），禁止主 agent 内联执行内容生产。
+
+1. 主 agent 通过 harness 生成 SourceSynth prompt（命令见 cheatsheet Step 2B）。
+2. 按《Subagent 操作手册》创建 SourceSynth subagent（必须传 `--model MAIN_MODEL`）。
+3. SourceSynth 负责：**多文件降维**（doc/excel/pdf/代码 → 纯文本）、**前置理解**（主题粗建构）、整合输出 `source-brief.txt`。
+4. 主 agent 回收 FINALIZE 后执行 Gate 校验。
+5. **特例**：若用户直接传了 `.pptx`，主 agent 须在创建 subagent **前**强制询问期望的处理模式（仅美化排版 / 彻底重构大纲 / 美化排版并重构内容）。
 
 ### 6.6 Step 3 大纲构建（内部闭环）
 
@@ -248,19 +265,45 @@ P5.04  写入 delivery-manifest.json
 
 全盘风格定调。只有在明确了需求文本跑出的大纲后才定风格。风格判断不仅看需求，更依赖 `runtime-style-rules.md`。输出：一份精准的、没有含糊描述、能被页面规划和 HTML 代码直接执行的 `style.json`。
 
-### 6.8 Step 4 单页并行生产（记忆与解耦的平衡）
+### 6.8 Step 4 单页并行生产（双模式：能力感知选后端）
 
-为了防止大模型在一次 prompt 中同时兼顾排版、图文推演与 HTML 编码导致「注意力塌陷」，本阶段每个单页的任务被拆散成三级 prompt。但为了让大模型记得先前的推理逻辑，**这三个操作必须运行在同一个 `PageAgent-NN` 的同一个 session 中**：
+为防止大模型在一次 prompt 中同时兼顾排版、图文推演与 HTML 编码导致「注意力塌陷」，本阶段每个单页的任务被拆散成三级 prompt（4A Planning → 4B HTML → 4C Review）。**但执行编排按后端 subagent 能力分轨**：
 
-| 细分阶段 | 注入命令 | 产物目标 |
-|---------|---------|----------|
-| **4A 页面规划** | `codex exec -m MAIN_MODEL` (新建 session) | 输出包含详尽区块解析的 `planningN.json` |
-| **4B HTML 落地** | `codex exec resume --last` (复用同一根脑筋) | 输出带有完整行内资源的 `slide-N.html` |
-| **4C QA 图审与修复** | `codex exec resume --last` 继续续接 | 由 agent 亲手跑截图进行 10 维视觉自查，直到修无可修的 `slide-N.png` |
+#### 模式判定（Section 3.1 环境感知时确定，写入 `## Subagent 操作手册`）
 
-- **执行节奏**：各页可以而且应当**并行推进**。但对于单页内部，必须是 4A 拿到 FINALIZE 并且 Gate 通过，主 Agent 才会发 4B 指令。
-- **关于存活周期**：subagent 的 session 记忆是不储存在磁盘上的。**subagent 死亡 = 上下文全无**。这意味着一旦触发任何出错重试，旧 session 就失去价值，**必须将该页整页打回 4A 重新并行重跑（详见 Section 7）**。
-- **阶段放行条件**：三件套必须齐全，`planning_validator` 放行，且关联的图文槽位已经物理闭环。
+| 条件 | 模式 | 典型环境 |
+|------|------|---------|
+| subagent 支持同一 session 可靠续写（`resume --last`） | **Codex 三段式** | Codex CLI |
+| subagent 不支持 session 续写 / 续写不可靠 | **Claude 单次全包式** | Claude Code |
+
+#### Codex 三段式（session-resume）
+
+| 细分阶段 | 操作 | 产物目标 |
+|---------|------|----------|
+| **4A 页面规划** | 依据《Subagent 操作手册》创建 PageAgent-N（新建 session，`--model MAIN_MODEL`） | `planningN.json` |
+| **4B HTML 落地** | 对同一 PageAgent-N session 续写发送后续指令 | `slide-N.html` |
+| **4C QA 图审与修复** | 对同一 PageAgent-N session 再次续写发送审查指令 | `slide-N.png` |
+
+- 单页内部串行：4A Gate 通过 → 主 agent 发 4B → 4B Gate 通过 → 发 4C。
+- 主 agent 在每个阶段间执行外部 Gate 校验后再放行下一段。
+
+#### Claude 单次全包式（single-shot PageAgent）
+
+主 agent 为每页**依次**生成 4A/4B/4C 三份 prompt 文件，然后**一次性合并注入同一个 PageAgent-N**，要求其内部按序完成：
+
+1. 产出 `planningN.json`（对应 4A）
+2. 落地 `slide-N.html`（对应 4B）
+3. 截图审查并修到 `slide-N.png`（对应 4C）
+4. 三件套齐全后发出 `FINALIZE`
+
+- **子代理内部自检**替代主 agent 细粒度阶段间 Gate；主 agent 仅在回收 FINALIZE 后做**整页终检**（planning_validator + 文件存在性 + 图片审查）。
+- 不依赖 session 续写，状态真源回到文件产物和 Gate。
+
+#### 共通规则
+
+- 各页可以且应当**并行推进**。
+- **阶段放行条件**：三件套（planningN.json + slide-N.html + slide-N.png）必须齐全，`planning_validator` 放行。
+- subagent 死亡 = 上下文全无。任何出错重试，旧 session 失去价值，**必须整页打回 4A 重跑（详见 Section 7）**。
 
 ### 6.9 Step 5 交付
 
@@ -276,9 +319,14 @@ P5.04  写入 delivery-manifest.json
 - `slide-N.html` 不存在或为空
 - `slide-N.png` 视觉审查不通过
 
-**第二步：并行重跑** — 收集完毕后，一次性并行启动所有缺失页：清三件套 → 并行 `codex exec`（各自新建 session，4A→4B→4C）。
+**第二步：并行重跑** — 收集完毕后，一次性并行启动所有缺失页：清三件套（通过 contract_validator 或 Python 脚本安全清理对应产物）→ 并行新建 PageAgent（各自新建 session，4A→4B→4C）。
 
 单页连续 3 次失败 → 标记 `BLOCKED_PAGE_N`，先跳过推进其余页，最后集中处理。
+
+**BLOCKED 页终态处理**：所有非 BLOCKED 页完成后，主 agent 必须：
+1. 向用户汇报被 BLOCKED 的页号及每次失败的 Gate 错误摘要
+2. 由用户裁决：**手动修复**（用户自行编辑 HTML）/ **简化重试**（降低该页设计复杂度后重跑）/ **跳过该页**（从 outline 和最终交付中移除）
+3. 禁止静默吞掉 BLOCKED 页继续交付
 
 ### 7.2 跨对话断点恢复
 

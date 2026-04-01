@@ -61,9 +61,36 @@
 - `decoration_dna.signature_move`
 - `decoration_dna.forbidden`
 - `decoration_dna.recommended_combos`
-- `css_variables`
+- `css_variables`（见下方命名规范）
 - `font_family`
 - `css_snippets`（可选）
+
+## css_variables 键命名规范（强制，HTML 阶段按此绑定）
+
+下游 HTML 阶段会按以下精确变量名写入 `:root`，因此 `css_variables` 对象的 key 必须使用以下标准名称：
+
+```json
+{
+  "--bg-primary": "#...",
+  "--bg-secondary": "#...",
+  "--card-bg-from": "#...",
+  "--card-bg-to": "#...",
+  "--card-border": "#...",
+  "--card-radius": "...px",
+  "--text-primary": "#...",
+  "--text-secondary": "#...",
+  "--accent-1": "#...",
+  "--accent-2": "#...",
+  "--accent-3": "#...",
+  "--accent-4": "#...",
+  "--font-primary": "..."
+}
+```
+
+- key 必须带 `--` 前缀（CSS custom property 格式）
+- 禁止用 `--primary-color` / `--color-primary` 等自创命名替代上述标准名
+- 可追加额外变量（如 `--shadow-card`、`--border-subtle`），但上述 13 个为必填
+- `--font-primary` 的值必须与顶层 `font_family` 一致
 
 ## 硬规则
 

@@ -53,7 +53,25 @@
    ```bash
    python3 {{SKILL_DIR}}/scripts/resource_loader.py menu --refs-dir {{REFS_DIR}}
    ```
-7. 按 Playbook 细则决定 `image.mode`、`layout_hint`、`card_type`、排版策略等。
+7. **按下方映射表做资源选择决策**，然后决定 `image.mode`、`layout_hint`、`card_type`、排版策略等。
+
+### 数据类型 → 推荐资源映射（决策辅助）
+
+根据本页的 `proof_type` 和实际数据类型，优先按以下映射选择资源：
+
+| 本页数据特征 | 推荐 layout_hint | 推荐 card_type / chart_type | 选择理由 |
+|------------|-----------------|---------------------------|---------|
+| 单一核心数字/KPI | hero / split-left | kpi、metric-row | 大字突出，视觉冲击 |
+| 多项横向比较 | bento-grid / columns | comparison、comparison-bar | 左右对称利于对比 |
+| 时间线/里程碑 | timeline-flow | timeline | 自带时序叙事 |
+| 步骤/流程 | steps-horizontal / steps-vertical | process | 顺序清晰 |
+| 排行榜/Top-N | list-ranked | data_highlight、list | 层级视觉 |
+| 图文并茂 | split-left / split-right | image + text | 图文互补 |
+| 大段引言/金句 | centered-statement | quote | 聚焦单一信息 |
+| 数据图表 | chart-focus | bar、line、pie、ring | 图表主导 |
+| 多卡片并列信息 | bento-grid | feature-card、info-card | 模块化呈现 |
+
+**填写 `resources` 字段时必须说明选择理由**（`resource_rationale` 字段），例如："本页展示 3 个 KPI 指标对比，选择 bento-grid + metric-row 实现模块化数据呈现"。
 8. 将完整 planning 写入 `{{PLANNING_OUTPUT}}`。
 9. 自审（必须执行，不得跳过）：
    ```bash

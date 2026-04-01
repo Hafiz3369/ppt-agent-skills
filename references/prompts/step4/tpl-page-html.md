@@ -40,23 +40,33 @@
    ```bash
    python3 {{SKILL_DIR}}/scripts/resource_loader.py resolve --refs-dir {{REFS_DIR}} --planning {{PLANNING_OUTPUT}}
    ```
-   输出的实现细节必须真正落实到 HTML/CSS 结构中，不得忽略。
+   **resolve 输出的 HTML 结构骨架、CSS 类名、参数规范是强制执行的实现合同，不是参考建议。** 你可以在细节上微调（间距±5px、圆角±2px），但结构、类名、数据格式不得自行发明替代方案。如果 resolve 返回了某个组件的 HTML 骨架，你的最终 HTML 必须包含该骨架的核心结构。
 4. 核对图片素材，确认 `image.source_hint` 路径可访问：
    ```bash
    python3 {{SKILL_DIR}}/scripts/resource_loader.py images --images-dir {{IMAGES_DIR}}
    ```
-5. 按以下**画布物理红线**生成自包含 HTML（不可违反）：
+5. **执行摘要（必须先写再动手）**——用 3 句话总结本页的核心策略，输出到对话中后再开始写 HTML：
+   - 第 1 句：本页的核心论点和视觉焦点是什么
+   - 第 2 句：使用什么布局结构和主要组件
+   - 第 3 句：风格锚点（design_soul 如何体现在这一页）
+6. 按以下**画布物理红线**生成自包含 HTML（不可违反）：
    - `body { width: 1280px; height: 720px; overflow: hidden; }` —— 不得写 100% 或其他尺寸
    - 禁止 `transform: scale()` 缩放 hack
    - 所有 CSS 内联在 `<style>` 标签中，禁止引用外部 CSS 文件
    - 字体从 `style.json` 的 `font_family` 取值，通过 Google Fonts 或系统字体栈引入
-6. 按 `image.mode` 处理图片：
-   - `generate` / `provided`：将 `source_hint` 路径绑定到 `src` 或 `background`
-   - `manual_slot`：渲染明确可替换的图片占位区，不得删除
-   - `decorate`：使用内联 SVG、色块、渐变、字体装饰替代，不得留空白大洞
-7. 将完整 HTML 写入 `{{SLIDE_OUTPUT}}`
-8. 发送 FINALIZE 信号，格式：`FINALIZE: HTML 完成，产物路径 {{SLIDE_OUTPUT}}`
-9. **等待主 agent 发送下一阶段（图审 Review）指令，不要自行结束 session。**
+6. 按 `image.mode` 处理图片（**mode 在 planning 阶段已锁定，此处不得临时变更**）：
+   - `generate` / `provided`（`image.needed=true`）：将 `source_hint` 路径绑定到 `<img src>` 或 `background-image`，图片必须实际渲染
+   - `manual_slot`（`image.needed=false`）：渲染明确可替换的图片占位区（带边框/提示文字），不得偷偷删除占位区
+   - `decorate`（`image.needed=false`）：不使用外部图片，用内联 SVG、色块、渐变、字体装饰补足视觉氛围，不得留空白大洞
+7. **720px 高度内的视觉节奏**（设计要求，非可选建议）：
+   - 标题区（y=20~70）：大字+强对比度，一眼抓住主题
+   - 焦点区（y=70~450）：承载 primary 卡片，视觉权重最大
+   - 支撑区（y=450~640）：secondary 卡片或补充数据，字号缩小、对比度降低
+   - 装饰层：signature_move 锚点 + 渐变/几何点缀，不占用内容空间
+   - **禁止平铺直叙**：不得让所有卡片等大小、等间距、等字号排列，必须有主次层级
+8. 将完整 HTML 写入 `{{SLIDE_OUTPUT}}`
+9. 发送 FINALIZE 信号，格式：`FINALIZE: HTML 完成，产物路径 {{SLIDE_OUTPUT}}`
+10. **等待主 agent 发送下一阶段（图审 Review）指令，不要自行结束 session。**
 
 ---
 
