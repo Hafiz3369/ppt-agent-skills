@@ -49,6 +49,8 @@ ALWAYS_INCLUDE = {
     # Data type mapping tables -- always include for planning context
     "design-runtime/data-type-visual-mapping.md": lambda pages: True,
     "design-runtime/data-type-decoration-mapping.md": lambda pages: True,
+    # Canvas specs (1280x720 hard constraint) -- MUST always inject
+    "design-runtime/design-specs.md": lambda pages: True,
 }
 
 # Explicit ref fields in planning JSON resources section

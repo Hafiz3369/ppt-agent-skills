@@ -15,7 +15,6 @@
 |------|------|--------|
 | `contract_validator.py` | 合同校验（`interview` / `requirements-interview` / `search` / `search-brief` / `source-brief` / `outline` / `style` / `images` / `page-review` / `delivery-manifest`） | 主 agent |
 | `planning_validator.py` | Step 4 planning JSON 单页/全量验证 | subagent 自审 + 主 agent gate |
-| `progress_validator.py` | progress.json 生命周期校验 | 主 agent |
 | `milestone_check.py` | 按里程碑阶段验收 | 主 agent |
 
 说明：
@@ -45,6 +44,5 @@
 prompt_harness.py       -- 独立
 resource_loader.py      -- 独立
 contract_validator.py   -> planning_validator.py -> workflow_versions.py
-progress_validator.py   -- 独立
 milestone_check.py      -- 独立
 ```

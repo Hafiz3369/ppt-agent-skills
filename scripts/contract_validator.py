@@ -99,18 +99,19 @@ def contains_any(text: str, words: list[str]) -> bool:
 
 
 def validate_topics_coverage(text: str, result: ValidationResult, label: str) -> list[str]:
+    # 每个维度同时支持中文标题（tpl-interview.md 规范格式）和英文键名（LLM 自由格式兼容）
     required_dimensions = [
-        ("scene", ["场景", "使用场景", "应用场景"]),
-        ("audience", ["受众", "听众", "对象"]),
-        ("target_action", ["目标动作", "希望动作", "行动"]),
-        ("page_density", ["页数", "密度", "信息密度"]),
-        ("style", ["风格", "视觉风格"]),
-        ("brand", ["品牌", "logo", "品牌色"]),
-        ("must_include", ["必含", "必须包含", "必须有"]),
-        ("must_avoid", ["必避", "避免", "禁用"]),
-        ("language", ["语言", "中文", "英文", "中英"]),
-        ("imagery", ["配图", "图片", "图像", "插图"]),
-        ("material_strategy", ["资料使用策略", "资料策略", "素材使用", "引用策略"]),
+        ("scene", ["场景", "使用场景", "应用场景", "scenario"]),
+        ("audience", ["受众", "听众", "对象", "audience"]),
+        ("target_action", ["目标动作", "希望动作", "行动", "target_action"]),
+        ("page_density", ["页数", "密度", "信息密度", "page_density"]),
+        ("style", ["风格", "视觉风格", "style:"]),
+        ("brand", ["品牌", "logo", "品牌色", "brand:"]),
+        ("must_include", ["必含", "必须包含", "必须有", "must_include"]),
+        ("must_avoid", ["必避", "避免", "禁用", "must_avoid"]),
+        ("language", ["语言", "中文", "英文", "中英", "language:"]),
+        ("imagery", ["配图", "图片", "图像", "插图", "imagery", "image_mode"]),
+        ("material_strategy", ["资料使用策略", "资料策略", "素材使用", "引用策略", "material_strategy"]),
     ]
 
     matched: list[str] = []

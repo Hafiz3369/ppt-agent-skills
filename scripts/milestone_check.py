@@ -114,12 +114,6 @@ class Checker:
 
     def check_step0(self) -> None:
         self.echo("== Step 0 ==")
-        progress = self.output_dir / "progress.json"
-        self.must_file(progress)
-        cmd = [self.python, str(self.skill_dir / "scripts/progress_validator.py"), str(progress)]
-        if self.target == "0":
-            cmd.append("--require-pre-step1")
-        self.run_cmd(cmd, "progress_validator")
         self.echo("[OK] step 0")
 
     def check_step1(self) -> None:
@@ -155,6 +149,8 @@ class Checker:
         source_brief = self.output_dir / "source-brief.txt"
 
         if search.is_file() and search_brief.is_file():
+            # harness 执行证据
+            self.must_file(self.output_dir / "runtime" / "prompt-research-synth.md")
             self.run_cmd(
                 [
                     self.python,
@@ -192,6 +188,8 @@ class Checker:
 
     def check_step3(self) -> None:
         self.echo("== Step 3 ==")
+        # harness 执行证据
+        self.must_file(self.output_dir / "runtime" / "prompt-outline.md")
         outline = self.output_dir / "outline.txt"
         self.must_file(outline)
         self.run_cmd(
@@ -211,7 +209,13 @@ class Checker:
         planning_dir = self.output_dir / "planning"
         slides_dir = self.output_dir / "slides"
         png_dir = self.output_dir / "png"
+        runtime_dir = self.output_dir / "runtime"
         self.must_dir(planning_dir)
+        # harness 执行证据：每页必须有对应的 runtime prompt
+        pages = load_planning_pages(planning_dir)
+        if pages:
+            for i in range(1, len(pages) + 1):
+                self.must_file(runtime_dir / f"prompt-page-{i}.md")
         self.run_cmd(
             [
                 self.python,
@@ -278,6 +282,8 @@ class Checker:
 
     def check_step35(self) -> None:
         self.echo("== Step 3.5 ==")
+        # harness 执行证据
+        self.must_file(self.output_dir / "runtime" / "prompt-style.md")
         style = self.output_dir / "style.json"
         self.must_file(style)
         self.run_cmd(
@@ -332,7 +338,6 @@ class Checker:
 
     def run(self) -> None:
         required_scripts = [
-            self.skill_dir / "scripts/progress_validator.py",
             self.skill_dir / "scripts/contract_validator.py",
             self.skill_dir / "scripts/planning_validator.py",
         ]

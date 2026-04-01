@@ -1,6 +1,6 @@
 ---
 name: ppt-agent
-description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT 设计公司的完整工作流（需求调研到资料搜集到大纲策划到策划稿到设计稿），输出高质量 HTML 格式演示文稿。当用户提到制作 PPT、做演示文稿、做 slides、做幻灯片、做汇报材料、做培训课件、做路演 deck、做产品介绍页面时触发此技能。即使用户只说"帮我做个关于 X 的介绍"或"我要给老板汇报 Y"，只要暗示需要结构化的多页演示内容，都应该触发。也适用于用户说"帮我把这篇文档做成 PPT"、"把这个主题做成演示"等需要将内容转化为演示格式的场景。
+description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT 设计公司的完整工作流（需求调研到资料搜集到大纲策划到策划稿到设计稿），输出高质量 HTML 格式演示文稿。当用户提到制作 PPT、做演示文稿、做 slides、做幻灯片、做汇报材料、做培训课件、做路演 deck、做产品介绍页面时触发此技能。即使用户只说"帮我做个关于 X 的介绍"或"我要给老板汇报 Y"，只要暗示需要结构化的多页演示内容，都应该触发。也适用于用户说"帮我把这篇文档做成 PPT"、"把这个主题做成演示"等需要将内容转化为演示格式的场景。英文场景同样适用："make a presentation about..."、"create slides for..."、"build a pitch deck"、"I need a keynote for..."。隐式意图也应触发："帮我把这个数据可视化一下给老板看"、"我需要一份能拿去路演的东西"、"把这个报告做得好看点能展示"、"beautify my existing PPT"、"redesign these slides"。改善或美化现有 PPT 也属于此技能范畴。
 ---
 
 # PPT Agent v4 -- 主控制台合同
@@ -45,10 +45,12 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 - 显式生命周期：`create -> RUN -> STATUS... -> FINALIZE -> close`
 - 默认不继承父线程上下文
-- 子代理模型默认继承主 agent
+- **子代理模型强制显式指定**：创建任何 subagent 时，必须在 `create` 调用中显式设置 model 参数为 `MAIN_MODEL`（见 3.1.1）；禁止省略 model 参数依赖系统默认值；若创建工具不支持 model 参数则在 prompt 首行注明期望模型
 - 任一 subagent 完成且不再复用时，必须立即关闭
 - 单页 subagent 失败只回退该页，不阻塞其他页
 - 若图片模式为 `generate`，且用户明确需要 AI 文生图，主 agent 可额外创建 `ImageGen` 子代理；PageAgent 不直接承担文生图执行
+- **subagent 调用方式以环境感知阶段（Section 3.1.1）输出的《Subagent 操作手册》为准，禁止用其他方式替代**
+- **凡是 Canonical Plan 标注了 subagent 的步骤（P2A/P3/P3.5/P4），主 agent 禁止内联执行内容生产；若主 agent 直接写入任何正式产物，视为合同违规**
 
 ### 2.3 Prompt 模板化（强制）
 
@@ -98,15 +100,15 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 
 ### 2.7 执行纪律（严管，禁止乱读）
 
-- 默认策略是“执行优先”：到达某一步后，直接执行该步命令，不先做无关探索
+- 默认策略是"执行优先"：到达某一步后，直接执行该步命令，不先做无关探索
 - 进入流程后的第一条对外消息必须是 Step 0 采访问题组；不得先做资料探索或脚本 / 参考读取汇报
 - `interview-qa.txt` 与 `requirements-interview.txt` 任一缺失或校验失败时，禁止进入 Step 1+
 - 未到对应步骤时，禁止读取 `scripts/*.py`、`references/**`、`README.md`、validator 源码
-- 脚本是执行对象，不是阅读对象：仅允许 `python3 ...` 执行，必要时仅可 `python3 ... --help`
+- 脚本是执行对象，不是阅读对象：仅允许 `python3 ...` 执行；禁止 `python3 ... --help`，所有接口已固化在 `references/cli-cheatsheet.md`
 - 模板与 playbook 仅通过 `prompt_harness.py --inject-file` 注入，主 agent 不手动读取正文
-- 主 agent 允许读取的内容仅限：`OUTPUT_DIR/**`、用户输入文件、`progress.json`
-- 若命令失败且 `--help` 仍无法定位参数，标记 `BLOCKED_SCRIPT_INTERFACE` 并请求用户决策；不得通过读源码排障
-- 过程汇报禁止“Explored / Read ...”式预读清单；只汇报“当前步骤、已执行命令、Gate 结果、下一动作”
+- 主 agent 允许读取的内容仅限：`OUTPUT_DIR/**`、用户输入文件、`references/cli-cheatsheet.md`
+- 若命令失败，先查 `references/cli-cheatsheet.md` 核对参数；仍不能解决则标记 `BLOCKED_SCRIPT_INTERFACE` 并请求用户决策；不得通过读源码或 `--help` 排障
+- 过程汇报禁止"Explored / Read ..."式预读清单；只汇报"当前步骤、已执行命令、Gate 结果、下一动作"
 
 ### 2.8 CLI 固定步骤锁（强制）
 
@@ -115,14 +117,39 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 - 分支迁移只允许二选一：进入 `P2A.*` 后不得再跑 `P2B.*`；进入 `P2B.*` 后不得再跑 `P2A.*`
 - 每个 Step 进入前必须满足前序 Gate 已通过；未通过时禁止推进并标记 `BLOCKED_SEQUENCE`
 - 每个 Step 完成必须执行对应 Gate 校验（exit code = 0）后，才能标记 `completed`
-- 任何失败只允许两种动作：`RETRY_CURRENT_STEP` 或 `ROLLBACK->StepID`；禁止“跳到后续步骤试试看”
+- 任何失败只允许两种动作：`RETRY_CURRENT_STEP` 或 `ROLLBACK->StepID`；禁止"跳到后续步骤试试看"
 - `WAIT_USER` 与 `WAIT_AGENT` 是硬等待点；未收到输入 / FINALIZE 前禁止执行后续步骤
 - Step 4 允许并行仅限页内子链路；每页仍必须固定执行 `P4.NN.01 -> 02 -> 03 -> 04 -> 05`
 - 若检测到越序、跳步、跨分支混跑，立即停止并回报 `BLOCKED_SEQUENCE`
 
 ## 3. 环境、路径与正式产物合同
 
-### 3.1 开始前环境检查
+### 3.1 环境感知（强制，Step 0 前必须完成）
+
+进入任何业务步骤前，主 agent 必须执行以下感知并将结果**显式输出到对话**中。
+
+#### 3.1.1 Subagent 操作手册
+
+主 agent 必须：
+
+1. 自检当前环境中所有与 agent/subagent 创建、管理、通信相关的工具或 API
+2. **识别当前主 agent 的模型标识**，记录为 `MAIN_MODEL` 变量并输出到对话中（例：`MAIN_MODEL = claude-sonnet-4-20250514`）；若无法自动获取，则从 USER_SETTINGS 或环境变量中读取；仍无法确定时向用户询问
+3. 以表格形式输出到对话中（标题固定为 `## Subagent 操作手册`）：工具名、功能描述、关键参数（必须包含 model 参数说明）、调用示例（示例中必须体现 `model=MAIN_MODEL` 的显式传参）
+4. 若找不到任何 subagent 管理工具，标记 `BLOCKED_NO_SUBAGENT` 并停止流程
+
+后续所有 subagent 操作必须严格按此手册执行，不得用其他方式（包括内联执行）替代。**每次 `create` 调用必须显式携带 `model=MAIN_MODEL`，禁止省略让系统自选模型。**
+
+#### 3.1.2 Search 工具清单
+
+主 agent 必须：
+
+1. 自检当前环境中所有与 web search、URL 读取相关的工具和 skill
+2. 按优先级排序：用户自定义 skill（如 grok-search） > 内置工具（如 search_web、read_url_content）
+3. 以表格形式输出到对话中（标题固定为 `## Search 工具清单`）
+
+Step 2A 的 harness 调用中 `TOOLS_AVAILABLE` 变量必须从此清单取值。
+
+#### 3.1.3 其他能力检查
 
 | 能力 | 要求 | 降级规则 |
 |------|------|---------|
@@ -131,14 +158,14 @@ description: 专业 PPT 演示文稿全流程 AI 生成助手。模拟顶级 PPT
 | 信息检索 | 尽量有 | 缺失时依赖用户材料（走 Step 2B） |
 | 文生图能力 | 可选 | 缺失时不创建图片生成 subagent，降级为 `manual_slot` 或 `decorate` |
 | Node.js | 导出时尽量有 | 无则停在 HTML |
-| Planning 工具 | 必须有且必用 | 无则停止 |
-| Sub-agent 能力 | 必须有 | 无则停止 |
+| Planning 工具 | 必须有且必用 | 无则停止，进度由 planning 工具自身跟踪 |
 
 最前置顺序（强制）：
 
 1. 主 agent 执行 `update_plan`，创建 canonical plan
-2. 确认环境能力
-3. 进入 Step 0
+2. 读取 `references/cli-cheatsheet.md` 建立 CLI 接口认知
+3. 执行环境感知（3.1.1 + 3.1.2 + 3.1.3），输出到对话
+4. 进入 Step 0
 
 ### 3.2 路径变量
 
@@ -173,22 +200,11 @@ interview-qa.txt
   -> delivery-manifest.json
 ```
 
-### 3.4 运行时文件
-
-```text
-OUTPUT_DIR/runtime/
-  prompt-interview.md
-  prompt-research-synth.md
-  prompt-outline.md
-  prompt-style.md
-  prompt-page-{n}.md
-```
-
-`progress.json` 是必需运行账本，Step 0 后必须存在；由主 agent 在 `P0.04` 初始化，后续仅在状态变化时更新。
+运行时文件位于 `OUTPUT_DIR/runtime/prompt-*.md`。
 
 ## 4. Canonical Plan
 
-固定步骤结构（按 PRD Section 17）：
+必须按照次固定步骤结构（按 PRD Section 17）执行：
 
 ```text
 P0.01  采访问题组装
@@ -239,7 +255,7 @@ P5.04  写入 delivery-manifest.json
 
 - 仅在状态变化时更新计划
 - 等待同一 subagent 时禁止重复写等价 plan
-- 并行页必须逐页追踪，不可合并成“大步骤”
+- 并行页必须逐页追踪，不可合并成"大步骤"
 - create / wait / close 必须拆开
 - generate / validate 必须拆开
 - 每次回退显式标记 `ROLLBACK->StepID`
@@ -248,41 +264,30 @@ P5.04  写入 delivery-manifest.json
 
 ## 5. 统一调度骨架
 
-本节只定义所有 subagent 共用的调度骨架；各阶段只补本阶段的变量、产物和 gate。
+本节只定义所有 subagent 共用的调度骨架；各阶段只补本阶段的差异。
 
-### 5.1 统一 Harness 调用模式
+### 5.1 统一 Subagent 调度骨架
 
-```bash
-python3 SKILL_DIR/scripts/prompt_harness.py \
-  --template SKILL_DIR/references/prompts/tpl-{TYPE}.md \
-  --var KEY1=VALUE1 \
-  --var KEY2=VALUE2 \
-  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/{TYPE}-playbook.md \
-  --output OUTPUT_DIR/runtime/prompt-{TYPE}.md
-```
+除 Step 0、Step 1、Step 2B、Step 5 外，所有 subagent 阶段（P2A/P3/P3.5/P4）默认沿用以下骨架，无需各步骤重复声明：
 
-统一规则：
+1. 主 agent 查阅 `cli-cheatsheet.md` 对应步骤，执行 harness 生成 prompt 文件
+2. 按《Subagent 操作手册》（Section 3.1.1 输出）创建对应 subagent
+3. 发送 `RUN`，内容只是一行 prompt 路径
+4. 轮询 `STATUS`
+5. 收到 `FINALIZE`
+6. 主 agent 执行本阶段 gate 复检（命令见 `cli-cheatsheet.md`）
+7. subagent 不再复用时立即 `close`
+
+阶段内自审由 subagent 自己完成；主 agent 只认回收后的 gate 结果。
+
+Harness 统一规则：
 
 - 所有 `{{VAR}}` 必须被填充，残留即 ERROR
 - `--inject-file` 将文件内容内联嵌入模板对应位置
 - 输出路径固定在 `OUTPUT_DIR/runtime/`
 - Harness 不做调度、不做 subagent 管理，只做纯文本变换
 
-### 5.2 统一 Subagent 调度骨架
-
-除 Step 0、Step 1、Step 2B、Step 5 外，所有 subagent 阶段默认沿用以下骨架：
-
-1. 主 agent 先生成该阶段 prompt 文件
-2. 创建对应 subagent
-3. 发送 `RUN`，内容只是一行 prompt 路径
-4. 轮询 `STATUS`
-5. 收到 `FINALIZE`
-6. 主 agent 执行本阶段 gate 复检
-7. subagent 不再复用时立即 `close`
-
-阶段内自审由 subagent 自己完成；主 agent 只认回收后的 gate 结果。
-
-### 5.3 模板、playbook 与 style 真源
+### 5.2 模板、playbook 与 style 真源
 
 模板文件：
 
@@ -306,7 +311,7 @@ Style 真源：
 - `references/styles/runtime-style-rules.md`
 - `references/styles/runtime-style-palette-index.md`
 
-### 5.4 CURRENT_BRIEF_PATH 统一约定
+### 5.3 CURRENT_BRIEF_PATH 统一约定
 
 以下阶段使用相同的素材摘要选择规则：
 
@@ -316,47 +321,37 @@ CURRENT_BRIEF_PATH
   非 research   -> OUTPUT_DIR/source-brief.txt
 ```
 
-适用阶段：
-
-- Step 3 大纲
-- Step 4 单页生产
+适用阶段：Step 3 大纲、Step 4 单页生产。
 
 ## 6. 主流程状态机
 
-### 6.1 主步骤速览
+### 6.1 Step 全景表
 
-| Step | 核心动作 | 关键产物 | Gate 焦点 |
-|------|---------|---------|---------|
-| `P0` | 采访并归一化需求 | `interview-qa.txt` / `requirements-interview.txt` | 需求字段完整、配图模式已问清 |
-| `P1` | 识别输入并确定分支 | 分支记录回 `requirements-interview.txt` | research / 非 research 已明确 |
-| `P2A` | 检索并压缩外部资料 | `search.txt` / `search-brief.txt` | 搜索与摘要双文件通过 |
-| `P2B` | 压缩用户现有资料 | `source-brief.txt` | 现有资料已转成可消费摘要 |
-| `P3` | 生成大纲并自审 | `outline.txt` | 大纲合同通过 |
-| `P3.5` | 固定全局风格 | `style.json` | 风格合同合法 |
-| `P4` | 按页并行生产 | `planning{n}.json` / `slide-{n}.html` / `slide-{n}.png` | 单页链路完成，图片策略闭环 |
-| `P5` | 导出与打包交付 | `preview.html` / `pptx` / `delivery-manifest.json` | 交付件完整可回收 |
+| Step | 核心动作 | 关键产物 | Gate 校验 | 通过条件 | 失败回退 |
+|------|---------|---------|----------|---------|---------|
+| `P0` | 采访并归一化需求 | `interview-qa.txt` / `requirements-interview.txt` | `contract_validator.py interview` + `requirements-interview` | 双文件存在且字段完整 | 补问，不进 Step 1 |
+| `P1` | 识别输入并确定分支 | 分支记录回 `requirements-interview.txt` | 逻辑判断 | 分支选择明确且已记录 | `WAIT_USER` |
+| `P2A` | 检索并压缩外部资料 | `search.txt` / `search-brief.txt` | `contract_validator.py search` + `search-brief` | 双文件通过；brief 含 >=3 种数据类型 | 同 ResearchSynth 追加检索 |
+| `P2B` | 压缩用户现有资料 | `source-brief.txt` | `contract_validator.py source-brief` | 文件存在且通过 | 回 Step 2B 重写 |
+| `P3` | 生成大纲并自审 | `outline.txt` | `contract_validator.py outline` | outline 完成且含自审通过标记 | 同 subagent 修复，最多 2 轮 |
+| `P3.5` | 固定全局风格 | `style.json` | `contract_validator.py style` | style.json 合法 | 回 Step 3.5 |
+| `P4` | 按页并行生产 | `planning{n}.json` / `slide-{n}.html` / `slide-{n}.png` | `planning_validator.py` + 文件存在性 | 三件套 + 图片策略闭环 | 只回退该页 |
+| `P5` | 导出与打包交付 | `preview.html` / 双 pptx / `delivery-manifest.json` | `contract_validator.py delivery-manifest` | 全部存在 | 只回退导出，不回退内容 |
+
+所有 Prompt 生成命令与 Gate 校验命令的完整参数见 `references/cli-cheatsheet.md`。
 
 ### 6.2 Step 0 用户采访（必经 Gate）
 
 目标：生成 `OUTPUT_DIR/interview-qa.txt` 与 `OUTPUT_DIR/requirements-interview.txt`。
 
+不可跳过规则：即使用户在触发消息中已提供了充足的主题信息，采访仍然不可跳过。采访的目的不仅是收集主题内容，更是确认用户往往不会主动提供的隐含选项（配图模式、页数密度、品牌规范、必避内容等）。允许精简问题（已知信息可跳过对应问项），但必须至少确认所有隐含选项。
+
 执行：
 
-1. 主 agent 用 `tpl-interview.md` 组装采访问题（或直接发问）
+1. 主 agent 用 harness 生成 prompt（命令见 cheatsheet Step 0）或直接参考 `tpl-interview.md` 组装采访问题
 2. 采访必须覆盖：场景、受众、目标动作、页数与密度、风格、品牌、必含、必避、语言、配图模式（AI 文生图 / 手动补图 / 不用外部图）、资料使用策略
 3. 收到回答后写入 `interview-qa.txt`
 4. 归一化需求写入 `requirements-interview.txt`
-
-Gate 校验：
-
-```bash
-python3 SKILL_DIR/scripts/contract_validator.py interview OUTPUT_DIR/interview-qa.txt
-python3 SKILL_DIR/scripts/contract_validator.py requirements-interview OUTPUT_DIR/requirements-interview.txt
-```
-
-通过条件：双文件存在且字段完整。
-
-失败回退：未完成采访 gate 不得进入 Step 1。
 
 ### 6.3 Step 1 输入识别与分流
 
@@ -368,43 +363,14 @@ python3 SKILL_DIR/scripts/contract_validator.py requirements-interview OUTPUT_DI
 2. 强制询问分支：需要 research / 直接基于现有资料制作
 3. 记录分支到 `requirements-interview.txt`
 
-通过条件：分支选择明确且已记录。
-
-失败回退：未决策时进入 `WAIT_USER`。
-
 ### 6.4 Step 2A Search-Lite（单 Subagent）
 
 目标：生成 `OUTPUT_DIR/search.txt` 与 `OUTPUT_DIR/search-brief.txt`。
 
-Prompt 生成：
+阶段特有规则：
 
-```bash
-python3 SKILL_DIR/scripts/prompt_harness.py \
-  --template SKILL_DIR/references/prompts/tpl-research-synth.md \
-  --var TOPIC="主题" \
-  --var REQUIREMENTS_PATH=OUTPUT_DIR/requirements-interview.txt \
-  --var SEARCH_OUTPUT=OUTPUT_DIR/search.txt \
-  --var BRIEF_OUTPUT=OUTPUT_DIR/search-brief.txt \
-  --var TOOLS_AVAILABLE="search_web,read_url_content,grok-search" \
-  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/research-synth-playbook.md \
-  --output OUTPUT_DIR/runtime/prompt-research-synth.md
-```
-
-调度与 gate：
-
-- 后续创建、RUN、等待 FINALIZE、回收、关闭均沿用“5.2 统一 Subagent 调度骨架”
 - 若 search 质量不足，允许回同一 ResearchSynth 追加检索后再关闭
-
-Gate 校验：
-
-```bash
-python3 SKILL_DIR/scripts/contract_validator.py search OUTPUT_DIR/search.txt
-python3 SKILL_DIR/scripts/contract_validator.py search-brief OUTPUT_DIR/search-brief.txt
-```
-
-通过条件：两份产物都存在且通过 validator。
-
-失败回退：search 质量不足时只回同一 ResearchSynth 追加检索。
+- `search-brief.txt` 必须包含独立的 PPTX 结构化数据包区块（metrics / comparisons / timelines 等至少 3 种数据类型）
 
 ### 6.5 Step 2B 非 Search 分支
 
@@ -418,115 +384,29 @@ python3 SKILL_DIR/scripts/contract_validator.py search-brief OUTPUT_DIR/search-b
 4. 写入 `source-brief.txt`
 5. 若输入为 pptx：强制询问模式（美化 / 重构 / 美化+重构）
 
-Gate 校验：
-
-```bash
-python3 SKILL_DIR/scripts/contract_validator.py source-brief OUTPUT_DIR/source-brief.txt
-```
-
-通过条件：`source-brief.txt` 存在且通过 validator。
-
-失败回退：`source-brief.txt` 不合格则回 Step 2B 重写；输入资料无法消费时进入 `WAIT_USER`。
-
 ### 6.6 Step 3 大纲处理（同 Agent 自审）
 
 目标：生成 `OUTPUT_DIR/outline.txt`。
 
-Prompt 生成：
-
-```bash
-python3 SKILL_DIR/scripts/prompt_harness.py \
-  --template SKILL_DIR/references/prompts/tpl-outline.md \
-  --var REQUIREMENTS_PATH=OUTPUT_DIR/requirements-interview.txt \
-  --var BRIEF_PATH=CURRENT_BRIEF_PATH \
-  --var OUTLINE_OUTPUT=OUTPUT_DIR/outline.txt \
-  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/outline-subagent-playbook.md \
-  --output OUTPUT_DIR/runtime/prompt-outline.md
-```
-
 阶段特有规则：
 
-- `BRIEF_PATH` 必须遵守“5.4 CURRENT_BRIEF_PATH 统一约定”
+- `BRIEF_PATH` 必须遵守 5.3 CURRENT_BRIEF_PATH 统一约定
 - subagent 内部完成：初稿 -> 严格自审 -> 修复 -> FINALIZE
 - 自审不通过时直接改 `outline.txt`
 - 主 agent 不另开审查 subagent
 
-调度与 gate：
-
-- 创建、RUN、等待 FINALIZE、回收、关闭均沿用“5.2 统一 Subagent 调度骨架”
-
-Gate 校验：
-
-```bash
-python3 SKILL_DIR/scripts/contract_validator.py outline OUTPUT_DIR/outline.txt
-```
-
-通过条件：`outline.txt` 完成且包含自审通过标记。
-
-失败回退：outline 不合格时回同一 subagent 修复，最多 2 轮，之后交用户决策。
-
 ### 6.7 Step 3.5 风格决策（全局前置）
 
 目标：生成 `OUTPUT_DIR/style.json`。
-
-Prompt 生成：
-
-```bash
-python3 SKILL_DIR/scripts/prompt_harness.py \
-  --template SKILL_DIR/references/prompts/tpl-style.md \
-  --var REQUIREMENTS_PATH=OUTPUT_DIR/requirements-interview.txt \
-  --var OUTLINE_PATH=OUTPUT_DIR/outline.txt \
-  --var SKILL_DIR=SKILL_DIR \
-  --var STYLE_OUTPUT=OUTPUT_DIR/style.json \
-  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/style-subagent-playbook.md \
-  --inject-file STYLE_RUNTIME_RULES=SKILL_DIR/references/styles/runtime-style-rules.md \
-  --inject-file STYLE_PRESET_INDEX=SKILL_DIR/references/styles/runtime-style-palette-index.md \
-  --output OUTPUT_DIR/runtime/prompt-style.md
-```
 
 阶段特有规则：
 
 - 风格阶段的输入由需求、大纲、runtime 风格规则和预置风格入口共同组成
 - 输出必须是可被 planning 与 html 稳定消费的完整 `style.json`
 
-调度与 gate：
-
-- 创建、RUN、等待 FINALIZE、回收、关闭均沿用“5.2 统一 Subagent 调度骨架”
-
-Gate 校验：
-
-```bash
-python3 SKILL_DIR/scripts/contract_validator.py style OUTPUT_DIR/style.json
-```
-
-通过条件：`style.json` 合法。
-
-失败回退：回 Step 3.5。
-
 ### 6.8 Step 4 页面并行生产（核心执行层）
 
 目标：为每页生成 `OUTPUT_DIR/planning/planning{n}.json`、`OUTPUT_DIR/slides/slide-{n}.html`、`OUTPUT_DIR/png/slide-{n}.png`；必要时使用 `OUTPUT_DIR/images/`；并完成双轮图审。
-
-单页 Prompt 生成：
-
-```bash
-python3 SKILL_DIR/scripts/prompt_harness.py \
-  --template SKILL_DIR/references/prompts/tpl-page-agent.md \
-  --var PAGE_NUM=N \
-  --var TOTAL_PAGES=TOTAL \
-  --var REQUIREMENTS_PATH=OUTPUT_DIR/requirements-interview.txt \
-  --var OUTLINE_PATH=OUTPUT_DIR/outline.txt \
-  --var BRIEF_PATH=CURRENT_BRIEF_PATH \
-  --var STYLE_PATH=OUTPUT_DIR/style.json \
-  --var IMAGES_DIR=OUTPUT_DIR/images \
-  --var PLANNING_OUTPUT=OUTPUT_DIR/planning/planningN.json \
-  --var SLIDE_OUTPUT=OUTPUT_DIR/slides/slide-N.html \
-  --var PNG_OUTPUT=OUTPUT_DIR/png/slide-N.png \
-  --var SKILL_DIR=SKILL_DIR \
-  --var REFS_DIR=SKILL_DIR/references \
-  --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/page-agent-playbook.md \
-  --output OUTPUT_DIR/runtime/prompt-page-N.md
-```
 
 主调度规则：
 
@@ -534,7 +414,7 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
 - 采用流式并行，不等待全部页完成
 - 任一页失败只回退该页，不阻塞其他页推进
 - 先完成先推进
-- `BRIEF_PATH` 必须遵守“5.4 CURRENT_BRIEF_PATH 统一约定”
+- `BRIEF_PATH` 必须遵守 5.3 CURRENT_BRIEF_PATH 统一约定
 
 单页固定链路（subagent 内部）：
 
@@ -549,33 +429,13 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
 8. 通过 -> FINALIZE    -- 交回产物路径
 ```
 
-图片阶段合同（保持轻量，不新增主链 StepID）：
+图片阶段合同（主链职责，细节见 `page-agent-playbook.md`）：
 
-- 若某页在 planning 中选择 `image.mode=generate`，P4.NN 仍视为同一页内链路，不新增主链 StepID
-- planning 阶段必须先决定图片策略，HTML 阶段不得临时改成别的模式
-- 单页固定顺序保持为：planning -> planning 自审 -> 图片阶段 -> HTML -> PNG -> 双轮图审 -> FINALIZE
-- 仅允许 4 种图片模式：`generate` / `provided` / `manual_slot` / `decorate`
-- `provided` 直接绑定本地图片；`manual_slot` 在 HTML 中预留替换位；`decorate` 用 SVG / 字体 / 色块 / 纹理完成视觉表达
-- `generate` 模式下，PageAgent 先以 STATUS 告知主 agent 进入 `WAIT_IMAGE_SUBAGENT`
-- 主 agent 负责判断当前环境是否具备文生图能力
-- 有能力且用户需要 AI 出图时，主 agent 可在 `P4.NN.03` 等待窗口中额外创建 `ImageGen-NN`
-- `ImageGen-NN` 以 FINALIZE 回传图片路径后，主 agent 放行该页继续 HTML
-- 无文生图能力时，PageAgent 必须回写 `planningN.json`，将该页降级为 `manual_slot` 或 `decorate`，同步修正 `image.needed` / `image.source_hint` / `handoff_to_design`，重新通过 planning validator 后再进入 HTML
-- 更细的单页执行细则以 `tpl-page-agent.md` 与 `page-agent-playbook.md` 为准
-
-每页 Gate 校验：
-
-```bash
-# planning 存在
-test -s OUTPUT_DIR/planning/planningN.json
-python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning --refs SKILL_DIR/references --page N
-
-# html 存在
-test -s OUTPUT_DIR/slides/slide-N.html
-
-# png 存在（图审已执行的证据）
-test -s OUTPUT_DIR/png/slide-N.png
-```
+- 图片阶段不新增主链 StepID，仍属 P4.NN 内部链路
+- planning 阶段先决定图片策略，HTML 阶段不得临时改模式
+- 仅允许 4 种模式：`generate` / `provided` / `manual_slot` / `decorate`
+- `generate` 模式下主 agent 的职责：收到 PageAgent 的 `WAIT_IMAGE_SUBAGENT` STATUS 后，判断环境文生图能力，有则创建 `ImageGen-NN` 并回填图片路径，无则通知 PageAgent 降级
+- 各模式的具体执行规则以 `tpl-page-agent.md` 与 `page-agent-playbook.md` 为准
 
 通过条件：
 
@@ -584,147 +444,32 @@ test -s OUTPUT_DIR/png/slide-N.png
 - 若 `image.mode` 为 `generate` / `provided`，则 `source_hint` 对应图片可访问
 - 若 `image.mode` 为 `manual_slot` / `decorate`，则 HTML 已落地对应槽位或装饰策略
 
-失败回退：单页失败只回退该页步骤。
-
 ### 6.9 Step 5 自动交付
 
 目标：生成 `OUTPUT_DIR/preview.html`、`OUTPUT_DIR/presentation-png.pptx`、`OUTPUT_DIR/presentation-svg.pptx` 与 `OUTPUT_DIR/delivery-manifest.json`。
 
-执行：
+执行管线与 Gate 校验命令见 `cli-cheatsheet.md` Step 5。双管线（PNG/SVG）可并行；导出失败只回退导出步骤，不回退内容生产。
 
-```bash
-# 1. 预览
-python3 SKILL_DIR/scripts/html_packager.py OUTPUT_DIR/slides -o OUTPUT_DIR/preview.html
-
-# 2. PNG 管线（与 SVG 并行）
-python3 SKILL_DIR/scripts/html2png.py OUTPUT_DIR/slides -o OUTPUT_DIR/png --scale 2
-python3 SKILL_DIR/scripts/png2pptx.py OUTPUT_DIR/png -o OUTPUT_DIR/presentation-png.pptx
-
-# 3. SVG 管线（与 PNG 并行）
-python3 SKILL_DIR/scripts/html2svg.py OUTPUT_DIR/slides -o OUTPUT_DIR/svg
-python3 SKILL_DIR/scripts/svg2pptx.py OUTPUT_DIR/svg -o OUTPUT_DIR/presentation-svg.pptx --html-dir OUTPUT_DIR/slides
-
-# 4. 交付清单
-# 主 agent 写入 delivery-manifest.json
-```
-
-Gate 校验：
-
-```bash
-python3 SKILL_DIR/scripts/contract_validator.py delivery-manifest OUTPUT_DIR/delivery-manifest.json --base-dir OUTPUT_DIR
-```
-
-通过条件：preview + 双 pptx + 清单全存在。
-
-失败回退：导出失败只回退导出步骤，不回退内容生产；双管线独立重试。
-
-## 7. 校验与验收 Gate 总览
-
-| Gate | 校验命令 | 通过条件 |
-|------|---------|---------|
-| 采访 | `contract_validator.py interview` + `requirements-interview` | 双文件存在且字段完整 |
-| 分支 | 逻辑判断 | 分支选择明确且已记录 |
-| 素材 | research：`contract_validator.py search` + `search-brief`；非 research：`source-brief` | 当前分支所需文件存在且通过 |
-| 大纲 | `contract_validator.py outline` | outline.txt 完成且通过自审 |
-| 风格 | `contract_validator.py style` | style.json 合法 |
-| 单页 | `planning_validator.py` + 文件存在性 | planning + html + png 三件套 + 双轮图审通过 |
-| 导出 | `contract_validator.py delivery-manifest` | preview + 双 pptx + 清单存在 |
-
-## 8. 回退与异常处理
-
-| 异常 | 回退目标 | 规则 |
-|------|---------|------|
-| 采访信息不足 | Step 0 补问 | 不进入 Step 1 |
-| Search 质量不足 | 同 ResearchSynth 追加检索 | 补完后关闭 |
-| 大纲不合格 | 同 Outline subagent 修复 | 最多 2 轮自审 |
-| 单页失败 | 只回退该页 | 不阻塞其他页 |
-| 导出失败 | 只回退导出步骤 | 不回退内容生产 |
-
-恢复策略：基于文件真源与 gate 结果自动定位续跑点。
-
-## 9. 恢复规则（中断续跑）
+## 7. 恢复规则（中断续跑）
 
 恢复时只信文件与校验，不信口头记忆：
 
 1. 绑定目标 `RUN_ID`（用户指定优先，否则 `latest`）
-2. 校验 `progress.json`
+2. 从高到低探测已完成里程碑（`5 -> 4 -> 3.5 -> 3 -> 2 -> 1 -> 0`），找到最高可通过 stage
+3. 从下一个未完成 step 继续
+4. 若任一前序 gate 失败，直接回退到该 step 重做
 
-```bash
-python3 SKILL_DIR/scripts/progress_validator.py OUTPUT_DIR/progress.json
-```
+## 8. 运行入口索引
 
-3. 从高到低探测已完成里程碑（`5 -> 4 -> 3.5 -> 3 -> 2 -> 1 -> 0`），找到最高可通过 stage
-4. 从下一个未完成 step 继续
-5. 若任一前序 gate 失败，直接回退到该 step 重做
+完整 CLI 命令速查见 `references/cli-cheatsheet.md`。进入 Step 0 前必须读取此文件建立接口认知，后续步骤直接引用，禁止对任何脚本跑 `--help`。
 
-## 10. 运行入口索引
+真源文件索引：
 
-核心调度工具：
-
-- **Prompt 填充**：`scripts/prompt_harness.py`
-- **资源路由**：`scripts/resource_loader.py`
-- **模板文件**：`references/prompts/tpl-*.md`
-
-校验工具：
-
-- 合同校验：`scripts/contract_validator.py`
-- Planning 校验：`scripts/planning_validator.py`
-- Progress 校验：`scripts/progress_validator.py`
-- 里程碑总验收：`scripts/milestone_check.py`
-
-导出工具：
-
-- 预览打包：`scripts/html_packager.py`
-- HTML->PNG：`scripts/html2png.py`
-- HTML->SVG：`scripts/html2svg.py`
-- PNG->PPTX：`scripts/png2pptx.py`
-- SVG->PPTX：`scripts/svg2pptx.py`
-
-主 agent 可直接调用的脚本模板：
-
-- Prompt 填充：
-  `python3 SKILL_DIR/scripts/prompt_harness.py --template ... --var KEY=VALUE --output OUTPUT_DIR/runtime/prompt-*.md`
-- 资源路由菜单：
-  `python3 SKILL_DIR/scripts/resource_loader.py menu --refs-dir SKILL_DIR/references`
-- 资源路由解析：
-  `python3 SKILL_DIR/scripts/resource_loader.py resolve --refs-dir SKILL_DIR/references --planning OUTPUT_DIR/planning/planningN.json`
-- 合同校验：
-  `python3 SKILL_DIR/scripts/contract_validator.py <contract-type> <target-file> [--base-dir OUTPUT_DIR]`
-- Planning 校验：
-  `python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning --refs SKILL_DIR/references --page N`
-- Progress 校验：
-  `python3 SKILL_DIR/scripts/progress_validator.py OUTPUT_DIR/progress.json`
-- 里程碑总验收：
-  `python3 SKILL_DIR/scripts/milestone_check.py <stage> --output-dir OUTPUT_DIR`
-- 预览打包：
-  `python3 SKILL_DIR/scripts/html_packager.py OUTPUT_DIR/slides -o OUTPUT_DIR/preview.html`
-- HTML->PNG：
-  `python3 SKILL_DIR/scripts/html2png.py OUTPUT_DIR/slides -o OUTPUT_DIR/png --scale 2`
-- HTML->SVG：
-  `python3 SKILL_DIR/scripts/html2svg.py OUTPUT_DIR/slides -o OUTPUT_DIR/svg`
-- PNG->PPTX：
-  `python3 SKILL_DIR/scripts/png2pptx.py OUTPUT_DIR/png -o OUTPUT_DIR/presentation-png.pptx`
-- SVG->PPTX：
-  `python3 SKILL_DIR/scripts/svg2pptx.py OUTPUT_DIR/svg -o OUTPUT_DIR/presentation-svg.pptx --html-dir OUTPUT_DIR/slides`
-
-Prompt 模板真源（仅传路径给 harness，不手动预读）：
-
-- `references/prompts/tpl-interview.md`
-- `references/prompts/tpl-research-synth.md`
-- `references/prompts/tpl-outline.md`
-- `references/prompts/tpl-style.md`
-- `references/prompts/tpl-page-agent.md`
-
-执行细则真源（按需注入，不手动预读）：
-
-- `references/playbooks/research-synth-playbook.md`
-- `references/playbooks/outline-subagent-playbook.md`
-- `references/playbooks/style-subagent-playbook.md`
-- `references/playbooks/page-agent-playbook.md`
-
-Style 真源（Step 3.5 调用）：
-
-- `references/styles/runtime-style-rules.md`
-- `references/styles/runtime-style-palette-index.md`
+| 类别 | 路径 | 消费方式 |
+|------|------|----------|
+| Prompt 模板 | `references/prompts/tpl-*.md` | 传路径给 harness，不手动预读 |
+| 执行细则 | `references/playbooks/*-playbook.md` | 通过 `--inject-file` 注入，不手动预读 |
+| 风格真源 | `references/styles/runtime-style-*.md` | Step 3.5 注入 |
+| CLI 命令 | `references/cli-cheatsheet.md` | Step 0 前读取，后续直接引用 |
 
 主控制台只引用这些真源，不在 `SKILL.md` 中重复内嵌执行细节，也不做脚本源码阅读。

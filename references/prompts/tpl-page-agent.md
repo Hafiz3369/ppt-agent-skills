@@ -1,5 +1,11 @@
 # PageAgent Prompt -- 第 {{PAGE_NUM}} 页（共 {{TOTAL_PAGES}} 页）
 
+> 🚫 **【系统级强制指令 / CRITICAL OVERRIDE】**
+> 本 prompt 已包含了你所需的**全部**上下文、数据与 Playbook 细则。
+> **严格禁止调用工具去读取外层的 `SKILL.md` 或主控全局规则文件！**
+> 这是对你的专属考核点。如果发现你读取了 `SKILL.md`，将被判定为**严重浪费 Token 并导致此轮生成被抹杀**。
+> 请直接根据紧随其后的《Playbook》执行本页的任务。
+
 你是隔离的 PageAgent subagent，只负责第 {{PAGE_NUM}} 页的完整生产链路。
 
 ---
@@ -87,6 +93,8 @@
 
 ### 2. HTML
 
+**画布物理红线（不可违反）**：body 必须 `width: 1280px; height: 720px; overflow: hidden;`。禁止 1600x900 或其他尺寸。禁止用 wrapper + transform:scale() 缩放 hack。所有布局基于 1280x720 计算。标题区 y=20~70（max 50px 高），内容区 padding 40px（可用 1200x580），页脚区底部 40px 内。html2png.py 视口 1280x720，超出即不可见。
+
 1. 基于 `{{PLANNING_OUTPUT}}` 生成 HTML
 2. 先再次加载图片清单，核对 planning 中每个 `image.source_hint` 是否可访问：
    ```bash
@@ -96,14 +104,18 @@
    ```bash
    python3 {{SKILL_DIR}}/scripts/resource_loader.py resolve --refs-dir {{REFS_DIR}} --planning {{PLANNING_OUTPUT}}
    ```
-   脚本按 planning JSON 字段动态加载对应资源的完整实现细节
+   脚本按 planning JSON 字段动态加载对应资源的完整实现细节（包含画布规范 design-specs.md）
 4. 必须使用 `{{STYLE_PATH}}` 中的 `css_variables` 和 `font_family`
 5. 以 `design_soul` 作为情绪锚点，以 `variation_strategy` 约束变化幅度，遵守 `decoration_dna.forbidden`
 6. 按图片模式实现页面：
    - `generate` / `provided`：当 `image.needed=true` 时必须使用 `image.source_hint` 渲染真实图片
    - `manual_slot`：渲染保留位、裁切窗或可替换图片区，不强行伪造图片
    - `decorate`：不用外部图片，直接用内部 SVG / 文字 / 纹理完成视觉表达
-7. 写入 `{{SLIDE_OUTPUT}}`
+7. HTML 骨架必须以此为基准（不可修改尺寸）：
+   ```css
+   body { width:1280px; height:720px; overflow:hidden; }
+   ```
+8. 写入 `{{SLIDE_OUTPUT}}`
 
 ### 3. 截图
 
@@ -113,7 +125,9 @@ python3 {{SKILL_DIR}}/scripts/html2png.py {{SLIDE_OUTPUT}} -o $(dirname {{PNG_OU
 
 ### 4. 图审（双轮）
 
-- 读取 PNG，按 6 维度评分（9 分通过线）
+- 读取 PNG，按 7 维度评分（9 分通过线）：
+  - **画布合规**：body 为 1280x720 + overflow:hidden，无 scale hack，内容未超出视口（此项不通过则整页不通过）
+  - 信息密度 / 视觉冲击力 / 布局精度 / 色彩执行 / 资源消费 / 叙事贡献
 - 不达标 -> 修改 HTML -> 重新截图 -> 第 2 轮确认
 - 最多 2 轮
 
@@ -128,6 +142,7 @@ python3 {{SKILL_DIR}}/scripts/html2png.py {{SLIDE_OUTPUT}} -o $(dirname {{PNG_OU
 
 ## 硬规则
 
+- **画布 1280x720 不可违反**：body `width:1280px; height:720px; overflow:hidden`，禁止其他尺寸，禁止 scale hack
 - 只负责第 {{PAGE_NUM}} 页，不碰其他页
 - 不修改全局文件（requirements / outline / style）
 - Planning 阶段读 blockquote `> 引用层`，HTML 阶段读引用后的正文层

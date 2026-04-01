@@ -15,7 +15,6 @@ PLANNING_CONTINUITY_VERSION = "4.0"
 DISPATCH_PLAN_VERSION = "4.0"
 HTML_PACKET_VERSION = "4.0"
 
-PROGRESS_SCHEMA_VERSION = "4.0"
 DELIVERY_MANIFEST_VERSION = "4.0"
 
 
@@ -30,7 +29,6 @@ def build_workflow_metadata(stage: str, **extra: Any) -> dict[str, Any]:
         "planning_continuity_version": PLANNING_CONTINUITY_VERSION,
         "dispatch_plan_version": DISPATCH_PLAN_VERSION,
         "html_packet_version": HTML_PACKET_VERSION,
-        "progress_schema_version": PROGRESS_SCHEMA_VERSION,
         "delivery_manifest_version": DELIVERY_MANIFEST_VERSION,
     }
     payload.update({key: value for key, value in extra.items() if value is not None})

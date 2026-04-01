@@ -186,6 +186,26 @@ python3 SKILL_DIR/scripts/resource_loader.py images --images-dir OUTPUT_DIR/imag
 - 若 `image.mode=manual_slot`，HTML 必须保留手动替换位，不得擅自删掉图片区
 - 若 `image.mode=decorate`，HTML 必须以内部图形/文字/装饰替代外部图片，而不是留空
 
+### 文件独立性（硬约束）
+
+- 每个 slide HTML 必须是**完全独立的自包含单文件**
+- 所有 CSS 通过 `<style>` 标签内联在 `<head>` 中，禁止引用外部 CSS 文件（如 `deck.css`、`common.css`）
+- 禁止跨页共享 CSS class 定义；每页的 class 命名和样式实现应完全独立
+- CSS 变量统一从 `style.json` 的 `css_variables` 复制到 `:root`，这是唯一允许的跨页一致性
+- 理由：每页是一幅独立的画面设计，共享 CSS 会导致 LLM 反复套用预定义 class 而丧失设计多样性
+
+### 画布尺寸（不可违反的物理约束）
+
+- **body 必须设置 `width: 1280px; height: 720px; overflow: hidden;`**
+- 禁止使用 1600x900、1920x1080 或任何其他尺寸
+- 禁止使用 `width: 100%; height: 100%` 然后依赖外部容器或 transform scale 缩放
+- 禁止创建独立的 frame/wrapper 容器使用不同尺寸再 scale 回来
+- 所有内容区域的绝对定位、padding、grid 尺寸必须基于 1280x720 画布计算
+- 标题区: 左上 40px 边距, 最大高度 50px
+- 内容区: padding 40px, 可用高度 580px, 可用宽度 1200px
+- 页脚区: 底部 40px 边距内, 高度 20px
+- 截图工具 html2png.py 的视口固定为 1280x720，超出部分将被裁切不可见
+
 ### 执行原则
 
 - 统一语法，不统一长相
@@ -211,6 +231,7 @@ python3 SKILL_DIR/scripts/resource_loader.py images --images-dir OUTPUT_DIR/imag
 - 层次深度
 - 材质、遮罩、裁切、装饰组织
 - 同类卡片之间的微差异
+- Grid 结构、class 命名、CSS 实现方式（每页独立设计，无需沿用其他页的写法）
 
 ### 产物
 
@@ -238,6 +259,7 @@ python3 SKILL_DIR/scripts/html2png.py OUTPUT_DIR/slides/slide-{PAGE_NUM}.html -o
 
 | 维度 | 9 分通过线 |
 |------|----------|
+| **画布合规** | body 为 1280x720 + overflow:hidden，无 scale hack，内容未超出视口边界 |
 | 信息密度 | 每张卡片有标题+正文+数据，无空卡 |
 | 视觉冲击力 | 有明确设计感，不像普通前端页面 |
 | 布局精度 | 无重叠、无溢出、grid 定位正确 |
@@ -275,6 +297,7 @@ python3 SKILL_DIR/scripts/html2png.py OUTPUT_DIR/slides/slide-{PAGE_NUM}.html -o
 | planning 存在 | `planning/planning{n}.json` 非空 |
 | planning 合法 | planning_validator 无 ERROR |
 | HTML 存在 | `slides/slide-{n}.html` 非空 |
+| **HTML 画布合规** | body 声明 `width:1280px; height:720px; overflow:hidden`，无 scale hack |
 | PNG 存在 | `png/slide-{n}.png` 存在（图审执行证据） |
 | 图片合同 | `generate` / `provided` 时 `source_hint` 可访问；`manual_slot` / `decorate` 时 HTML 落地策略明确 |
 | 图审完成 | 至少 1 轮图审 |
@@ -285,3 +308,10 @@ python3 SKILL_DIR/scripts/html2png.py OUTPUT_DIR/slides/slide-{PAGE_NUM}.html -o
 - 完成全链路后 FINALIZE
 - 主 agent 回收后立即关闭
 - 返工必须新开 PageAgent
+
+## 画布合同（1280x720 物理红线）
+
+- body 的 width/height 必须是 1280px/720px，overflow: hidden
+- 禁止使用任何其他画布尺寸（如 1600x900）
+- 禁止通过 transform: scale() 缩放 hack 来间接匹配画布
+- 图审阶段若发现内容溢出 1280x720 视口，图审自动不通过
