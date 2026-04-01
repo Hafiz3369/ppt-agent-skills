@@ -167,7 +167,7 @@ P4.NN.01 创建 PageAgent-NN
 P4.NN.02 [Codex 模式] harness → Planning prompt → RUN → 回收 planningNN.json
 P4.NN.03 [Codex 模式] harness → HTML prompt → resume --last → 回收 slide-NN.html
 P4.NN.04 [Codex 模式] harness → Review prompt → resume --last → 审查修复 → 回收验证
-        [Claude 模式] harness 一次性生成三段 prompt → 单次 PageAgent 端到端完成 4A→4B→4C → 回收验证
+        [Claude 模式] harness 依次生成三段 prompt + orchestrator → 单次 PageAgent 内部自主渐进式读取完成 4A→4B→4C → 回收验证
 P4.NN.05 关闭 PageAgent-NN
 （所有页并行推进；执行模式按 3.1 环境感知结果选择）
 
@@ -274,7 +274,7 @@ P5.04  写入 delivery-manifest.json
 | 条件 | 模式 | 典型环境 |
 |------|------|---------|
 | subagent 支持同一 session 可靠续写（`resume --last`） | **Codex 三段式** | Codex CLI |
-| subagent 不支持 session 续写 / 续写不可靠 | **Claude 单次全包式** | Claude Code |
+| subagent 不支持 session 续写 / 续写不可靠 | **Claude 渐进式** | Claude Code |
 
 #### Codex 三段式（session-resume）
 
@@ -287,17 +287,18 @@ P5.04  写入 delivery-manifest.json
 - 单页内部串行：4A Gate 通过 → 主 agent 发 4B → 4B Gate 通过 → 发 4C。
 - 主 agent 在每个阶段间执行外部 Gate 校验后再放行下一段。
 
-#### Claude 单次全包式（single-shot PageAgent）
+#### Claude 渐进式上下文注入（progressive-context PageAgent）
 
-主 agent 为每页**依次**生成 4A/4B/4C 三份 prompt 文件，然后**一次性合并注入同一个 PageAgent-N**，要求其内部按序完成：
+主 agent 为每页**依次**生成 4A/4B/4C 三份阶段 prompt 文件，再生成一份**轻量 orchestrator prompt**（只含路径和执行协议，不含任何 playbook/principles 正文）。主 agent 只向 PageAgent-N 发送 orchestrator prompt，subagent 内部按 orchestrator 指示**自主渐进式读取**各阶段 prompt：
 
-1. 产出 `planningN.json`（对应 4A）
-2. 落地 `slide-N.html`（对应 4B）
-3. 截图审查并修到 `slide-N.png`（对应 4C）
+1. 读取 planning prompt → 产出 `planningN.json`（对应 4A）
+2. 完成后自主读取 html prompt → 落地 `slide-N.html`（对应 4B）
+3. 完成后自主读取 review prompt → 截图审查修复 → 产出 `slide-N.png`（对应 4C）
 4. 三件套齐全后发出 `FINALIZE`
 
-- **子代理内部自检**替代主 agent 细粒度阶段间 Gate；主 agent 仅在回收 FINALIZE 后做**整页终检**（planning_validator + 文件存在性 + 图片审查）。
-- 不依赖 session 续写，状态真源回到文件产物和 Gate。
+- **上下文隔离**：subagent 在 Planning 阶段时不会看到 Review 的 failure modes 和 HTML 的实现细节，避免注意力分散
+- **子代理内部自检**替代主 agent 细粒度阶段间 Gate；主 agent 仅在回收 FINALIZE 后做**整页终检**（planning_validator + 文件存在性 + 图片审查）
+- 不依赖 session 续写，状态真源回到文件产物和 Gate
 
 #### 共通规则
 

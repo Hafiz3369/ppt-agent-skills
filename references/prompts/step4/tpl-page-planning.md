@@ -1,11 +1,11 @@
 # Stage 1: Page Planning -- 第 {{PAGE_NUM}} 页（共 {{TOTAL_PAGES}} 页）
 
-> 🚫 **【系统级强制指令 / CRITICAL OVERRIDE】**
+> **【系统级强制指令 / CRITICAL OVERRIDE】**
 > 本 prompt 已包含了你在此阶段所需的**全部**任务目标与 Playbook 细则。
 > **严格禁止调用工具去读取外层的 `SKILL.md` 或主控全局规则文件！**
 >
-> ⚙️ **本 session 将执行三阶段任务（Planning → HTML → Review），你现在执行第 1 阶段。**
-> 完成 Planning 后发送 FINALIZE，然后**保持等待**——主 agent 会发送下一阶段的指令，不要自行退出。
+> 本阶段的唯一目标：产出 `{{PLANNING_OUTPUT}}`。完成后发送 FINALIZE 信号。
+> 后续阶段的推进方式取决于调度模式（Codex session-resume / Claude 自主渐进），你不需要关心。
 
 这是你为第 {{PAGE_NUM}} 页执行的**第一阶段核心任务**：策划定骨稿。
 你暂时不要写 HTML 代码，全力填好并校验 `{{PLANNING_OUTPUT}}`。
@@ -79,12 +79,12 @@
    ```
 10. 修复所有 ERROR（WARNING 建议修复）。
 11. 发送 FINALIZE 信号，格式：`FINALIZE: planning 完成，产物路径 {{PLANNING_OUTPUT}}`
-12. **等待主 agent 发送下一阶段（HTML 生成）指令，不要自行结束 session。**
+12. 发送 FINALIZE 信号后，按调度模式的指示推进（Codex 模式等待主 agent 续写；Claude 渐进模式自主读取下一阶段 prompt）。
 
 ---
 
 ## 阶段边界
 
 - 本阶段：只写 planning JSON，不写 HTML
-- 下一阶段：等待主 agent 发来 HTML 生成指令后执行
+- 下一阶段：按调度模式推进到 HTML 生成
 - 消费规则：planning 阶段只读资源的 `> 引用层`（菜单），HTML 阶段才读正文层

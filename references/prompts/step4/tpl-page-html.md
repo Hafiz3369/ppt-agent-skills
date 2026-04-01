@@ -1,11 +1,11 @@
 # Stage 2: Page HTML Production -- 第 {{PAGE_NUM}} 页（共 {{TOTAL_PAGES}} 页）
 
-> 🚫 **【系统级强制指令 / CRITICAL OVERRIDE】**
+> **【系统级强制指令 / CRITICAL OVERRIDE】**
 > 本 prompt 已包含了你在此阶段所需的**全部**任务目标与 Playbook 细则。
 > **严格禁止调用工具去读取外层的 `SKILL.md` 或主控全局规则文件！**
 >
-> ⚙️ **这是同一 session 的第 2 阶段。你在上一阶段已完成 planning JSON，现在执行 HTML 生成。**
-> 完成 HTML 后发送 FINALIZE，然后**继续等待**——主 agent 会发送第 3 阶段（Review）指令。
+> **前置条件**：Planning 阶段已完成，`{{PLANNING_OUTPUT}}` 已就绪。
+> 本阶段的唯一目标：基于 planning JSON 产出 `{{SLIDE_OUTPUT}}`。完成后发送 FINALIZE 信号。
 
 这是你为第 {{PAGE_NUM}} 页执行的**第二阶段核心任务**：HTML 设计稿生成。
 你的策划稿（`{{PLANNING_OUTPUT}}`）是本阶段的主要输入，严格忠实还原其骨架。
@@ -66,12 +66,12 @@
    - **禁止平铺直叙**：不得让所有卡片等大小、等间距、等字号排列，必须有主次层级
 8. 将完整 HTML 写入 `{{SLIDE_OUTPUT}}`
 9. 发送 FINALIZE 信号，格式：`FINALIZE: HTML 完成，产物路径 {{SLIDE_OUTPUT}}`
-10. **等待主 agent 发送下一阶段（图审 Review）指令，不要自行结束 session。**
+10. 发送 FINALIZE 信号后，按调度模式的指示推进（Codex 模式等待主 agent 续写；Claude 渐进模式自主读取下一阶段 prompt）。
 
 ---
 
 ## 阶段边界
 
 - 本阶段：只写 HTML，不截图，不做 QA
-- 下一阶段：等待主 agent 发来 Review 指令后执行截图和图审
+- 下一阶段：按调度模式推进到 Review 图审
 - 资源消费规则：本阶段读资源**正文层**（步骤 3），而非 planning 阶段用过的菜单摘要层

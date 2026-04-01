@@ -274,26 +274,45 @@ test -s OUTPUT_DIR/png/slide-N.png
 
 ---
 
-### Claude 模式：单次 PageAgent 端到端
+### Claude 模式：渐进式上下文注入（单次 PageAgent 端到端）
 
 > 当环境感知判定为 Claude 模式时，**跳过上面的分段注入流程**，改用以下方式。
+> 核心区别：不把三份 prompt 全文一次性塞给 subagent，而是通过轻量 orchestrator 让 subagent **内部自主按阶段读取**。
 
-**第一步**：依次执行上面 4A/4B/4C 三个 harness 命令，生成三份 prompt 文件：
+**第一步**：依次执行上面 4A/4B/4C 三个 harness 命令，生成三份阶段 prompt 文件：
 - `OUTPUT_DIR/runtime/prompt-page-planning-N.md`
 - `OUTPUT_DIR/runtime/prompt-page-html-N.md`
 - `OUTPUT_DIR/runtime/prompt-page-review-N.md`
 
-**第二步**：创建单个 PageAgent-N，将三份 prompt 文件路径**一次性注入**，要求其按序完成：
-1. 读取 planning prompt → 产出 `planningN.json`
-2. 读取 html prompt → 落地 `slide-N.html`
-3. 读取 review prompt → 截图审查修复 → 产出 `slide-N.png`
-4. 三件套齐全后 `FINALIZE`
+**第二步**：生成 orchestrator 调度 prompt（轻量，只含路径和执行协议）：
+
+```bash
+python3 SKILL_DIR/scripts/prompt_harness.py \
+  --template SKILL_DIR/references/prompts/step4/tpl-page-orchestrator.md \
+  --var PAGE_NUM=N \
+  --var TOTAL_PAGES=TOTAL \
+  --var PLANNING_PROMPT_PATH=OUTPUT_DIR/runtime/prompt-page-planning-N.md \
+  --var HTML_PROMPT_PATH=OUTPUT_DIR/runtime/prompt-page-html-N.md \
+  --var REVIEW_PROMPT_PATH=OUTPUT_DIR/runtime/prompt-page-review-N.md \
+  --var PLANNING_OUTPUT=OUTPUT_DIR/planning/planningN.json \
+  --var SLIDE_OUTPUT=OUTPUT_DIR/slides/slide-N.html \
+  --var PNG_OUTPUT=OUTPUT_DIR/png/slide-N.png \
+  --output OUTPUT_DIR/runtime/prompt-page-orchestrator-N.md
+```
+
+**第三步**：创建单个 PageAgent-N，**只发送 orchestrator prompt**：
 
 主代理执行：
 `依据《Subagent 操作手册》唤起/创建 PageAgent-N 并显性赋予主要模型参数 --model MAIN_MODEL`
-`一次性发送包含三份 prompt 路径的端到端指令`
+`RUN OUTPUT_DIR/runtime/prompt-page-orchestrator-N.md`
 
-**第三步**：回收 FINALIZE 后，主 agent 执行**整页终检**：
+> subagent 内部会按 orchestrator 的指示自主渐进：
+> 1. 先读 planning prompt → 完成策划 → 产出 planningN.json
+> 2. 自主读 html prompt → 完成设计稿 → 产出 slide-N.html
+> 3. 自主读 review prompt → 截图审查修复 → 产出 slide-N.png
+> 4. 三件套齐全后 FINALIZE
+
+**第四步**：回收 FINALIZE 后，主 agent 执行**整页终检**：
 
 ```bash
 test -s OUTPUT_DIR/planning/planningN.json
