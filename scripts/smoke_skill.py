@@ -3,7 +3,7 @@
 
 This script intentionally stays within the current markdown/code architecture.
 It exercises the most failure-prone integration points:
-1. Step 0 interview prompt rendering
+1. Step 0 interview prompt rendering (structured/text dual templates)
 2. Step 4 planning example -> planning_validator.py
 3. resource_loader.py menu / resolve / images
 4. prompt_harness.py for the Step 4 prompt chain
@@ -103,6 +103,12 @@ def assert_no_unfilled_vars(label: str, text: str, result: SmokeResult) -> None:
         result.error(f"{label}: unfilled template vars remain: {leftovers}")
 
 
+def assert_max_bytes(label: str, text: str, max_bytes: int, result: SmokeResult) -> None:
+    size = len(text.encode("utf-8"))
+    if size > max_bytes:
+        result.error(f"{label}: rendered prompt too large ({size} bytes > {max_bytes} bytes)")
+
+
 def build_non_content_page(page_type: str) -> dict[str, object]:
     return {
         "page": {
@@ -184,7 +190,8 @@ def build_fixture_tree(tmp_dir: Path) -> dict[str, Path]:
         "png": tmp_dir / "png/slide-3.png",
         "images": tmp_dir / "images",
         "runtime": tmp_dir / "runtime",
-        "prompt_interview": tmp_dir / "runtime/prompt-interview.md",
+        "prompt_interview_structured": tmp_dir / "runtime/prompt-interview-structured.md",
+        "prompt_interview_text": tmp_dir / "runtime/prompt-interview-text.md",
         "prompt_style_phase1": tmp_dir / "runtime/prompt-style-phase1.md",
         "prompt_planning": tmp_dir / "runtime/prompt-page-planning-3.md",
         "prompt_html": tmp_dir / "runtime/prompt-page-html-3.md",
@@ -351,21 +358,43 @@ def run_smoke() -> SmokeResult:
 
         prompt_specs = [
             (
-                "prompt-interview",
-                fx["prompt_interview"],
+                "prompt-interview-structured",
+                fx["prompt_interview_structured"],
                 [
                     py,
                     str(SCRIPTS_DIR / "prompt_harness.py"),
                     "--template",
-                    str(REFERENCES_DIR / "prompts/tpl-interview.md"),
+                    str(REFERENCES_DIR / "prompts/tpl-interview-structured-ui.md"),
                     "--var",
                     "TOPIC=Linux.do 社区介绍",
                     "--var",
                     "USER_CONTEXT=4 页介绍型 PPT，目标是快速讲清社区定位、氛围、价值与加入理由。",
                     "--inject-file",
-                    f"STRUCTURED_INTERVIEW_UI_MODULE={REFERENCES_DIR / 'prompts/module-structured-interview-ui.md'}",
+                    f"INTERVIEW_MODE_MODULE={REFERENCES_DIR / 'prompts/module-structured-interview-ui.md'}",
+                    "--inject-file",
+                    f"INTERVIEW_CORE={REFERENCES_DIR / 'prompts/tpl-interview.md'}",
                     "--output",
-                    str(fx["prompt_interview"]),
+                    str(fx["prompt_interview_structured"]),
+                ],
+            ),
+            (
+                "prompt-interview-text",
+                fx["prompt_interview_text"],
+                [
+                    py,
+                    str(SCRIPTS_DIR / "prompt_harness.py"),
+                    "--template",
+                    str(REFERENCES_DIR / "prompts/tpl-interview-text-fallback.md"),
+                    "--var",
+                    "TOPIC=Linux.do 社区介绍",
+                    "--var",
+                    "USER_CONTEXT=4 页介绍型 PPT，目标是快速讲清社区定位、氛围、价值与加入理由。",
+                    "--inject-file",
+                    f"INTERVIEW_MODE_MODULE={REFERENCES_DIR / 'prompts/module-text-interview-fallback.md'}",
+                    "--inject-file",
+                    f"INTERVIEW_CORE={REFERENCES_DIR / 'prompts/tpl-interview.md'}",
+                    "--output",
+                    str(fx["prompt_interview_text"]),
                 ],
             ),
             (
@@ -525,22 +554,40 @@ def run_smoke() -> SmokeResult:
             if proc.returncode == 0:
                 rendered = output_path.read_text(encoding="utf-8")
                 assert_no_unfilled_vars(label, rendered, result)
-                if label == "prompt-interview":
+                if label == "prompt-interview-structured":
                     assert_contains(
                         label,
                         rendered,
                         [
-                            "# 采访问卷",
+                            "# 采访问卷（Structured UI）",
                             "主题：Linux.do 社区介绍",
                             "用户背景：4 页介绍型 PPT",
-                            "# Structured Interview UI Module -- CLI 原生结构化采访协议",
+                            "# Structured UI Mode -- CLI 原生结构化采访",
                             "AskUserQuestion",
                             "request_user_input",
-                            "## 必须覆盖的问题结构",
+                            "# 采访问卷共享核心",
+                            "presentation_scenario",
                             "## 最终要求",
                         ],
                         result,
                     )
+                    assert_max_bytes(label, rendered, 9000, result)
+                if label == "prompt-interview-text":
+                    assert_contains(
+                        label,
+                        rendered,
+                        [
+                            "# 采访问卷（Text Fallback）",
+                            "结构化文本采访单",
+                            "**A. 场景与目标**",
+                            "全部按默认，用 research",
+                            "# 采访问卷共享核心",
+                            "presentation_scenario",
+                            "## 最终要求",
+                        ],
+                        result,
+                    )
+                    assert_max_bytes(label, rendered, 9000, result)
                 if label == "prompt-style-phase1":
                     assert_contains(
                         label,

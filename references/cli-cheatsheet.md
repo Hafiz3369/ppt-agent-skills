@@ -7,23 +7,39 @@
 
 ## Step 0 采访
 
-Prompt 生成（默认强制）：
+Prompt 生成（按能力二选一）：
+
+**A. Structured UI 模式**
 
 ```bash
 python3 SKILL_DIR/scripts/prompt_harness.py \
-  --template SKILL_DIR/references/prompts/tpl-interview.md \
+  --template SKILL_DIR/references/prompts/tpl-interview-structured-ui.md \
   --var TOPIC="用户主题" \
   --var USER_CONTEXT="用户已提供的背景信息" \
-  --inject-file STRUCTURED_INTERVIEW_UI_MODULE=SKILL_DIR/references/prompts/module-structured-interview-ui.md \
+  --inject-file INTERVIEW_MODE_MODULE=SKILL_DIR/references/prompts/module-structured-interview-ui.md \
+  --inject-file INTERVIEW_CORE=SKILL_DIR/references/prompts/tpl-interview.md \
+  --output OUTPUT_DIR/runtime/prompt-interview.md
+```
+
+**B. Text Fallback 模式**
+
+```bash
+python3 SKILL_DIR/scripts/prompt_harness.py \
+  --template SKILL_DIR/references/prompts/tpl-interview-text-fallback.md \
+  --var TOPIC="用户主题" \
+  --var USER_CONTEXT="用户已提供的背景信息" \
+  --inject-file INTERVIEW_MODE_MODULE=SKILL_DIR/references/prompts/module-text-interview-fallback.md \
+  --inject-file INTERVIEW_CORE=SKILL_DIR/references/prompts/tpl-interview.md \
   --output OUTPUT_DIR/runtime/prompt-interview.md
 ```
 
 执行规则：
 
-1. 默认先执行上面的 harness，生成 `OUTPUT_DIR/runtime/prompt-interview.md`
-2. 主 agent 读取渲染后的采访 prompt，优先让当前 CLI 执行其中定义的**结构化采访 UI 协议**；只要环境存在等价于 `AskUserQuestion` / `request_user_input` 的原生提问能力，就必须优先使用
-3. 若当前 CLI 不支持结构化采访 UI，再回退为文本问答；可以润色语气，但**不得**把覆盖面缩水成一小段简短问题
-4. 仅当 `prompt_harness.py` 在 Step 0 发生真实接口故障，并已判定 `BLOCKED_SCRIPT_INTERFACE` 时，才允许完全绕过 `prompt-interview.md` 直接发问；覆盖维度不得低于 `tpl-interview.md`
+1. 先根据 `## 采访 UI 能力` 结论判断当前模式：`structured-ui` 或 `text-fallback`
+2. Structured UI 模式使用 A 命令；Text Fallback 模式使用 B 命令
+3. 两种模式都必须先生成 `OUTPUT_DIR/runtime/prompt-interview.md`
+4. Text Fallback 模式也必须输出分组明确的 Markdown 采访单，不得退化成单行填空或散乱追问
+5. 仅当 `prompt_harness.py` 在 Step 0 发生真实接口故障，并已判定 `BLOCKED_SCRIPT_INTERFACE` 时，才允许完全绕过 `prompt-interview.md` 直接发问；覆盖维度不得低于 `tpl-interview.md`
 
 Gate 校验：
 

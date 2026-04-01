@@ -279,18 +279,22 @@ def check_resource_route_docs(result: CheckResult) -> None:
 def check_step0_interview_contract(result: CheckResult) -> None:
     required_patterns = {
         ROOT_DIR / "SKILL.md": [
-            r"tpl-interview\.md",
+            r"tpl-interview-structured-ui\.md",
+            r"tpl-interview-text-fallback\.md",
             r"prompt-interview\.md",
             r"BLOCKED_SCRIPT_INTERFACE",
             r"Step 0 默认强制模板化",
             r"结构化采访 UI",
         ],
         ROOT_DIR / "references/cli-cheatsheet.md": [
-            r"tpl-interview\.md",
+            r"tpl-interview-structured-ui\.md",
+            r"tpl-interview-text-fallback\.md",
             r"prompt-interview\.md",
             r"BLOCKED_SCRIPT_INTERFACE",
-            r"Prompt 生成（默认强制）",
-            r"STRUCTURED_INTERVIEW_UI_MODULE",
+            r"Prompt 生成（按能力二选一）",
+            r"INTERVIEW_MODE_MODULE",
+            r"INTERVIEW_CORE",
+            r"module-text-interview-fallback\.md",
         ],
     }
     banned_snippets = {
@@ -311,14 +315,44 @@ def check_step0_interview_contract(result: CheckResult) -> None:
             if snippet in text:
                 result.error(f"{format_rel(path)}: deprecated Step 0 interview wording still present: `{snippet}`")
 
-    module_path = ROOT_DIR / "references/prompts/module-structured-interview-ui.md"
-    if not module_path.exists():
-        result.error(f"{format_rel(module_path)}: missing structured interview UI module")
-    else:
-        module_text = read_text(module_path)
-        for token in ("AskUserQuestion", "request_user_input", "结构化采访", "question/header/id/options"):
-            if token not in module_text:
-                result.error(f"{format_rel(module_path)}: missing structured interview module token `{token}`")
+    expected_files = {
+        ROOT_DIR / "references/prompts/tpl-interview.md": [
+            "采访问卷共享核心",
+            "必须覆盖的 4 组维度",
+            "presentation_scenario",
+        ],
+        ROOT_DIR / "references/prompts/tpl-interview-structured-ui.md": [
+            "{{TOPIC}}",
+            "{{USER_CONTEXT}}",
+            "{{INTERVIEW_MODE_MODULE}}",
+            "{{INTERVIEW_CORE}}",
+        ],
+        ROOT_DIR / "references/prompts/tpl-interview-text-fallback.md": [
+            "{{TOPIC}}",
+            "{{USER_CONTEXT}}",
+            "{{INTERVIEW_MODE_MODULE}}",
+            "{{INTERVIEW_CORE}}",
+        ],
+        ROOT_DIR / "references/prompts/module-structured-interview-ui.md": [
+            "AskUserQuestion",
+            "request_user_input",
+            "question/header/id/options",
+        ],
+        ROOT_DIR / "references/prompts/module-text-interview-fallback.md": [
+            "结构化文本采访单",
+            "**A. 场景与目标**",
+            "全部按默认，用 research",
+        ],
+    }
+
+    for path, tokens in expected_files.items():
+        if not path.exists():
+            result.error(f"{format_rel(path)}: missing Step 0 interview artifact")
+            continue
+        text = read_text(path)
+        for token in tokens:
+            if token not in text:
+                result.error(f"{format_rel(path)}: missing Step 0 token `{token}`")
 
 
 def run_all_checks() -> CheckResult:

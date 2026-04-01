@@ -7,7 +7,7 @@
 ```
 references/
   playbooks/          -- subagent 执行细则（5 个 + step4/ 下 3 个）
-  prompts/            -- prompt 模板（6 个 tpl-*.md + 1 个 module-*.md + step4/ 下 3 个）
+  prompts/            -- prompt 模板（多个 tpl-*.md + 2 个 module-*.md + step4/ 下 4 个）
   layouts/            -- 版式资源（10 种）
   blocks/             -- 区域展示组件（8 种 + card-styles）
   charts/             -- 图表组件（13 种 + runtime-chart-rules）
@@ -36,14 +36,22 @@ references/
 
 `tpl-*.md` 文件由 `scripts/prompt_harness.py` 填充 `{{VAR}}` 变量后发给 subagent。
 
-其中 `module-structured-interview-ui.md` 是 Step 0 专用模块，不直接单独发送给 subagent，而是通过 `--inject-file` 注入 `tpl-interview.md`，用于提示不同 CLI 优先执行原生结构化采访 UI。
+其中 Step 0 现在采用“双模板/按能力裁剪”：
+
+- `tpl-interview-structured-ui.md`：结构化采访 UI 模式
+- `tpl-interview-text-fallback.md`：文本回退模式
+- `tpl-interview.md`：共享采访核心，不直接作为运行时模板
+- `module-structured-interview-ui.md` / `module-text-interview-fallback.md`：模式模块，通过 `--inject-file` 注入运行时模板
 
 P2A/P2B/P3/P3.5/P4 均采用渐进式上下文注入：每个节点有 orchestrator + phase1 + phase2（Step4 为 phase1/2/3），subagent 内部按阶段自主读取。
 
 | 模板 | 阶段 | 说明 |
 |------|------|------|
-| `tpl-interview.md` | Step 0 采访 | 单阶段，无渐进式 |
-| `module-structured-interview-ui.md` | Step 0 模块 | 结构化采访 UI 协议（通过 inject-file 注入） |
+| `tpl-interview.md` | Step 0 核心 | 共享采访问题合同，不直接运行 |
+| `tpl-interview-structured-ui.md` | Step 0 采访 | Structured UI 模式 |
+| `tpl-interview-text-fallback.md` | Step 0 采访 | Text Fallback 模式 |
+| `module-structured-interview-ui.md` | Step 0 模块 | Structured UI 模式协议 |
+| `module-text-interview-fallback.md` | Step 0 模块 | Text Fallback 模式协议 |
 | `tpl-research-synth-orchestrator.md` | Step 2A 调度 | 轻量 orchestrator |
 | `tpl-research-synth-phase1.md` | Step 2A 搜索 | 搜索与搜集 |
 | `tpl-research-synth-phase2.md` | Step 2A 整理 | 数据格式化+自审 |
