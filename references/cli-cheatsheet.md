@@ -51,7 +51,9 @@ python3 SKILL_DIR/scripts/contract_validator.py requirements-interview OUTPUT_DI
 
 ## Step 2A Research
 
-Prompt 生成：
+> **Subagent 强制**：本步产物必须由 ResearchSynth subagent 生成，主 agent 禁止内联生产。
+
+**1. Prompt 生成（主 agent 执行）：**
 
 ```bash
 python3 SKILL_DIR/scripts/prompt_harness.py \
@@ -67,11 +69,17 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-research-synth.md
 ```
 
-Gate 校验通过后，主代理：
-`唤起/创建 ResearchSynth Subagent 并显性赋予其参数 --model MAIN_MODEL`
-`RUN OUTPUT_DIR/runtime/prompt-research-synth.md`
+**2. 创建 Subagent 并执行（按《自适应调用协议》执行）：**
 
-Gate 校验：
+回查《Subagent 操作手册》取出调用模板，替换变量后**显式输出到对话**再执行：
+```
+{{SUBAGENT_NAME}} = ResearchSynth
+{{MODEL}}         = MAIN_MODEL
+{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-research-synth.md
+```
+> subagent 是完全隔离的：它只能看到上述 prompt 文件的内容，看不到主 agent 的对话历史或内部状态。所有 subagent 需要的上下文已由 harness 打包进 prompt 文件。
+
+**3. Gate 校验（主 agent 复检）：**
 
 ```bash
 python3 SKILL_DIR/scripts/contract_validator.py search OUTPUT_DIR/search.txt
@@ -85,7 +93,9 @@ python3 SKILL_DIR/scripts/contract_validator.py search-brief OUTPUT_DIR/search-b
 
 ## Step 2B 非 Search 分支（用户现有资料整合）
 
-Prompt 生成：
+> **Subagent 强制**：本步产物必须由 SourceSynth subagent 生成，主 agent 禁止内联生产。
+
+**1. Prompt 生成（主 agent 执行）：**
 
 ```bash
 python3 SKILL_DIR/scripts/prompt_harness.py \
@@ -97,11 +107,17 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-source-synth.md
 ```
 
-主代理执行：
-`依据《Subagent 操作手册》唤起/创建 SourceSynth Subagent 并显性赋予主要模型参数 --model MAIN_MODEL`
-`对该代理发送 RUN OUTPUT_DIR/runtime/prompt-source-synth.md 指令`
+**2. 创建 Subagent 并执行（按《自适应调用协议》执行）：**
 
-Gate 校验：
+回查《Subagent 操作手册》取出调用模板，替换变量后**显式输出到对话**再执行：
+```
+{{SUBAGENT_NAME}} = SourceSynth
+{{MODEL}}         = MAIN_MODEL
+{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-source-synth.md
+```
+> subagent 是完全隔离的：它只能看到上述 prompt 文件的内容。
+
+**3. Gate 校验（主 agent 复检）：**
 
 ```bash
 python3 SKILL_DIR/scripts/contract_validator.py source-brief OUTPUT_DIR/source-brief.txt
@@ -113,7 +129,9 @@ python3 SKILL_DIR/scripts/contract_validator.py source-brief OUTPUT_DIR/source-b
 
 ## Step 3 大纲
 
-Prompt 生成：
+> **Subagent 强制**：本步产物必须由 Outline subagent 生成，主 agent 禁止内联生产。
+
+**1. Prompt 生成（主 agent 执行）：**
 
 ```bash
 python3 SKILL_DIR/scripts/prompt_harness.py \
@@ -124,11 +142,18 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/outline-subagent-playbook.md \
   --output OUTPUT_DIR/runtime/prompt-outline.md
 ```
-主代理：
-`唤起/创建 Outline Subagent 并显性赋予其参数 --model MAIN_MODEL`
-`RUN OUTPUT_DIR/runtime/prompt-outline.md`
 
-Gate 校验：
+**2. 创建 Subagent 并执行（按《自适应调用协议》执行）：**
+
+回查《Subagent 操作手册》取出调用模板，替换变量后**显式输出到对话**再执行：
+```
+{{SUBAGENT_NAME}} = Outline
+{{MODEL}}         = MAIN_MODEL
+{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-outline.md
+```
+> subagent 是完全隔离的：它只能看到上述 prompt 文件的内容。Outline subagent 内部自带审查闭环，主 agent 不介入。
+
+**3. Gate 校验（主 agent 复检）：**
 
 ```bash
 python3 SKILL_DIR/scripts/contract_validator.py outline OUTPUT_DIR/outline.txt
@@ -138,7 +163,9 @@ python3 SKILL_DIR/scripts/contract_validator.py outline OUTPUT_DIR/outline.txt
 
 ## Step 3.5 风格
 
-Prompt 生成：
+> **Subagent 强制**：本步产物必须由 Style subagent 生成，主 agent 禁止内联生产。
+
+**1. Prompt 生成（主 agent 执行）：**
 
 ```bash
 python3 SKILL_DIR/scripts/prompt_harness.py \
@@ -153,7 +180,17 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-style.md
 ```
 
-Gate 校验：
+**2. 创建 Subagent 并执行（按《自适应调用协议》执行）：**
+
+回查《Subagent 操作手册》取出调用模板，替换变量后**显式输出到对话**再执行：
+```
+{{SUBAGENT_NAME}} = Style
+{{MODEL}}         = MAIN_MODEL
+{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-style.md
+```
+> subagent 是完全隔离的：它只能看到上述 prompt 文件的内容。
+
+**3. Gate 校验（主 agent 复检）：**
 
 ```bash
 python3 SKILL_DIR/scripts/contract_validator.py style OUTPUT_DIR/style.json
@@ -191,11 +228,15 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-page-planning-N.md
 ```
 
-**[Codex 模式] 启动 PageAgent-N（新建 session）：**
+**[Codex 模式] 启动 PageAgent-N（新建 session，按《自适应调用协议》执行）：**
 
-主代理执行：
-`依据《Subagent 操作手册》唤起/创建 PageAgent-N 并显性赋予主要模型参数 --model MAIN_MODEL`
-`对该代理发送 RUN OUTPUT_DIR/runtime/prompt-page-planning-N.md 指令`
+回查《Subagent 操作手册》取出调用模板，替换变量后**显式输出到对话**再执行：
+```
+{{SUBAGENT_NAME}} = PageAgent-N
+{{MODEL}}         = MAIN_MODEL
+{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-page-planning-N.md
+```
+> subagent 是完全隔离的：它只能看到上述 prompt 文件的内容。
 
 **[Claude 模式] 见底部「Claude 模式：单次 PageAgent 端到端」节。**
 
@@ -227,11 +268,12 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-page-html-N.md
 ```
 
-**[Codex 模式] 对同一 PageAgent-N session 续写发送后续指令：**
+**[Codex 模式] 对同一 PageAgent-N session 续写：**
 
-主代理执行：
-`针对当前 PageAgent-N session 发送后续指令`
-`RUN OUTPUT_DIR/runtime/prompt-page-html-N.md`
+按《Subagent 操作手册》中的续写命令，向 PageAgent-N 发送：
+```
+{{PROMPT_PATH}} = OUTPUT_DIR/runtime/prompt-page-html-N.md
+```
 
 Gate 校验：
 
@@ -260,11 +302,12 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-page-review-N.md
 ```
 
-**[Codex 模式] 对同一 PageAgent-N session 再次续写发送审查指令：**
+**[Codex 模式] 对同一 PageAgent-N session 再次续写：**
 
-主代理执行：
-`针对当前 PageAgent-N session 发送后续审查指令`
-`RUN OUTPUT_DIR/runtime/prompt-page-review-N.md`
+按《Subagent 操作手册》中的续写命令，向 PageAgent-N 发送：
+```
+{{PROMPT_PATH}} = OUTPUT_DIR/runtime/prompt-page-review-N.md
+```
 
 Gate 校验：
 
@@ -300,11 +343,15 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-page-orchestrator-N.md
 ```
 
-**第三步**：创建单个 PageAgent-N，**只发送 orchestrator prompt**：
+**第三步**：创建单个 PageAgent-N，**只发送 orchestrator prompt**（按《自适应调用协议》执行）：
 
-主代理执行：
-`依据《Subagent 操作手册》唤起/创建 PageAgent-N 并显性赋予主要模型参数 --model MAIN_MODEL`
-`RUN OUTPUT_DIR/runtime/prompt-page-orchestrator-N.md`
+回查《Subagent 操作手册》取出调用模板，替换变量后**显式输出到对话**再执行：
+```
+{{SUBAGENT_NAME}} = PageAgent-N
+{{MODEL}}         = MAIN_MODEL
+{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-page-orchestrator-N.md
+```
+> subagent 是完全隔离的：它只能看到 orchestrator prompt 的内容，内部按 orchestrator 指示自主渐进读取各阶段 prompt。
 
 > subagent 内部会按 orchestrator 的指示自主渐进：
 > 1. 先读 planning prompt → 完成策划 → 产出 planningN.json
@@ -347,7 +394,7 @@ python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning --refs SKILL
 ```bash
 # 对缺失页列表 [N1, N2, ...] 中每页，清理旧产物：
 python3 -c "import os; [os.remove(p) for p in ['OUTPUT_DIR/planning/planningN.json','OUTPUT_DIR/slides/slide-N.html','OUTPUT_DIR/png/slide-N.png'] if os.path.exists(p)]"
-# 基于《Subagent 操作手册》并行发起所有对应的 PageAgent-N（各自新建 session，4A→4B→4C）
+# 按《自适应调用协议》并行发起所有对应的 PageAgent-N（各自新建 session，4A→4B→4C）
 ```
 
 > session 一律视为不可续接（subagent 死亡=上下文全无），整页从 4A 开始重跑。  
