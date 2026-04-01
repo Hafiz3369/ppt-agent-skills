@@ -16,11 +16,15 @@
 | `contract_validator.py` | 合同校验（`interview` / `requirements-interview` / `search` / `search-brief` / `source-brief` / `outline` / `style` / `images` / `page-review` / `delivery-manifest`） | 主 agent |
 | `planning_validator.py` | Step 4 planning JSON 单页/全量验证 | subagent 自审 + 主 agent gate |
 | `milestone_check.py` | 按里程碑阶段验收 | 主 agent |
+| `check_skill.py` | 检查 markdown / prompt / validator / 资源之间的协议漂移 | skill 作者 / 维护者 |
+| `smoke_skill.py` | 跑 Step 4 的最小端到端 smoke test（validator + resource_loader + prompt_harness） | skill 作者 / 维护者 |
 
 说明：
 
 - `contract_validator.py style` 现已按 runtime style 合同检查 `style_id`、`style_name`、`mood_keywords`、`design_soul`、`variation_strategy`、`decoration_dna`、`css_variables`、`font_family`
 - `resource_loader.py` 的 `menu` / `resolve` 会跳过 `runtime-*` 文件；这些文件由主链定向注入
+- `check_skill.py` 是维护期自检，不参与运行时调度；建议改完 `tpl` / `playbook` / `cli-cheatsheet` / Step 4 schema 示例后手动跑一次
+- `smoke_skill.py` 是维护期冒烟，不参与运行时调度；它会真实调用现有 CLI，验证 Step 4 最小主链还能接通
 
 ## 导出工具
 
@@ -45,4 +49,6 @@ prompt_harness.py       -- 独立
 resource_loader.py      -- 独立
 contract_validator.py   -> planning_validator.py -> workflow_versions.py
 milestone_check.py      -- 独立
+check_skill.py          -> planning_validator.py + prompt_harness.py
+smoke_skill.py          -> planning_validator.py + resource_loader.py + prompt_harness.py
 ```

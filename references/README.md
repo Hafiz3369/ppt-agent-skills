@@ -102,6 +102,31 @@ P2A/P2B/P3/P3.5/P4 均采用渐进式上下文注入：每个节点有 orchestra
 - 具体预置风格文件只在 style subagent 需要细看某个候选基底时按需读取
 - `runtime-*` 文件不是页面 planning / html 阶段的 menu 资源
 
+## 单一真源与自检
+
+当前 skill 维持 markdown-first 架构，但以下事实只允许一个地方说了算：
+
+- **Step 4 schema / 枚举 / planning 合法值**：`scripts/planning_validator.py`
+- **prompt 变量需求**：各 `references/prompts/tpl-*.md`
+- **资源存在性与归一化**：`references/` 真实文件 + `scripts/resource_loader.py`
+- **主链命令编排**：`references/cli-cheatsheet.md`
+- **多阶段完成信号**：各 orchestrator 模板
+
+维护时先改真源，再改说明层；改完运行：
+
+```bash
+python3 scripts/check_skill.py
+python3 scripts/smoke_skill.py
+```
+
+该检查会至少覆盖：
+
+- `cli-cheatsheet.md` 中的 `prompt_harness.py` 调用是否把模板变量传全
+- 非末阶段 phase1 模板是否错误发送最终 `FINALIZE`
+- Step 4 文档是否混入已废弃的旧别名
+- Step 4 planning 示例 JSON 是否真能通过 `planning_validator.py`
+- Step 4 的 planning 示例、`resource_loader.py`、`prompt_harness.py` 主链是否还能最小串通（`smoke_skill.py`）
+
 ## 维护规则
 
 - 新增资源文件放到对应目录，`resource_loader.py` 自动发现

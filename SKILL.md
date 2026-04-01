@@ -246,6 +246,14 @@ P5.04  写入 delivery-manifest.json
 
 `CURRENT_BRIEF_PATH`：research → `search-brief.txt`；非 research → `source-brief.txt`（Step 3/4 共用）。
 
+### 5.3 单一真源与自动检查
+
+- **Step 4 schema 真源**：`scripts/planning_validator.py`
+- **prompt 变量真源**：各 `references/prompts/tpl-*.md` 模板中的 `{{VAR}}`
+- **资源 ID 真源**：`references/layouts/`、`references/blocks/`、`references/charts/`、`references/principles/` 的真实文件 stem，与 `scripts/resource_loader.py` 的归一化规则
+- **多阶段完成信号真源**：各 orchestrator 模板中的阶段协议
+- **自动检查入口**：修改 prompt/playbook/cheatsheet/Step 4 schema 示例后，运行 `python3 SKILL_DIR/scripts/check_skill.py`
+
 ## 6. 主流程状态机
 
 ### 6.1 Step 全景表

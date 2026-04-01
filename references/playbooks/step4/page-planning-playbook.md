@@ -143,6 +143,30 @@
           "decorate_brief": "用内联 SVG 和轻量几何装饰填满留白，不抢主锚"
         },
         "resource_ref": {"chart": "kpi", "principle": "visual-hierarchy"}
+      },
+      {
+        "card_id": "s03-support-1",
+        "role": "support",
+        "card_type": "data",
+        "card_style": "outline",
+        "argument_role": "evidence",
+        "headline": "增长原因",
+        "body": ["增长主要来自高客单区域放量", "老客复购提升让同比增速更稳"],
+        "data_points": [
+          {"label": "高客单区域占比", "value": "31", "unit": "%", "source": "search-brief metrics[4]"}
+        ],
+        "chart": {"chart_type": "metric_row"},
+        "content_budget": {"headline_max_chars": 12, "body_max_bullets": 2, "body_max_lines": 4},
+        "image": {
+          "mode": "decorate",
+          "needed": false,
+          "usage": null,
+          "placement": null,
+          "content_description": null,
+          "source_hint": null,
+          "decorate_brief": "用低对比度辅助线和轻微数据底纹承托信息"
+        },
+        "resource_ref": {"chart": "metric-row", "principle": "composition"}
       }
     ],
     "workflow_metadata": {

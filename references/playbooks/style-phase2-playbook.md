@@ -34,7 +34,7 @@
 
 ```
 FINALIZE: 自审通过
-- style: {{STYLE_OUTPUT}}
+- style: [STYLE_OUTPUT 路径]
 - 自审轮数: N
 - 修复发现: [列举你按照要求修复了什么不规范字段，若无填 无]
 ```

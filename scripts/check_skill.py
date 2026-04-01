@@ -1,0 +1,299 @@
+#!/usr/bin/env python3
+"""Consistency checks for the PPT workflow skill.
+
+This checker keeps the current markdown-first architecture, but adds a thin
+automated guardrail layer so docs and validators drift less often.
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import shlex
+import sys
+import tempfile
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Iterable
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+SCRIPTS_DIR = ROOT_DIR / "scripts"
+REFERENCES_DIR = ROOT_DIR / "references"
+
+sys.path.insert(0, str(SCRIPTS_DIR))
+
+from planning_validator import validate_page, load_planning_pages  # noqa: E402
+from prompt_harness import VAR_PATTERN  # noqa: E402
+
+
+@dataclass
+class CheckResult:
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    def error(self, message: str) -> None:
+        self.errors.append(message)
+
+    def warn(self, message: str) -> None:
+        self.warnings.append(message)
+
+    @property
+    def ok(self) -> bool:
+        return not self.errors
+
+
+@dataclass
+class HarnessInvocation:
+    source_path: Path
+    line_no: int
+    command: str
+    template_path: Path
+    provided_keys: set[str]
+
+
+PHASE1_STAGE_COMPLETE_RULES = {
+    Path("references/prompts/tpl-research-synth-phase1.md"): "--- STAGE 1 COMPLETE: {{SEARCH_OUTPUT}} ---",
+    Path("references/prompts/tpl-source-synth-phase1.md"): "--- STAGE 1 COMPLETE: {{BRIEF_OUTPUT}} ---",
+    Path("references/prompts/tpl-outline-phase1.md"): "--- STAGE 1 COMPLETE: {{OUTLINE_OUTPUT}} ---",
+    Path("references/prompts/tpl-style-phase1.md"): "--- STAGE 1 COMPLETE: {{STYLE_OUTPUT}} ---",
+}
+
+STEP4_LEGACY_ALIASES = {
+    "hero",
+    "split-left",
+    "split-right",
+    "bento-grid",
+    "columns",
+    "timeline-flow",
+    "steps-horizontal",
+    "steps-vertical",
+    "list-ranked",
+    "chart-focus",
+    "centered-statement",
+    "feature-card",
+    "info-card",
+}
+
+STEP4_DOCS = [
+    ROOT_DIR / "references/prompts/step4/tpl-page-planning.md",
+    ROOT_DIR / "references/prompts/step4/tpl-page-html.md",
+    ROOT_DIR / "references/playbooks/step4/page-planning-playbook.md",
+    ROOT_DIR / "references/playbooks/step4/page-html-playbook.md",
+]
+
+
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def normalize_skill_path(raw: str) -> Path:
+    text = raw.strip().strip('"').strip("'")
+    prefixes = ("SKILL_DIR/", "./")
+    for prefix in prefixes:
+        if text.startswith(prefix):
+            text = text[len(prefix):]
+            break
+    return ROOT_DIR / text
+
+
+def find_prompt_harness_invocations(path: Path) -> list[HarnessInvocation]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    invocations: list[HarnessInvocation] = []
+    i = 0
+    while i < len(lines):
+        if "prompt_harness.py" not in lines[i]:
+            i += 1
+            continue
+
+        start = i
+        parts = [lines[i].strip()]
+        while parts[-1].endswith("\\") and i + 1 < len(lines):
+            i += 1
+            parts.append(lines[i].strip())
+
+        command = " ".join(part.rstrip("\\").strip() for part in parts if part.strip())
+        tokens = shlex.split(command)
+        template_ref: str | None = None
+        provided_keys: set[str] = set()
+        j = 0
+        while j < len(tokens):
+            token = tokens[j]
+            if token == "--template" and j + 1 < len(tokens):
+                template_ref = tokens[j + 1]
+                j += 2
+                continue
+            if token == "--var" and j + 1 < len(tokens):
+                key, _, _ = tokens[j + 1].partition("=")
+                if key:
+                    provided_keys.add(key)
+                j += 2
+                continue
+            if token == "--inject-file" and j + 1 < len(tokens):
+                key, _, _ = tokens[j + 1].partition("=")
+                if key:
+                    provided_keys.add(key)
+                j += 2
+                continue
+            j += 1
+
+        if template_ref:
+            invocations.append(
+                HarnessInvocation(
+                    source_path=path,
+                    line_no=start + 1,
+                    command=command,
+                    template_path=normalize_skill_path(template_ref),
+                    provided_keys=provided_keys,
+                )
+            )
+        i += 1
+    return invocations
+
+
+def format_rel(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT_DIR))
+    except ValueError:
+        return str(path)
+
+
+def check_prompt_harness_coverage(result: CheckResult) -> None:
+    cheatsheet = ROOT_DIR / "references/cli-cheatsheet.md"
+    for invocation in find_prompt_harness_invocations(cheatsheet):
+        if not invocation.template_path.exists():
+            result.error(
+                f"{format_rel(invocation.source_path)}:{invocation.line_no}: template not found: "
+                f"{format_rel(invocation.template_path)}"
+            )
+            continue
+
+        placeholders = set(VAR_PATTERN.findall(read_text(invocation.template_path)))
+        missing = sorted(placeholders - invocation.provided_keys)
+        unused = sorted(invocation.provided_keys - placeholders)
+
+        if missing:
+            result.error(
+                f"{format_rel(invocation.source_path)}:{invocation.line_no}: "
+                f"{format_rel(invocation.template_path)} missing vars {missing}"
+            )
+        if unused:
+            result.warn(
+                f"{format_rel(invocation.source_path)}:{invocation.line_no}: "
+                f"{format_rel(invocation.template_path)} has unused vars {unused}"
+            )
+
+
+def check_phase1_completion_contract(result: CheckResult) -> None:
+    for rel_path, expected_marker in PHASE1_STAGE_COMPLETE_RULES.items():
+        path = ROOT_DIR / rel_path
+        text = read_text(path)
+        if expected_marker not in text:
+            result.error(f"{format_rel(path)}: missing stage-complete marker `{expected_marker}`")
+        if re.search(r"`FINALIZE:\s", text):
+            result.error(f"{format_rel(path)}: phase1 template still contains a final `FINALIZE:` payload")
+
+
+def check_step4_legacy_aliases(result: CheckResult) -> None:
+    for path in STEP4_DOCS:
+        text = read_text(path)
+        for alias in sorted(STEP4_LEGACY_ALIASES):
+            if re.search(rf"(?<![A-Za-z0-9_-]){re.escape(alias)}(?![A-Za-z0-9_-])", text):
+                result.error(f"{format_rel(path)}: legacy Step4 alias detected: `{alias}`")
+
+
+def extract_planning_example_block(path: Path) -> str | None:
+    text = read_text(path)
+    anchor = text.find("推荐写成单页对象")
+    if anchor == -1:
+        return None
+    match = re.search(r"```json\s*(\{.*?\})\s*```", text[anchor:], re.S)
+    if not match:
+        return None
+    return match.group(1).strip()
+
+
+def check_planning_example(result: CheckResult) -> None:
+    path = ROOT_DIR / "references/playbooks/step4/page-planning-playbook.md"
+    payload = extract_planning_example_block(path)
+    if payload is None:
+        result.error(f"{format_rel(path)}: could not locate planning JSON example")
+        return
+
+    with tempfile.TemporaryDirectory(prefix="ppt-skill-check-") as tmp_dir:
+        tmp_path = Path(tmp_dir) / "planning-example.json"
+        tmp_path.write_text(payload, encoding="utf-8")
+        try:
+            pages = load_planning_pages(tmp_path)
+        except Exception as exc:  # pragma: no cover - defensive
+            result.error(f"{format_rel(path)}: planning example is not parseable JSON: {exc}")
+            return
+
+        if not pages:
+            result.error(f"{format_rel(path)}: planning example produced no pages")
+            return
+
+        for page in pages:
+            validation = validate_page(page, REFERENCES_DIR)
+            for message in validation.errors:
+                result.error(f"{format_rel(path)}: example validation error: {message}")
+            for message in validation.warnings:
+                result.warn(f"{format_rel(path)}: example validation warning: {message}")
+
+
+def check_truth_source_docs(result: CheckResult) -> None:
+    checks = {
+        ROOT_DIR / "SKILL.md": ["planning_validator.py", "check_skill.py"],
+        ROOT_DIR / "references/README.md": ["check_skill.py", "planning_validator.py", "prompt_harness.py"],
+        ROOT_DIR / "scripts/README.md": ["check_skill.py"],
+    }
+    for path, required_tokens in checks.items():
+        text = read_text(path)
+        for token in required_tokens:
+            if token not in text:
+                result.warn(f"{format_rel(path)}: missing maintenance hint `{token}`")
+
+
+def run_all_checks() -> CheckResult:
+    result = CheckResult()
+    check_prompt_harness_coverage(result)
+    check_phase1_completion_contract(result)
+    check_step4_legacy_aliases(result)
+    check_planning_example(result)
+    check_truth_source_docs(result)
+    return result
+
+
+def print_messages(title: str, messages: Iterable[str]) -> None:
+    items = list(messages)
+    if not items:
+        return
+    print(title)
+    for message in items:
+        print(f"- {message}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Check markdown/code contract drift in the PPT skill")
+    parser.add_argument(
+        "--strict-warnings",
+        action="store_true",
+        help="treat warnings as failures",
+    )
+    args = parser.parse_args()
+
+    result = run_all_checks()
+    print("PPT skill consistency check")
+    print(f"errors: {len(result.errors)}")
+    print(f"warnings: {len(result.warnings)}")
+    print_messages("Errors", result.errors)
+    print_messages("Warnings", result.warnings)
+
+    if result.errors:
+        return 1
+    if args.strict_warnings and result.warnings:
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

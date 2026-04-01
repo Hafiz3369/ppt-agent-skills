@@ -232,7 +232,7 @@
 <meta name="viewport" content="width=1280">
 <title>Slide {NN} - {TITLE}</title>
 <style>
-:root { /* 从 {{STYLE_DEFINITION}} 复制完整 CSS 变量 */ }
+:root { /* 从 style.json 展开完整 CSS 变量 */ }
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 body {
   width:1280px; height:720px; overflow:hidden;
