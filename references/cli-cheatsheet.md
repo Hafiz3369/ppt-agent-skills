@@ -267,7 +267,7 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --template SKILL_DIR/references/prompts/tpl-style-phase1.md \
   --var REQUIREMENTS_PATH=OUTPUT_DIR/requirements-interview.txt \
   --var OUTLINE_PATH=OUTPUT_DIR/outline.txt \
-  --var SKILL_DIR=SKILL_DIR \
+  --var SKILL_DIR='$SKILL_DIR' \
   --var STYLE_OUTPUT=OUTPUT_DIR/style.json \
   --inject-file STYLE_RUNTIME_RULES=SKILL_DIR/references/styles/runtime-style-rules.md \
   --inject-file STYLE_PRESET_INDEX=SKILL_DIR/references/styles/runtime-style-palette-index.md \
@@ -337,8 +337,8 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --var STYLE_PATH=OUTPUT_DIR/style.json \
   --var IMAGES_DIR=OUTPUT_DIR/images \
   --var PLANNING_OUTPUT=OUTPUT_DIR/planning/planningN.json \
-  --var SKILL_DIR=SKILL_DIR \
-  --var REFS_DIR=SKILL_DIR/references \
+  --var SKILL_DIR='$SKILL_DIR' \
+  --var REFS_DIR='$SKILL_DIR/references' \
   --inject-file PRINCIPLES_CHEATSHEET=SKILL_DIR/references/principles/design-principles-cheatsheet.md \
   --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/step4/page-planning-playbook.md \
   --output OUTPUT_DIR/runtime/prompt-page-planning-N.md
@@ -355,8 +355,8 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --var SLIDE_OUTPUT=OUTPUT_DIR/slides/slide-N.html \
   --var IMAGES_DIR=OUTPUT_DIR/images \
   --var STYLE_PATH=OUTPUT_DIR/style.json \
-  --var SKILL_DIR=SKILL_DIR \
-  --var REFS_DIR=SKILL_DIR/references \
+  --var SKILL_DIR='$SKILL_DIR' \
+  --var REFS_DIR='$SKILL_DIR/references' \
   --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/step4/page-html-playbook.md \
   --output OUTPUT_DIR/runtime/prompt-page-html-N.md
 ```
@@ -373,7 +373,8 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --var PNG_OUTPUT=OUTPUT_DIR/png/slide-N.png \
   --var REVIEW_DIR=OUTPUT_DIR/review \
   --var STYLE_PATH=OUTPUT_DIR/style.json \
-  --var SKILL_DIR=SKILL_DIR \
+  --var SKILL_DIR='$SKILL_DIR' \
+  --inject-file PRINCIPLES_CHEATSHEET=SKILL_DIR/references/principles/design-principles-cheatsheet.md \
   --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/step4/page-review-playbook.md \
   --inject-file FAILURE_MODES=SKILL_DIR/references/principles/runtime-failure-modes.md \
   --output OUTPUT_DIR/runtime/prompt-page-review-N.md

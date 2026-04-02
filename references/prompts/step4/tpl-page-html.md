@@ -41,7 +41,7 @@
    ```bash
    python3 {{SKILL_DIR}}/scripts/resource_loader.py resolve --refs-dir {{REFS_DIR}} --planning {{PLANNING_OUTPUT}}
    ```
-   **resolve 输出的 HTML 结构骨架、语义类锚点、参数规范是强制执行的实现合同，不是参考建议。** 你可以在细节上微调（间距±5px、圆角±2px），也可以额外追加 page-local modifier class，但不得替换它给出的核心结构、语义类锚点和数据格式。
+   **resolve 输出的 HTML 结构骨架和参数仅为基础参考！** **我们极大鼓励你发挥主观能动性进行突破性的、令人惊叹的设计（你拥有最高的创意自由度），因为后续我们有专门的严密像素级图审机制为你兜底纠偏！** 只要保证整体外层为 1280x720 的基础红线，你就可以对核心组件进行大幅的视觉重构、加微动画或是夸张的现代排版。
 4. 核对图片素材，确认 `image.source_hint` 路径可访问：
    ```bash
    python3 {{SKILL_DIR}}/scripts/resource_loader.py images --images-dir {{IMAGES_DIR}}
@@ -59,12 +59,10 @@
    - `generate` / `provided`（`image.needed=true`）：将 `source_hint` 路径绑定到 `<img src>` 或 `background-image`，图片必须实际渲染
    - `manual_slot`（`image.needed=false`）：渲染明确可替换的图片占位区（带边框/提示文字），不得偷偷删除占位区
    - `decorate`（`image.needed=false`）：不使用外部图片，用内联 SVG、色块、渐变、字体装饰补足视觉氛围，不得留空白大洞
-8. **720px 高度内的视觉节奏**（设计要求，非可选建议）：
-   - 标题区（y=20~70）：大字+强对比度，一眼抓住主题
-   - 焦点区（y=70~450）：承载 primary 卡片，视觉权重最大
-   - 支撑区（y=450~640）：secondary 卡片或补充数据，字号缩小、对比度降低
-   - 装饰层：signature_move 锚点 + 渐变/几何点缀，不占用内容空间
-   - **禁止平铺直叙**：不得让所有卡片等大小、等间距、等字号排列，必须有主次层级
+8. **720px 高度内的创意视觉展现**：
+   - 传统虽然有区隔，**但不要受限于死板的位置、规矩和比例**。
+   - 鼓励突破传统网格，大胆运用重叠卡片、不规则留白、非对称构图、大字压阵等具备高级美感的设计手法。
+   - **放开手脚，尽情发挥设计才华**！请用前沿的视觉高级感惊艳全场，一切大胆的视觉探索都将被包容，出错也会被后续审计捕获。
 9. **每个 planning card 都必须在 HTML 中有对应渲染根节点**，并为根节点补上 `data-card-id="<planning.card_id>"` 便于 review 对账；如果某卡含 `chart.chart_type`，渲染结果必须与该类型匹配。
 10. 将完整 HTML 写入 `{{SLIDE_OUTPUT}}`
 11. 完成信号：输出 `--- STAGE 2 COMPLETE: {{SLIDE_OUTPUT}} ---`，然后按外层 orchestrator 协议继续下一阶段

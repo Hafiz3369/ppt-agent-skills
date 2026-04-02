@@ -35,12 +35,12 @@ python3 SKILL_DIR/scripts/resource_loader.py resolve --refs-dir REFS_DIR --plann
 - 推荐的 CSS 参数（间距、字号、颜色变量用法）
 - 数据格式要求（如 chart 的 data 格式）
 
-**你必须照着实现，细节可微调，结构不得绕过。**
+**你应当以此作为骨架参考，并在此基础上享有极大的创意与改写自由度。后续的像素级图审（Visual QA）会负责纠偏。**
 
 特别注意：
-- 若 resolve 返回了组件的**语义类锚点**，必须保留这些锚点；你可以附加 page-local modifier class，但不要替换掉核心结构。
-- 若 planning 的 `resources.*_refs` 与 `card.resource_ref.*` 同时存在，优先保证两者都被消费，不要只看其中一层。
-- `process` 这类没有独立 block 文件的 card_type，优先从 `layout_refs`、`principle_refs`、`director_command` 和相关 chart 资源中组装实现。
+- 虽然 resolve 提供了基础结构，但你拥有**非常高的设计自由权**，鼓励用更多现代、创意的结构代替或增强组件。
+- 允许在保留核心业务语义的情况下大胆打破标准模板感。
+- `process` 这类没有独立 block 文件的 card_type，可根据你自身的高级审美，自由借助 CSS 创新重构。
 
 ---
 
@@ -67,14 +67,25 @@ python3 SKILL_DIR/scripts/resource_loader.py resolve --refs-dir REFS_DIR --plann
 ## Phase 5：画布物理红线（不可违反）
 
 ```css
+* {
+  box-sizing: border-box; /* 像素级排版防崩核心 */
+}
+
 body {
   width: 1280px;
   height: 720px;
   overflow: hidden;
   margin: 0;
   padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale; /* 保障文字渲染精度 */
 }
 ```
+
+**像素级渲染安全防线（涉及无头浏览器最终出图质量，极度重要）：**
+- **流体坍塌预防**：在高度自由发挥时，`flex` / `grid` 极易出现子项挤压坍缩。凡是重要卡片或必须撑开的区域，务必使用 `min-width`, `min-height` 或 `flex-shrink: 0`。
+- **行高裁剪预防**：文字的 `line-height` 若低于 `1.3`，部分英文小写字母下端极其容易被隐形裁剪，正文需保持合理行高。
+- **边框与阴影溢出**：所有的边框宽度、`box-shadow` 都可能溢出原有容器。借助于 `box-sizing: border-box`，确保 padding 和 border 在规划宽度内。
 
 - **禁止** `width: 100%; height: 100%` 然后依赖父容器
 - **禁止** `transform: scale()` 缩放 hack
@@ -115,12 +126,11 @@ body {
 
 ---
 
-## Phase 7：设计多样性要求
+## Phase 7：设计多样性要求与极度创意发挥
 
-- 页面级 wrapper、modifier class 应该带有本页差异性，避免连续两页像复制模板
-- **但**如果 resolve 提供了核心结构或语义类锚点，必须保留，不得为了“全都自定义”而破坏资源合同
-- CSS 实现方式每页独立设计，但仍需服从 `style.json`、`director_command` 与资源正文的共同约束
-- 同一套 deck 中每页都应有视觉差异感（不同色块比例/不同排版中心/不同装饰位置）
+- **极大鼓励创意与发挥**：后续有强大的像素级图审兜底，你在此阶段进行页面渲染时**无需束手束脚**！
+- **打破标准模板**：设计应该追求高级感、空间感与动态视觉，大胆使用绝对定位、高级滤镜、复杂渐变、网格打破等技巧。
+- CSS 实现拥有最高自由权，一切以“令人惊艳和 WOW 的视觉体验”为最高目标。除了保障 1280x720 的基础画布外，其他皆可为设计美学让路。
 
 ---
 

@@ -61,7 +61,9 @@ cp PNG_OUTPUT REVIEW_DIR/roundX/slide-N.png
 |--------|--------|---------|
 | **标题区（顶部 40~100px）** | 标题文字是否清晰可读？字号是否突出于正文？是否有装饰遮挡？ | 对比度不足、z-index 冲突 |
 | **焦点区（focus_zone 指定位置）** | 是否是全页视觉第一落点？是否有足够的尺寸/色彩/对比度优势？ | primary 卡片视觉权重不够 |
-| **支撑区（焦点以外的卡片）** | 内容是否完整可读？卡片间距是否均匀？ | body 文字被截断、gap 不均 |
+| **支撑区（焦点以外的卡片）** | 内容是否完整可读？卡片间距是否均匀？是否有严重的互相重叠（Overlap）？ | body 文字被截断、gap 不均、文字互相挤压遮挡 |
+| **层叠与排版重叠（专项排查）** | **绝对定位或 flex/grid 失效导致的重叠、图片与文字重叠混淆** | 容器未能正确定位、z-index 错乱、高宽限制过死 |
+| **图文排版原则与图片专项检查** | 依据《高级设计原则》，配图是否合规高雅？图片是否破损裂缺或挤压变形？是否和周围卡片存在层次感冲突？ | `src` 路径错误、未加 `object-fit: cover`，与主色调冲突，或沦为劣质色块 |
 | **装饰层** | SVG/几何/渐变是否在内容之下？是否抢焦点？ | z-index 过高、opacity 过大、面积过大 |
 
 ### 第 3 遍：整体印象（退后一步看）
@@ -88,6 +90,9 @@ cp PNG_OUTPUT REVIEW_DIR/roundX/slide-N.png
 | P0-3 | 大面积空白（超过画布 40% 区域无任何内容或装饰） | planning 内容未落地、CSS Grid 区域未填充 | 对照 `planning{n}.json` 的 cards 逐一检查，补回缺失卡片；空 grid 区域至少用装饰填充 |
 | P0-4 | 核心文字完全不可读（白字白底、黑字黑底、字号 < 10px） | 对比度 < 2:1 或字号过小 | 文字色改用对立面 CSS 变量；正文最小 14px；必要时加半透明遮罩 `background: rgba(0,0,0,0.5)` |
 | P0-5 | planning 中的关键卡片在 HTML 中完全缺失 | 忘写或被注释掉 | 对照 planning cards[] 补回缺失卡片的完整 HTML |
+| P0-6 | **严重排版重叠与错位（文字互相挤压、卡片无序遮挡破坏阅读）** | 绝对定位(`position:absolute`)偏移、`margin`或`translate`过度使用、Grid区溢出 | 重新检查 Flex/Grid 结构，移除失效的偏移属性；给予容器足够的内部留白，修补层叠上下文 (`z-index`) |
+| P0-7 | **像素级渲染破损（文字底部/边缘切断、容器被意外撑破）** | 缺少 `box-sizing: border-box`，或 `line-height` 过小 | 全局补偿盒子模型；调大行高；检查子项 flex 压缩属性。 |
+| P0-8 | **图片严重事故（破图显示方框叉号、比例被严重挤压/拉伸变形）** | `src` 路径错误或文件不存在；图片缺少 `object-fit: cover` 约束 | 检查并修正真实路径；严格添加 `width:100%; height:100%; object-fit: cover;` 保护比例。 |
 
 ### P1 — 必修缺陷（不影响基本可用，但显著降低品质）
 
@@ -98,7 +103,6 @@ cp PNG_OUTPUT REVIEW_DIR/roundX/slide-N.png
 | P1-3 | 装饰元素遮挡了文字内容 | 装饰层 `z-index` >= 内容层 | 装饰层：`z-index: 1; pointer-events: none`；内容层：`z-index: 10` |
 | P1-4 | 无视觉焦点（所有卡片大小/颜色/字号相近） | primary/secondary 卡片未做差异化处理 | primary 卡片：字号 +4px、加 `border-left: 4px solid var(--accent-1)` 或用 accent 背景色；secondary：降低背景饱和度 |
 | P1-5 | 硬编码颜色值（出现 `#ff0000`、`rgb(...)` 等非变量色值） | 未使用 CSS 变量 | 全部替换为 `var(--accent-1)` 等对应变量 |
-| P1-6 | 图片/图标显示为破图（方框 + 叉号） | `src` 路径错误或文件不存在 | 检查 `image.source_hint` 路径，修正 `src` 属性 |
 | P1-7 | 数据数字与正文字号相同，没有视觉突出 | 关键数字未做样式强化 | 数字：`font-size` 比正文大 8-12px，`font-weight: 700`，用 `var(--accent-1)` 着色 |
 | P1-8 | 行高过小导致文字行间粘连 | `line-height < 1.4` | 正文 `line-height: 1.6~1.8`；标题 `line-height: 1.2~1.3` |
 
@@ -128,6 +132,9 @@ cp PNG_OUTPUT REVIEW_DIR/roundX/slide-N.png
 - [P0-3] [发现/通过]
 - [P0-4] [发现/通过]
 - [P0-5] [发现/通过]
+- [P0-6] [发现/通过] 严重排版重叠
+- [P0-7] [发现/通过] 渲染切割破损
+- [P0-8] [发现/通过] 图片破裂或扭曲变形
 
 ### P1 必修缺陷
 - [P1-1] [发现/通过]
@@ -161,20 +168,28 @@ P0（致命）→ P1（必修）→ P2（抛光）
 3. 对比度/可读性 → 然后修颜色
 4. 装饰/质感 → 最后打磨
 
+### 修复力度：大刀阔斧，不要畏手畏脚（Aggressive Repair）
+
+当你从截图中发现严重的排版重叠、布局塌陷、元素互相遮挡时，**绝对不要抱着侥幸心理，仅仅试探性地修改 +/- `5px` 的 `margin` / `padding` 来“微调”**！这种情况下微调毫无意义：
+- **重构凌驾于微调**：如果绝对定位（`position: absolute`）或复杂的 Grid 导致卡片飞出天际或重叠在字上，不要怕，直接推倒原本的 CSS 结构，把整个容器改成坚如磐石的 `display: flex; flex-direction: column;` 让它们乖乖回到标准文档流排布！
+- **摧毁僵化设定**：如果 `height: 100%` 导致内容溢出，直接废除定高，改用 `min-height` 并让内容自适应撑开。如果固定比例压扁了卡片，直接加上强制的极值保护如 `min-width: 400px;`。
+- **斩断花里胡哨，死保阅读体验**：如果复杂的绝对定位装饰、庞大的背景图案破坏了文字阅读，且短时间理不清层叠结构，果断祭出绝招一把擦除：`display: none !important;` 或者降透明度为 `0.02`。
+记住：**“简单粗暴但内容清晰可读”永远完爆“花里胡哨却糊成一团”！你的手术刀必须锋利！**
+
 ### 修复时的 CSS 诊断技巧
 
 当你在 PNG 中看到某个症状时，按以下路径定位 HTML 源码：
 
-| 视觉症状 | 优先检查的 CSS 属性 |
+| 视觉症状 | 优先检查的 CSS 属性与像素级渲染陷阱 |
 |---------|-------------------|
-| 内容被底部裁切 | 容器 `height`/`max-height`、`overflow`、子元素总高度是否超出 |
-| 元素间距不均 | `gap`、`margin`、`padding` 是否混用；是否有 `margin: auto` 干扰 |
-| 文字看不清 | `color` vs `background` 对比度；是否有装饰层 `z-index` 盖住 |
-| 布局塌陷（元素重叠） | `position: absolute` 未设 `top/left`；`grid-template` 行列定义错误 |
-| 卡片大小异常 | `grid-template-columns/rows` 比例；`flex-grow/shrink` 值 |
-| 字体显示异常 | `@import` 是否在 `<style>` 最顶部；`font-family` 继承链 |
-| 装饰遮挡内容 | `z-index` 层级；装饰元素 `opacity` |
-| 图片破裂 | `src`/`background-image` 路径；文件是否存在 |
+| 内容被底部裁切 / 文字底部被削 | 容器 `overflow` 限制导致；`line-height` 太小引发字母下沉被切。 |
+| Flex/Grid 布局塌陷挤按 | 缺失 `flex-shrink: 0` 导致被暴力挤压；未设定 `min-width`/`min-height` |
+| 元素内边距溢出 / 意外扩容重叠 | 漏加 `* { box-sizing: border-box; }`，padding 撑破原有宽高。 |
+| 文字发虚 / 对比度糊块 | 字号小且过度使用低不透明度，或缺少平滑抗锯齿属性。 |
+| 绝对定位乱飞 / 死墙角溢展 | `position: absolute` 父级缺 `relative`；长宽百分比引发渲染位移超出画幅。 |
+| 图片破裂 / 比例拉伸变形 | `src` 指向了错误路径；宽高被改变且没有加上 `object-fit: cover;` |
+| 卡片占比失调重叠 | `grid-template-columns` 比例不对；`flex-grow/basis` 计算未考虑到内外边距 |
+| 装饰混淆主图 / 喧宾夺主 | `z-index` 失控；或者滥用极高纯度背景色将主体遮盖。 |
 
 ### 修复后的验证规则
 
