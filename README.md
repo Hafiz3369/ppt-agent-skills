@@ -1,117 +1,120 @@
 <div align="center">
-  <img src="assets/logo.png" alt="PPT Agent Logo" width="160" />
+  <img src="assets/logo.png" alt="PPT Agent Logo" width="180" />
   <h1>PPT Agent</h1>
-  <p><strong>像构建软件工程一样生成演示文稿。</strong></p>
+  <p><strong>基于软件工程理念的演示文稿生成框架。</strong></p>
 
   <p>
-    <a href="#快速开始"><img src="https://img.shields.io/badge/Quick_Start-blue?style=for-the-badge" alt="Quick Start" /></a>
+    <a href="#作为-agent-技能运行指南"><img src="https://img.shields.io/badge/Quick_Start-blue?style=for-the-badge" alt="Quick Start" /></a>
     <a href="README_EN.md"><img src="https://img.shields.io/badge/English_Docs-gray?style=for-the-badge" alt="English" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" /></a>
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/Pipeline-6_Steps-4f7df5?style=flat-square" alt="Pipeline" />
+    <img src="https://img.shields.io/badge/Pipeline-6_Stages-4f7df5?style=flat-square" alt="Pipeline" />
     <img src="https://img.shields.io/badge/Styles-8_Themes-ff6b35?style=flat-square" alt="Styles" />
     <img src="https://img.shields.io/badge/Layouts-10_Types-00d4ff?style=flat-square" alt="Layouts" />
     <img src="https://img.shields.io/badge/Charts-13_Templates-8b5cf6?style=flat-square" alt="Charts" />
-    <img src="https://img.shields.io/badge/Blocks-7_Components-22c55e?style=flat-square" alt="Blocks" />
-    <img src="https://img.shields.io/badge/Scripts-8_Tools-f59e0b?style=flat-square" alt="Scripts" />
+    <img src="https://img.shields.io/badge/Blocks-8_Components-22c55e?style=flat-square" alt="Blocks" />
+    <img src="https://img.shields.io/badge/Scripts-14_Tools-f59e0b?style=flat-square" alt="Scripts" />
   </p>
 </div>
 
 ---
 
-PPT Agent 是一个基于代码驱动的演示文稿生成流框架。本项目将“内容策划”与“视觉排版”完全解耦，通过严格的数据结构规划和按需加载的资产库，生成高保真 HTML 与可二次编辑的 PPTX，从根本上解决大模型长提示词所带来的排版错乱与幻觉问题。
+**PPT Agent** 是一个基于 Agentic 工作流与代码驱动的演示文稿（PPT）生成引擎。
 
-## 核心特性
+区别于传统的大模型一键生成工具，PPT Agent 通过架构的严谨解耦，解决生成流中的幻觉重叠与布局错乱问题。
 
-- **架构与设计分离**：先生成并校验表述单页结构的 `JSON`，再将其渲染为 `HTML`。
-- **细粒度的按需加载**：拥有 60+ 模块资产，但通过多级树干仅注入“当前页”必要的组件上下文，节约 Token 的同时避免指令冲突。
-- **构建前校验 (QA)**：通过内部脚本在写入时实时校验 JSON，自动挂载预置资源组装 Prompt，人工只需负责审阅与需求定义。
-- **双引擎输出**：渲染最终结果时，提供最大平台兼容性的 PNG 图片流构建管线，以及保留矢量和文字可编辑性的 SVG 构建管线。
-- **可恢复产物链**：主链严格落盘中间产物，长流程可基于正式产物恢复，而不是依赖单一运行时状态文件。
+系统采用基于隔离阶段的 Subagent 编排、严格的数据验证合同，以及基于机器的像素级视觉验证（Visual QA）。该框架旨在将结构化的逻辑内容推导为高保真、支持深度二次编辑的跨平台 PPTX 文件。
 
-## 效果展示
+## 核心架构特性
 
-_主题预览（片段）：_
+本项目针对大模型结构化生成过程中的上下文边界与渲染稳定性问题，进行了如下架构优化：
 
-<div align="center">
-  <img src="assets/screenshots/slide1.png" width="32%" />
-  <img src="assets/screenshots/slide2.png" width="32%" />
-  <img src="assets/screenshots/slide3.png" width="32%" />
-  <img src="assets/screenshots/slide4.png" width="32%" />
-  <img src="assets/screenshots/slide5.png" width="32%" />
-  <img src="assets/screenshots/slide6.png" width="32%" />
-  <img src="assets/screenshots/slide7.png" width="32%" />
-  <img src="assets/screenshots/slide8.png" width="32%" />
-  <img src="assets/screenshots/slide9.png" width="32%" />
-  <img src="assets/screenshots/slide10.png" width="32%" />
-  <img src="assets/screenshots/slide11.png" width="32%" />
-  <img src="assets/screenshots/slide12.png" width="32%" />
-  <img src="assets/screenshots/slide13.png" width="32%" />
-</div>
+### 阶段隔离的 Subagent 编排
+项目摒弃了单体 Playbook 的设计模式。在资料检索 (Research)、逻辑大纲 (Outline)、视觉风格设定 (Style) 以及页面排版 (Planning) 等独立流转节点中，引擎提供隔离的执行上下文，利用阶段专属 Prompt 分发指令。系统在完整控制链路中传递预设的 `MAIN_MODEL` 参数，以规避大上下文环境带来的状态疲劳与模型污染。
 
-## 工作流
+### 闭环的像素级视觉验证 (Visual QA)
+针对前端渲染中的元素重叠问题，系统引入了自动化的截图校验机制。当单页 HTML 构建完成后，后端进程将拦截渲染管线，截取低分辨率快照并返还给大模型进行视觉审计。一旦检测到布局溢出或元素重叠，Agent 将进行 DOM 结构与 CSS 规则的整体重构，以消除冲突，而非依赖简单的间距调整。
 
-高层可视为 6 段生产线，主控制台内部则按 `Step 0 -> Step 5` 严格编排：
+### 无状态的基建设计 (Stateless Infrastructure)
+项目移除了类似 `progress.json` 的全局状态追踪器。长耗时管线的中断恢复机制完全基于磁盘文件系统中的实际产物（例如 `outline.md` 和 `style.json`）进行阶段推断。本设计大幅提高了系统的容灾能力与运行韧性。
 
-1. **需求访谈与分流**：采访、归一化需求、确认 research / 非 research 分支。
-2. **素材准备**：执行 Search-Lite，或压缩用户现有资料。
-3. **金字塔大纲**：规划叙事轨迹和论证策略，并完成自审。
-4. **全局风格前置**：先产出可被下游稳定消费的 `style.json`。
-5. **单页结构化与视图装配**：逐页生成 planning JSON、HTML、PNG，并完成图审。
-6. **交付打包**：生成 `preview.html`、PNG / SVG 双 PPTX 管线与清单。
+### 数据层与渲染层的边界隔离
+每个生成的页面视图均被约束于独立的 JSON 合同中。在结构化数据通过 UI 组件转换为 HTML 之前，内置的验证脚本将进行离线的语法合法性和变量一致性校验，拦截潜在的标签错误与数据遗漏。
 
-## 快速开始
+---
 
-本项目以 Skill 形式运行。主链默认假设当前环境具备文件读写、Python、Planning 工具与 sub-agent 能力；信息检索与文生图能力可按阶段降级。
+## 跨端双引擎输出
 
-### 运行机制
+为保障项目的多端兼容性和文件可编辑性，编译层支持双重原生管线：
+- **PNG 渲染流 (`presentation-png.pptx`)**: 通过无头浏览器直出光栅化图层，保证高级 CSS 滤镜与自定义字体的 100% 还原与全平台兼容。
+- **SVG 矢量流 (`presentation-svg.pptx`)**: 依托矢量组件导出协议，保证图形的无限缩放，并保留核心文本的二次修改权限。
 
-项目目前以 Skill 形式存在。在交互窗口中直接传入需求即可触发 Agent 完整装配流：
+<details>
+  <summary><b>点击展开：渲染产物参照</b></summary>
+  <div align="center">
+    <br/>
+    <img src="assets/screenshots/slide1.png" width="31%" />
+    <img src="assets/screenshots/slide2.png" width="31%" />
+    <img src="assets/screenshots/slide3.png" width="31%" />
+    <img src="assets/screenshots/slide4.png" width="31%" />
+    <img src="assets/screenshots/slide5.png" width="31%" />
+    <img src="assets/screenshots/slide6.png" width="31%" />
+    <img src="assets/screenshots/slide7.png" width="31%" />
+    <img src="assets/screenshots/slide8.png" width="31%" />
+    <img src="assets/screenshots/slide9.png" width="31%" />
+    <img src="assets/screenshots/slide10.png" width="31%" />
+    <img src="assets/screenshots/slide11.png" width="31%" />
+    <img src="assets/screenshots/slide12.png" width="31%" />
+    <img src="assets/screenshots/slide13.png" width="31%" />
+  </div>
+</details>
 
-> _"生成一份关于 AI 大模型算力消耗趋势的 15 页路演 Deck。"_ 
+---
 
-生成产物将自动写入 `ppt-output/runs/<RUN_ID>/`：预览阶段会生成浏览器可翻页版 `preview.html`，导出阶段会产出 `presentation-png.pptx` 与 `presentation-svg.pptx` 两条交付管线。
+## 六阶段标准化生成管线
 
-## 仓库结构
+系统的自动化流水线严格遵循以下生命周期：
 
-当前仓库按 `SKILL.md` 的主控制台模型组织，真正的运行入口只有三类：
+1. **需求意图探针**：利用大模型定位输出边界，并规划研报抓取方向。
+2. **全网数据检索**：经由 Search-lite 获取能够支撑核心骨架的客观知识参考。
+3. **结构化叙事建模**：梳理逻辑脉络，建立符合金字塔原理的严谨 Markdown 大纲。
+4. **全局视觉公约映射**：确定主题色盘与字体规范，生成全局 `style.json` 规则链。
+5. **视图装配与 Visual QA**：循环处理每个子视图槽，单页挂载组件、灌入数据内容，并执行截图审计与冲突重排。
+6. **文件编译打包**：生成便于浏览的网页画廊（Web Preview），同步激活后端 `pptx` 双输出管线。
+
+---
+
+## 作为 Agent 技能运行指南
+
+本框架目前作为智能化代理平台的原生 **Skill（技能插件）** 挂载运行。
+
+使用者无需进行手动服务配置，可在代理界面的对话框内发出一句话指令实现端到端的流程触发。示例指令：
+
+> *"我下周需要汇报 2026年 AI 具身智能发展趋势。请生成一份 15 页的分析材料，整体设计要求采用暗色系科技风格。"*
+
+管线生成期间会自动流转各项 QA 拦截，最终交付物将会整理导出至本地相对路径：
+📁 `ppt-output/runs/<RUN_ID>/` 
+
+---
+
+## 物理依赖结构
+
+代码库的拓扑设计严格映射阶段隔离原则：
 
 ```text
 ppt-agent-skill/
-├── SKILL.md                 # 主状态机、硬门槛、失败回退
-├── scripts/                 # 主链脚本入口（validator / assembler / export）
-│   └── README.md            # 脚本索引
-├── references/              # markdown 真源
-│   ├── playbooks/           # sub-agent 执行细则
-│   ├── prompts/             # prompt 模板
-│   ├── styles/              # 预置风格 + runtime 风格合同
-│   ├── layouts/             # 版式资源
-│   ├── blocks/              # 组件资源
-│   ├── charts/              # 图表资源
-│   ├── principles/          # 设计原则
-│   ├── page-templates/      # 封面 / 目录 / 章节 / 结束页模板
-│   ├── design-runtime/      # 数据到视觉的桥梁规则
-│   └── README.md            # references 索引
-├── assets/                  # logo 与 README 截图
-├── README.md
-└── README_EN.md
+├── SKILL.md                 # 主控制器：定义工作流状态转移图、失败回退矩阵与终止边界。
+├── scripts/                 # 脚本运行时：仅提供系统级的 IO 处理与 Python/Node 校验节点，无自决策能力。
+├── references/              # 静态知识库：存放由各子代理阶段独立挂载的 Markdown 参考源。
+│   ├── playbooks/           # 按阶段解耦的运行指导手册 (Outline, Style, Planning 等)
+│   ├── prompts/             # 各流水节点的上下文模板片段
+│   ├── layout & charts ...  # 组件架构骨牌指南与数据格式规范
+│   └── README.md            
+├── assets/                  # 演示画廊静态用图
+└── ...
 ```
-
-### 目录边界
-
-- `SKILL.md`：只负责主控制台合同，统一定义状态机、调度骨架、Gate 与恢复规则。
-- `scripts/`：只放实际执行脚本与接口索引。
-- `references/`：只放被主链或 subagent 按需消费的 markdown 真源。
-- `assets/`：只放 logo 与展示截图。
-- `ppt-output/`：运行时在用户工作目录下动态创建，不作为仓库真源提交。
-
-### 入口索引
-
-- 主控制台入口：`SKILL.md`
-- 脚本入口总表：`scripts/README.md`
-- markdown 入口总表：`references/README.md`
 
 ## 证书
 
