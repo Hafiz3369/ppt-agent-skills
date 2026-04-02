@@ -313,17 +313,18 @@ python3 SKILL_DIR/scripts/contract_validator.py style OUTPUT_DIR/style.json
 
 ---
 
-## Step 4 单页生产（双模式：按环境感知选择执行后端）
+## Step 4 单页生产（渐进式上下文注入）
 
-> **模式判定**：Section 3.1 环境感知时确定，写入《Subagent 操作手册》。
-> - **Codex 模式**：subagent 支持 session 续写 → 4A/4B/4C 分三次注入同一 session
-> - **Claude 模式**：subagent 不支持可靠续写 → 三份 prompt 合并为单次 PageAgent 端到端完成
+> **统一执行后端**：所有环境统一使用 orchestrator 渐进式披露。
+> subagent 内部自主按阶段读取 prompt，主 agent 只负责生成 prompt + 创建 subagent + 回收校验。
 
 ---
 
-### 4A. Planning 阶段
+### 4.1 生成三份阶段 prompt 文件
 
-**生成 prompt 文件：**
+依次执行三个 harness 命令（顺序不可调换）：
+
+**4A. Planning prompt：**
 
 ```bash
 python3 SKILL_DIR/scripts/prompt_harness.py \
@@ -343,30 +344,7 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-page-planning-N.md
 ```
 
-**[Codex 模式] 启动 PageAgent-N（新建 session，按《自适应调用协议》执行）：**
-
-回查《Subagent 操作手册》取出调用模板，替换变量后**显式输出到对话**再执行：
-```
-{{SUBAGENT_NAME}} = PageAgent-N
-{{MODEL}}         = SUBAGENT_MODEL
-{{PROMPT_PATH}}   = OUTPUT_DIR/runtime/prompt-page-planning-N.md
-```
-> subagent 是完全隔离的：它只能看到上述 prompt 文件的内容。
-
-**[Claude 模式] 见底部「Claude 模式：单次 PageAgent 端到端」节。**
-
-Gate 校验（Codex 模式收到 FINALIZE 后执行；Claude 模式在整页终检时统一执行）：
-
-```bash
-test -s OUTPUT_DIR/planning/planningN.json
-python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning --refs SKILL_DIR/references --page N
-```
-
----
-
-### 4B. HTML 阶段
-
-**生成 prompt 文件：**
+**4B. HTML prompt：**
 
 ```bash
 python3 SKILL_DIR/scripts/prompt_harness.py \
@@ -383,24 +361,7 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-page-html-N.md
 ```
 
-**[Codex 模式] 对同一 PageAgent-N session 续写：**
-
-按《Subagent 操作手册》中的续写命令，向 PageAgent-N 发送：
-```
-{{PROMPT_PATH}} = OUTPUT_DIR/runtime/prompt-page-html-N.md
-```
-
-Gate 校验：
-
-```bash
-test -s OUTPUT_DIR/slides/slide-N.html
-```
-
----
-
-### 4C. Review 阶段
-
-**生成 prompt 文件：**
+**4C. Review prompt：**
 
 ```bash
 python3 SKILL_DIR/scripts/prompt_harness.py \
@@ -410,6 +371,7 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --var PLANNING_OUTPUT=OUTPUT_DIR/planning/planningN.json \
   --var SLIDE_OUTPUT=OUTPUT_DIR/slides/slide-N.html \
   --var PNG_OUTPUT=OUTPUT_DIR/png/slide-N.png \
+  --var REVIEW_DIR=OUTPUT_DIR/review \
   --var STYLE_PATH=OUTPUT_DIR/style.json \
   --var SKILL_DIR=SKILL_DIR \
   --inject-file PLAYBOOK=SKILL_DIR/references/playbooks/step4/page-review-playbook.md \
@@ -417,34 +379,9 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-page-review-N.md
 ```
 
-**[Codex 模式] 对同一 PageAgent-N session 再次续写：**
-
-按《Subagent 操作手册》中的续写命令，向 PageAgent-N 发送：
-```
-{{PROMPT_PATH}} = OUTPUT_DIR/runtime/prompt-page-review-N.md
-```
-
-Gate 校验：
-
-```bash
-test -s OUTPUT_DIR/png/slide-N.png
-```
-
-同时核对子代理返回的 FINALIZE：若 `P0 状态 = QUALITY_DEGRADED`，则本页视为失败，触发整页从 4A 重跑。
-
 ---
 
-### Claude 模式：渐进式上下文注入（单次 PageAgent 端到端）
-
-> 当环境感知判定为 Claude 模式时，**跳过上面的分段注入流程**，改用以下方式。
-> 核心区别：不把三份 prompt 全文一次性塞给 subagent，而是通过轻量 orchestrator 让 subagent **内部自主按阶段读取**。
-
-**第一步**：依次执行上面 4A/4B/4C 三个 harness 命令，生成三份阶段 prompt 文件：
-- `OUTPUT_DIR/runtime/prompt-page-planning-N.md`
-- `OUTPUT_DIR/runtime/prompt-page-html-N.md`
-- `OUTPUT_DIR/runtime/prompt-page-review-N.md`
-
-**第二步**：生成 orchestrator 调度 prompt（轻量，只含路径和执行协议）：
+### 4.2 生成 orchestrator 调度 prompt
 
 ```bash
 python3 SKILL_DIR/scripts/prompt_harness.py \
@@ -460,7 +397,9 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
   --output OUTPUT_DIR/runtime/prompt-page-orchestrator-N.md
 ```
 
-**第三步**：创建单个 PageAgent-N，**只发送 orchestrator prompt**（按《自适应调用协议》执行）：
+---
+
+### 4.3 创建 PageAgent-N 并执行
 
 回查《Subagent 操作手册》取出调用模板，替换变量后**显式输出到对话**再执行：
 ```
@@ -471,12 +410,16 @@ python3 SKILL_DIR/scripts/prompt_harness.py \
 > subagent 是完全隔离的：它只能看到 orchestrator prompt 的内容，内部按 orchestrator 指示自主渐进读取各阶段 prompt。
 
 > subagent 内部会按 orchestrator 的指示自主渐进：
-> 1. 先读 planning prompt → 完成策划 → 产出 planningN.json
-> 2. 自主读 html prompt → 完成设计稿 → 产出 slide-N.html
-> 3. 自主读 review prompt → 截图审查修复 → 产出 slide-N.png
-> 4. 三件套齐全后 FINALIZE
+> 1. 先读 planning prompt -> 完成策划 -> 产出 planningN.json
+> 2. 自主读 html prompt -> 完成设计稿 -> 产出 slide-N.html
+> 3. 自主读 review prompt -> 截图审查修复（保底 2 轮）-> 产出 slide-N.png
+> 4. P0+P1 清零 + visual_qa 通过后 FINALIZE
 
-**第四步**：回收 FINALIZE 后，主 agent 执行**整页终检**：
+---
+
+### 4.4 回收 FINALIZE — 主 agent 整页终检
+
+**第 1 步：产物存在性 + 合同校验**
 
 ```bash
 test -s OUTPUT_DIR/planning/planningN.json
@@ -485,7 +428,27 @@ test -s OUTPUT_DIR/slides/slide-N.html
 test -s OUTPUT_DIR/png/slide-N.png
 ```
 
-同时核对子代理返回的 FINALIZE：若 `P0 状态 = QUALITY_DEGRADED`，则本页视为失败，触发整页从 4A 重跑。
+**第 2 步：自动化视觉断言（第一道过滤器）**
+
+```bash
+python3 SKILL_DIR/scripts/visual_qa.py OUTPUT_DIR/png/slide-N.png --planning OUTPUT_DIR/planning/planningN.json
+# exit=1 -> 致命缺陷，直接重跑
+# exit=2 -> 品质警告，第 3 步看图时重点关注 WARN 项
+```
+
+**第 3 步（核心质量关卡）：主 agent 亲自看截图**
+
+> 这是整个质量体系的最终防线。`visual_qa.py` 只能抓硬伤，排版质量、内容完整性、视觉和谐度必须由主 agent 亲眼确认。
+
+1. 用 `view_file` 查看 `OUTPUT_DIR/png/slide-N.png`
+2. 重点关注：
+   - 文字是否可读、排版是否正常（竖排单字列、文字溢出截断等）
+   - 卡片内容是否完整（对照 subagent FINALIZE 中的 planning 卡片列表）
+   - 整体视觉是否和谐（不像毛坯房、不像默认 HTML）
+   - visual_qa.py 输出的 WARN 项是否确实有问题
+3. 如果看到明显问题 -> 标记该页失败，触发重跑
+
+**判定规则**：若 `P0 状态 = QUALITY_DEGRADED` 或 `visual_qa exit=1` 或主 agent 看图发现明显问题，则本页视为失败，触发整页重跑。
 
 ---
 
@@ -493,12 +456,13 @@ test -s OUTPUT_DIR/png/slide-N.png
 
 **触发条件（任一成立）：**
 - `slide-N.html` 不存在或为空
-- `slide-N.png` 视觉审查不通过
+- `visual_qa.py` 退出码为 1（致命缺陷）
+- 主 agent 亲自看图发现明显视觉问题
 - PageAgent 的 FINALIZE 中 `P0 状态 = QUALITY_DEGRADED`
 
 **无论同对话还是跨对话，统一两步走：**
 
-**第一步：侦查** — 读 `outline.txt` 确认总页数，遍历所有页收集缺失页列表：
+**第一步：侦查** -- 读 `outline.txt` 确认总页数，遍历所有页收集缺失页列表：
 
 ```bash
 # 对每页 1..N：
@@ -506,18 +470,18 @@ test -s OUTPUT_DIR/planning/planningN.json && \
 test -s OUTPUT_DIR/slides/slide-N.html && \
 test -s OUTPUT_DIR/png/slide-N.png && \
 python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning --refs SKILL_DIR/references --page N
-# exit≠0 → 加入缺失页列表
+# exit!=0 -> 加入缺失页列表
 ```
 
-**第二步：并行重跑** — 收集完毕，一次性并行启动所有缺失页（不串行逐页）：
+**第二步：并行重跑** -- 收集完毕，一次性并行启动所有缺失页（不串行逐页）：
 
 ```bash
 # 对缺失页列表 [N1, N2, ...] 中每页，清理旧产物：
 python3 -c "import os; [os.remove(p) for p in ['OUTPUT_DIR/planning/planningN.json','OUTPUT_DIR/slides/slide-N.html','OUTPUT_DIR/png/slide-N.png'] if os.path.exists(p)]"
-# 按《自适应调用协议》并行发起所有对应的 PageAgent-N（各自新建 session，4A→4B→4C）
+# 从 4.1 开始重跑：生成 prompt -> orchestrator -> 创建 PageAgent-N
 ```
 
-> session 一律视为不可续接（subagent 死亡=上下文全无），整页从 4A 开始重跑。  
+> session 一律视为不可续接（subagent 死亡=上下文全无），整页从 4.1 开始重跑。
 > 跨对话恢复时旧 session 全部失效，逻辑相同。
 
 ---
@@ -611,3 +575,25 @@ python3 SKILL_DIR/scripts/milestone_check.py <stage> --output-dir OUTPUT_DIR
 ```bash
 python3 SKILL_DIR/scripts/contract_validator.py <contract-type> <target-file> [--base-dir OUTPUT_DIR]
 ```
+
+---
+
+## 视觉质量断言
+
+> Step 4 回收后的第一道自动过滤器。抓明显硬伤（分辨率、空白、文件损坏等），真正的视觉质量判断由主 agent 亲自看图完成。
+
+单页：
+
+```bash
+python3 SKILL_DIR/scripts/visual_qa.py OUTPUT_DIR/png/slide-N.png --planning OUTPUT_DIR/planning/planningN.json
+```
+
+批量：
+
+```bash
+python3 SKILL_DIR/scripts/visual_qa.py OUTPUT_DIR/png --planning-dir OUTPUT_DIR/planning
+```
+
+退出码：`0` = 全通过、`1` = FAIL（致命缺陷，必须重跑）、`2` = WARN（品质警告，看图复查）
+
+依赖：`pip install Pillow`

@@ -1,6 +1,8 @@
 # 认知负荷与信息密度
 
 > 观众的工作记忆有限（7 +/- 2 个信息块）。超出容量的信息不是"丰富"，而是"噪音"。
+> 影响字段：`visual_weight`、`cards[].content_budget`、`rhythm_action`、`negative_space_target`。
+> 当一页卡片 >= 4 张或同时出现 >= 2 种图表时，必须引用此原则并严控内容预算。
 
 ## 核心理论
 

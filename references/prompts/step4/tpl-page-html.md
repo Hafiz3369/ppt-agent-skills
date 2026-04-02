@@ -67,14 +67,12 @@
    - **禁止平铺直叙**：不得让所有卡片等大小、等间距、等字号排列，必须有主次层级
 9. **每个 planning card 都必须在 HTML 中有对应渲染根节点**，并为根节点补上 `data-card-id="<planning.card_id>"` 便于 review 对账；如果某卡含 `chart.chart_type`，渲染结果必须与该类型匹配。
 10. 将完整 HTML 写入 `{{SLIDE_OUTPUT}}`
-11. 完成信号规则：
-   - **若本阶段由主 agent 直接下发（Codex 模式 4B）**：发送 `FINALIZE: HTML 完成，产物路径 {{SLIDE_OUTPUT}}`
-   - **若本阶段由 Page orchestrator 在同一 session 内渐进调度（Claude 模式）**：只输出 `--- STAGE 2 COMPLETE: {{SLIDE_OUTPUT}} ---`，然后按外层协议继续
+11. 完成信号：输出 `--- STAGE 2 COMPLETE: {{SLIDE_OUTPUT}} ---`，然后按外层 orchestrator 协议继续下一阶段
 
 ---
 
 ## 阶段边界
 
 - 本阶段：只写 HTML，不截图，不做 QA
-- 下一阶段：按调度模式推进到 Review 图审
+- 下一阶段：orchestrator 会指引你进入 Review 图审
 - 资源消费规则：本阶段读资源**正文层**（步骤 3），而非 planning 阶段用过的菜单摘要层

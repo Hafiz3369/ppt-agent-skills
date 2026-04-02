@@ -1,6 +1,8 @@
 # 色彩心理与运用
 
 > 色彩不是装饰，它是无声的语言。选错颜色比选错字体危害更大。
+> 影响字段：`cards[].card_style`、`decoration_hints.page_accent`、`director_command.mood`。
+> 封面页、章节页、需要情绪校准的转折页必须引用此原则；涵盖 60-30-10 法则和对比度安全。
 
 ## 60-30-10 法则
 

@@ -43,3 +43,12 @@
 ```text
 如果你想省事，也可以直接回复：全部按默认，用 research。
 ```
+
+写盘时仍需在 `interview-qa.txt` 里补一段 canonical 锚点，例如：
+
+```text
+## 归纳后的问答落点
+- target_action: ...
+- must_avoid: ...
+- material_strategy: research
+```

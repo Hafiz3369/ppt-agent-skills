@@ -85,9 +85,7 @@
    python3 {{SKILL_DIR}}/scripts/planning_validator.py $(dirname {{PLANNING_OUTPUT}}) --refs {{REFS_DIR}} --page {{PAGE_NUM}}
    ```
 10. 修复所有 ERROR（WARNING 建议修复）。
-11. 完成信号规则：
-   - **若本阶段由主 agent 直接下发（Codex 模式 4A）**：发送 `FINALIZE: planning 完成，产物路径 {{PLANNING_OUTPUT}}`
-   - **若本阶段由 Page orchestrator 在同一 session 内渐进调度（Claude 模式）**：只输出 `--- STAGE 1 COMPLETE: {{PLANNING_OUTPUT}} ---`，然后按外层协议继续
+11. 完成信号：输出 `--- STAGE 1 COMPLETE: {{PLANNING_OUTPUT}} ---`，然后按外层 orchestrator 协议继续下一阶段
 12. 不要把当前阶段的完成信号误当作整页任务结束。
 
 ---
@@ -95,5 +93,5 @@
 ## 阶段边界
 
 - 本阶段：只写 planning JSON，不写 HTML
-- 下一阶段：按调度模式推进到 HTML 生成
+- 下一阶段：orchestrator 会指引你进入 HTML 生成
 - 消费规则：planning 阶段只读资源的 `> 引用层`（菜单），HTML 阶段才读正文层

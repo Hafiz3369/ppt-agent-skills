@@ -320,6 +320,10 @@ def check_step0_interview_contract(result: CheckResult) -> None:
             "采访问卷共享核心",
             "必须覆盖的 4 组维度",
             "presentation_scenario",
+            "`interview-qa.txt` 写盘锚点（强制）",
+            "target_action",
+            "must_avoid",
+            "material_strategy",
         ],
         ROOT_DIR / "references/prompts/tpl-interview-structured-ui.md": [
             "{{TOPIC}}",
@@ -342,6 +346,8 @@ def check_step0_interview_contract(result: CheckResult) -> None:
             "结构化文本采访单",
             "**A. 场景与目标**",
             "全部按默认，用 research",
+            "## 归纳后的问答落点",
+            "material_strategy: research",
         ],
     }
 

@@ -64,7 +64,7 @@ P2A/P2B/P3/P3.5/P4 均采用渐进式上下文注入：每个节点有 orchestra
 | `tpl-style-orchestrator.md` | Step 3.5 调度 | 轻量 orchestrator |
 | `tpl-style-phase1.md` | Step 3.5 决策 | 约束提炼+风格输出 |
 | `tpl-style-phase2.md` | Step 3.5 自审 | 字段合同自审 |
-| `step4/tpl-page-orchestrator.md` | Step 4 调度 | Claude 模式轻量 orchestrator |
+| `step4/tpl-page-orchestrator.md` | Step 4 调度 | 渐进式 orchestrator（统一执行后端） |
 | `step4/tpl-page-planning.md` | Step 4A 规划 | 页面策划 |
 | `step4/tpl-page-html.md` | Step 4B HTML | 设计稿生成 |
 | `step4/tpl-page-review.md` | Step 4C 审查 | 图审修复 |

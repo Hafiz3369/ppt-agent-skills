@@ -29,7 +29,7 @@
   推荐选项：少而精 / 适中 / 信息量大
 - `must_include`：必须出现的信息
 - `must_avoid`：必须回避的信息
-- `materials_strategy`：资料使用策略与分支
+- `material_strategy`：资料使用策略与分支
   推荐选项：research / 非 research
 
 ### C. 风格与素材
@@ -52,6 +52,31 @@
 
 - `interview-qa.txt`：保留原始问答语境
 - `requirements-interview.txt`：写成机器消费格式
+
+### `interview-qa.txt` 写盘锚点（强制）
+
+为了稳定通过 `contract_validator.py interview`，写 `interview-qa.txt` 时除了保留自然问答，还必须额外保留一段**canonical dimension anchors**，至少显式出现以下键或中文标题：
+
+- `场景` 或 `presentation_scenario`
+- `受众` 或 `core_audience`
+- `目标动作` 或 `target_action`
+- `页数与密度` 或 `page_density`
+- `风格` 或 `visual_style`
+- `品牌` 或 `brand_constraints`
+- `必含内容` 或 `must_include`
+- `必避内容` 或 `must_avoid`
+- `语言` 或 `language_mode`
+- `配图` 或 `imagery_strategy`
+- `资料使用策略` 或 `material_strategy`
+
+推荐在问答末尾追加类似：
+
+```text
+## 归纳后的问答落点
+- target_action: ...
+- must_avoid: ...
+- material_strategy: research
+```
 
 `requirements-interview.txt` 至少要能稳定落到这些字段：
 

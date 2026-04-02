@@ -1,6 +1,8 @@
 # 叙事结构与节奏
 
 > PPT 不是信息的堆砌，而是一段有起承转合的叙事旅程。观众的注意力是一条曲线，好的设计顺着它走。
+> 影响字段：`narrative_role`、`rhythm_action`、`variation_guardrails.different_from_previous`。
+> 叙事转折页（从问题到方案）必须引用此原则；涵盖三幕式结构、情绪曲线、节奏控制。
 
 ## 经典叙事框架
 

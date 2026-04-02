@@ -25,3 +25,4 @@
 - 不要退化成 `场景=；受众=；目标动作=...` 这种单行格式
 - 允许用户写“默认”，但字段覆盖不能少
 - 收集完成后，主 agent 再写 `interview-qa.txt` 与 `requirements-interview.txt`
+- 写 `interview-qa.txt` 时，必须追加 canonical 锚点段，显式写出 `target_action`、`must_avoid`、`material_strategy` 等关键字段，避免 validator 因用户回答过短而漏检

@@ -1,6 +1,8 @@
 # 视觉层级与 CRAP 原则
 
 > 人眼不是逐字阅读，而是按视觉权重跳跃扫描。设计的核心任务是用视觉手段控制阅读顺序。
+> 影响字段：`visual_weight`、`cards[].role`、`cards[].card_style`、`director_command.anchor_treatment`。
+> 多卡片排版、需要层次感的页面必须引用此原则；涵盖 CRAP 四原则、对比、对齐、重复、亲密。
 
 ## CRAP 四原则（Robin Williams）
 

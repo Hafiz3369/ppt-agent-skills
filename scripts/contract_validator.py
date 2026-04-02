@@ -111,7 +111,7 @@ def validate_topics_coverage(text: str, result: ValidationResult, label: str) ->
         ("must_avoid", ["必避", "避免", "禁用", "must_avoid"]),
         ("language", ["语言", "中文", "英文", "中英", "language:"]),
         ("imagery", ["配图", "图片", "图像", "插图", "imagery", "image_mode"]),
-        ("material_strategy", ["资料使用策略", "资料策略", "素材使用", "引用策略", "material_strategy"]),
+        ("material_strategy", ["资料使用策略", "资料策略", "素材使用", "引用策略", "material_strategy", "materials_strategy"]),
     ]
 
     matched: list[str] = []

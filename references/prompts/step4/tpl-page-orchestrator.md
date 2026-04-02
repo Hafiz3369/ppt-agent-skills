@@ -32,7 +32,8 @@
 
 1. **读取** `{{REVIEW_PROMPT_PATH}}`
 2. 按文件中的指令完成全部工作，产出 `{{PNG_OUTPUT}}`
-3. 三件套齐全后发送最终 FINALIZE
+3. **铁律：最少完成 2 轮审查**。第 1 轮禁止 FINALIZE，必须进入第 2 轮验证修复是否真正落地
+4. P0 + P1 全部清零且 visual_qa.py 通过后，发送最终 FINALIZE
 
 ---
 
@@ -60,6 +61,8 @@ FINALIZE:
 - planning: {{PLANNING_OUTPUT}}
 - html: {{SLIDE_OUTPUT}}
 - png: {{PNG_OUTPUT}}
-- 审查轮数: N
+- 审查轮数: N (最少 2)
 - P0 状态: 全部通过 / QUALITY_DEGRADED
+- P1 残留: 无 / [简述]
+- visual_qa: PASS / WARN(列出警告项)
 ```

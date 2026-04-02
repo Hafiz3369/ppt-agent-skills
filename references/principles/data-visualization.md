@@ -1,6 +1,8 @@
 # 数据可视化原则
 
 > 数据可视化的目标不是"展示数据"，而是"让数据讲故事"。一个好图表让观众 3 秒内理解结论。
+> 影响字段：`cards[].chart.chart_type`、`cards[].data_points`、`resources.chart_refs`。
+> 数据图表主导页必须引用此原则；涵盖 Tufte 数据墨水比、图表类型选择、数据诚实。
 
 ## Tufte 的数据墨水比
 

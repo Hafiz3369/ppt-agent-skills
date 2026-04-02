@@ -1,5 +1,9 @@
 # 数据类型 -> 视觉呈现映射表
 
+> 将 brief 中的数据类型（metrics、timelines、before_after 等 40+ 种）映射到推荐 `card_type`、`layout_hint` 和 CSS 实现参考。
+> Planning sub-agent 根据本页数据特征查表选择 card_type 和布局；HTML sub-agent 根据 CSS 实现参考列选择渲染技法。
+> 覆盖 8 大类：数据展示、商业分析、对比论证、流程结构、叙事内容、技术学术、进度状态、团队与地理。
+
 本表是 **上游资料整理 / brief 结构化 -> Step 4（Planning）-> Step 4（HTML）** 的桥梁。
 
 - 上游资料整理阶段参考"数据类型"列，识别并格式化原始资料
