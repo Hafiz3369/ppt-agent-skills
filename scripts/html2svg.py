@@ -45,10 +45,12 @@ const path = require('path');
         await page.setViewport({ width: 1280, height: 720 });
 
         await page.goto('file://' + item.html, {
-            waitUntil: 'networkidle0',
-            timeout: 30000
+            waitUntil: 'domcontentloaded',
+            timeout: 60000
         });
-        await new Promise(r => setTimeout(r, 500));
+        // 等待本地资源渲染（字体/图片 fallback 已足够）
+        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 1000));
 
         // 注入预打包的 dom-to-svg bundle
         await page.addScriptTag({ path: config.bundlePath });
@@ -589,10 +591,10 @@ const path = require('path');
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 720 });
         await page.goto('file://' + item.html, {
-            waitUntil: 'networkidle0',
-            timeout: 30000
+            waitUntil: 'domcontentloaded',
+            timeout: 60000
         });
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 1000));
         await page.pdf({
             path: item.pdf,
             width: '1280px',
@@ -609,15 +611,48 @@ const path = require('path');
 """
 
 # esbuild 打包入口
-BUNDLE_ENTRY = """
+BUNDLE_ENTRY = """\
 import { documentToSVG, elementToSVG, inlineResources } from 'dom-to-svg';
 window.__domToSvg = { documentToSVG, elementToSVG, inlineResources };
 """
 
+# bundle.js 固定放在 skill 根目录（scripts/ 的父目录），所有 run 共享，一次打包永久复用
+_SKILL_DIR = Path(__file__).resolve().parent.parent
+_CANONICAL_BUNDLE_PATH = _SKILL_DIR / "dom-to-svg.bundle.js"
+
+
+def _print_raster_warning(reason: str, fix_hint: str = "") -> None:
+    """降级为光栅 PNG wrapper 时打印醒目警告，确保用户知情。"""
+    border = "=" * 70
+    print(border, file=sys.stderr)
+    print("  WARNING: SVG 将以光栅 PNG 包裹输出，文字【不可编辑】", file=sys.stderr)
+    print(f"  原因: {reason}", file=sys.stderr)
+    if fix_hint:
+        print(f"  修复: {fix_hint}", file=sys.stderr)
+    print("  要获得可编辑文字的真矢量 SVG，请解决上述依赖问题后重新运行。", file=sys.stderr)
+    print(border, file=sys.stderr)
+
 
 def ensure_deps(work_dir: Path) -> tuple:
-    """安装依赖，返回 (方案名, bundle路径)"""
-    # puppeteer
+    """安装依赖，返回 (方案名, bundle路径)
+
+    bundle.js 固定生成在 SKILL_DIR（scripts/ 的父目录），所有 run 共享。
+    优先级：
+    1. _CANONICAL_BUNDLE_PATH 已存在 → 直接复用（最快路径，所有 run 共享）
+    2. require('dom-to-svg') 可用 → esbuild 打包到 _CANONICAL_BUNDLE_PATH
+    3. npm install dom-to-svg → 再次尝试打包
+    4. 全部失败 → 降级 png-wrapper（打印 WARNING，文字不可编辑）
+    """
+    # ── 第一优先级：bundle.js 已存在，直接复用（无需安装任何依赖）────────────
+    # 先查 work_dir（当前 run 目录，向后兼容已生成的 bundle）
+    run_bundle = work_dir / "dom-to-svg.bundle.js"
+    for candidate in (run_bundle, _CANONICAL_BUNDLE_PATH):
+        if candidate.exists():
+            print(f"Reusing existing dom-to-svg bundle: {candidate}")
+            return ("dom-to-svg", str(candidate))
+
+
+    # ── puppeteer ─────────────────────────────────────────────────────────────
     try:
         r = subprocess.run(
             ["node", "-e", "require('puppeteer')"],
@@ -633,56 +668,54 @@ def ensure_deps(work_dir: Path) -> tuple:
         except (subprocess.TimeoutExpired, FileNotFoundError):
             print("Puppeteer install unavailable, will rely on existing local deps or fallback.", file=sys.stderr)
 
-    # dom-to-svg
-    try:
-        r = subprocess.run(
-            ["node", "-e", "require('dom-to-svg')"],
-            capture_output=True, text=True, timeout=10, cwd=str(work_dir)
-        )
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        r = None
-    if r is None or r.returncode != 0:
-        if (work_dir / "png").is_dir():
-            print("dom-to-svg unavailable, reusing existing PNG renders for SVG wrappers", file=sys.stderr)
-            return ("png-wrapper", None)
+    # ── dom-to-svg（node_modules 源码包，用于 esbuild 打包）──────────────────
+    def _dom_to_svg_available() -> bool:
+        try:
+            res = subprocess.run(
+                ["node", "-e", "require('dom-to-svg')"],
+                capture_output=True, text=True, timeout=10, cwd=str(work_dir)
+            )
+            return res.returncode == 0
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return False
+
+    if not _dom_to_svg_available():
         print("Installing dom-to-svg...")
         try:
             subprocess.run(["npm", "install", "dom-to-svg"],
                            capture_output=True, text=True, timeout=60, cwd=str(work_dir))
-            r = subprocess.run(
-                ["node", "-e", "require('dom-to-svg')"],
-                capture_output=True, text=True, timeout=10, cwd=str(work_dir)
-            )
         except (subprocess.TimeoutExpired, FileNotFoundError):
-            r = None
+            pass
+
+    if not _dom_to_svg_available():
+        _print_raster_warning("dom-to-svg 安装失败，无法生成可编辑 SVG",
+                              "Run: npm install dom-to-svg (inside the skill directory)")
+        return ("png-wrapper", None)
+
+    # ── esbuild 打包为浏览器 bundle（输出到 SKILL_DIR，所有 run 共享）──────────
+    print("Building dom-to-svg browser bundle...")
+    entry_path = work_dir / ".bundle_entry.js"
+    entry_path.write_text(BUNDLE_ENTRY)
+    try:
+        r = subprocess.run(
+            ["npx", "-y", "esbuild", str(entry_path),
+             "--bundle", "--format=iife",
+             f"--outfile={_CANONICAL_BUNDLE_PATH}", "--platform=browser"],
+            capture_output=True, text=True, timeout=60, cwd=str(work_dir)
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        r = None
+    if entry_path.exists():
+        entry_path.unlink()
 
     if r is None or r.returncode != 0:
-        print("dom-to-svg unavailable, using fallback mode", file=sys.stderr)
-        return ("pdf2svg", None)
+        stderr = r.stderr if r is not None else "esbuild unavailable"
+        print(f"esbuild failed: {stderr}", file=sys.stderr)
+        _print_raster_warning("esbuild 打包失败，无法生成可编辑 SVG",
+                              "Run: npm install esbuild (or: npx esbuild --version)")
+        return ("png-wrapper", None)
 
-    # 打包 dom-to-svg 为浏览器 bundle
-    bundle_path = work_dir / "dom-to-svg.bundle.js"
-    if not bundle_path.exists():
-        print("Building dom-to-svg browser bundle...")
-        entry_path = work_dir / ".bundle_entry.js"
-        entry_path.write_text(BUNDLE_ENTRY)
-        try:
-            r = subprocess.run(
-                ["npx", "-y", "esbuild", str(entry_path),
-                 "--bundle", "--format=iife",
-                 f"--outfile={bundle_path}", "--platform=browser"],
-                capture_output=True, text=True, timeout=60, cwd=str(work_dir)
-            )
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            r = None
-        if entry_path.exists():
-            entry_path.unlink()
-        if r is None or r.returncode != 0:
-            stderr = r.stderr if r is not None else "esbuild unavailable"
-            print(f"esbuild failed: {stderr}", file=sys.stderr)
-            return ("pdf2svg", None)
-
-    return ("dom-to-svg", str(bundle_path))
+    return ("dom-to-svg", str(_CANONICAL_BUNDLE_PATH))
 
 
 def convert_dom_to_svg(html_files, output_dir, work_dir, bundle_path):

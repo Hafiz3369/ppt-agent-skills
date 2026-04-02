@@ -493,7 +493,8 @@ python3 -c "import os, glob; [os.remove(p) for p in ['OUTPUT_DIR/planning/planni
 python3 SKILL_DIR/scripts/html_packager.py OUTPUT_DIR/slides -o OUTPUT_DIR/preview.html
 
 # 2. PNG 管线（与 SVG 并行）
-python3 SKILL_DIR/scripts/html2png.py OUTPUT_DIR/slides -o OUTPUT_DIR/png --scale 1
+# --scale 3 → 输出 3840x2160 高清 PNG 供 PPT 使用（图审用 0.75 是为省 token，两者目的不同）
+python3 SKILL_DIR/scripts/html2png.py OUTPUT_DIR/slides -o OUTPUT_DIR/png --scale 3
 python3 SKILL_DIR/scripts/png2pptx.py OUTPUT_DIR/png -o OUTPUT_DIR/presentation-png.pptx
 
 # 3. SVG 管线（与 PNG 并行）
