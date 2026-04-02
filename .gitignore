@@ -12,3 +12,4 @@ ppt-output/*
 scripts/__pycache__/
 temp/
 copy/
+.*/
