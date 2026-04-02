@@ -93,6 +93,10 @@ ppt-agent-skill/
 └── assets/
 ```
 
+## Links
+
+Recognized by and linked to the [LINUX DO Community](https://linux.do).
+
 ## License
 
 [MIT](LICENSE)

@@ -93,6 +93,10 @@ ppt-agent-skill/
 └── assets/
 ```
 
+## 友情链接
+
+已链接认可 [LINUX DO 社区](https://linux.do) 的友情链接。
+
 ## License
 
 [MIT](LICENSE)
