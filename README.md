@@ -55,19 +55,10 @@
   <summary><b>点击展开：渲染产物参照</b></summary>
   <div align="center">
     <br/>
-    <img src="assets/screenshots/slide1.png" width="31%" />
-    <img src="assets/screenshots/slide2.png" width="31%" />
-    <img src="assets/screenshots/slide3.png" width="31%" />
-    <img src="assets/screenshots/slide4.png" width="31%" />
-    <img src="assets/screenshots/slide5.png" width="31%" />
-    <img src="assets/screenshots/slide6.png" width="31%" />
-    <img src="assets/screenshots/slide7.png" width="31%" />
-    <img src="assets/screenshots/slide8.png" width="31%" />
-    <img src="assets/screenshots/slide9.png" width="31%" />
-    <img src="assets/screenshots/slide10.png" width="31%" />
-    <img src="assets/screenshots/slide11.png" width="31%" />
-    <img src="assets/screenshots/slide12.png" width="31%" />
-    <img src="assets/screenshots/slide13.png" width="31%" />
+    <img src="assets/screenshots/slide1.png" width="48%" />
+    <img src="assets/screenshots/slide2.png" width="48%" />
+    <img src="assets/screenshots/slide3.png" width="48%" />
+    <img src="assets/screenshots/slide4.png" width="48%" />
   </div>
 </details>
 
