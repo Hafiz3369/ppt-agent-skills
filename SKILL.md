@@ -182,7 +182,7 @@ interview-qa.txt → requirements-interview.txt
 
 ## 4. Canonical Plan
 
-> !强制使用plan list
+> !强制使用CLI 原装plan list工具管理所有task
 
 ```text
 P0.01  采访问题组装

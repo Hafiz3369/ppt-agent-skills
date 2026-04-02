@@ -42,27 +42,25 @@
 
 #### css_variables 键命名与数量规范（强制红线）
 
-这 13 个变量是基石，必须定义并且键名**不能更改一个字母**：
+这 12 个变量是基石，必须定义并且键名**不能更改一个字母**：
 
 ```json
 {
-  "--bg-primary": "#...",
-  "--bg-secondary": "#...",
-  "--card-bg-from": "#...",
-  "--card-bg-to": "#...",
-  "--card-border": "#...",
-  "--card-radius": "...px",
-  "--text-primary": "#...",
-  "--text-secondary": "#...",
-  "--accent-1": "#...",
-  "--accent-2": "#...",
-  "--accent-3": "#...",
-  "--accent-4": "#...",
-  "--font-primary": "..."
+  "bg_primary": "#...",
+  "bg_secondary": "#...",
+  "card_bg_from": "#...",
+  "card_bg_to": "#...",
+  "card_border": "#...",
+  "card_radius": "...px",
+  "text_primary": "#...",
+  "text_secondary": "#...",
+  "accent_1": "#...",
+  "accent_2": "#...",
+  "accent_3": "#...",
+  "accent_4": "#..."
 }
 ```
 
-- key 必须带 `--` 前缀，禁止自创这 13 个核心命门。
-- 如果需要增加（如 `--accent-succ` 或 `--chart-line-1`）可以随意增加，但这 13 个必填项不可少、不可改名。
-- `--font-primary` 必须与顶层 `font_family` 保持一致。
+- key 必须使用下划线（无 `--` 前缀），对应校验合同要求。
+- 必须严格保留这 12 个基础变量名，禁止改名。如需自定义增加可以增加，但这 12 个不可少。
 - 确有必要时，可附加 `css_snippets` 固化跨页重复的局部样式锚点（例如定义某类卡片的阴影），但绝对不能包含能驱动整页骨架排版的 CSS。
