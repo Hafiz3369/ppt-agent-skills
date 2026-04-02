@@ -34,10 +34,10 @@ const path = require('path');
 (async () => {
     const config = JSON.parse(process.argv[2]);
     const browser = await puppeteer.launch({
-        headless: true,
+        headless: 'new',
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu',
-               '--disable-dev-shm-usage', '--disable-crash-reporter',
-               '--disable-crashpad-for-testing', '--font-render-hinting=none']
+               
+               '--font-render-hinting=none']
     });
 
     for (const item of config.files) {
@@ -581,10 +581,10 @@ const path = require('path');
 (async () => {
     const config = JSON.parse(process.argv[2]);
     const browser = await puppeteer.launch({
-        headless: true,
+        headless: 'new',
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu',
-               '--disable-dev-shm-usage', '--disable-crash-reporter',
-               '--disable-crashpad-for-testing', '--font-render-hinting=none']
+               
+               '--font-render-hinting=none']
     });
 
     for (const item of config.files) {
