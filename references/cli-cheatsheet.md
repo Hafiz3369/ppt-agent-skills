@@ -449,17 +449,14 @@ python3 SKILL_DIR/scripts/visual_qa.py OUTPUT_DIR/png/slide-N.png --planning OUT
    - visual_qa.py 输出的 WARN 项是否确实有问题
 3. 如果看到明显问题 -> 标记该页失败，触发重跑
 
-**判定规则**：若 `P0 状态 = QUALITY_DEGRADED` 或 `visual_qa exit=1` 或主 agent 看图发现明显问题，则本页视为失败，触发整页重跑。
+**判定规则**：若 `visual_qa exit=1` 或主 agent 看图发现明显问题，则本页视为失败，触发整页重跑。
 
 ---
-
-### Step 4 失败重试指南
 
 **触发条件（任一成立）：**
 - `slide-N.html` 不存在或为空
 - `visual_qa.py` 退出码为 1（致命缺陷）
 - 主 agent 亲自看图发现明显视觉问题
-- PageAgent 的 FINALIZE 中 `P0 状态 = QUALITY_DEGRADED`
 
 **无论同对话还是跨对话，统一两步走：**
 

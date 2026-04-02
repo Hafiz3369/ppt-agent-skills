@@ -61,8 +61,8 @@ FINALIZE:
 - planning: {{PLANNING_OUTPUT}}
 - html: {{SLIDE_OUTPUT}}
 - png: {{PNG_OUTPUT}}
-- 审查轮数: N (最少 2)
-- P0 状态: 全部通过 / QUALITY_DEGRADED
-- P1 残留: 无 / [简述]
+- 审查轮数: N (最少 2，无上限)
+- P0 状态: 全部通过
+- P1 状态: 全部通过
 - visual_qa: PASS / WARN(列出警告项)
 ```

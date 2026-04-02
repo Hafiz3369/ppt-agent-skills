@@ -34,10 +34,12 @@
 你必须输出一份严格遵守下列字段要求的 JSON 合同文件：
 
 *   `style_id` / `style_name`
-*   `mood_keywords`
+*   `mood_keywords`：**（强制：必须提供 3-5 个关键词的数组）**
 *   `design_soul`：描述整套 deck 的设计目标，**绝对不可以**写成某一页的成品描述或构图指导。
 *   `variation_strategy`：必须同时说明“哪些元素允许变”和“哪些元素锁死不动”。不能写成逐页执行指令。
-*   `decoration_dna.signature_move` / `.forbidden` / `.recommended_combos`
+*   `decoration_dna.signature_move`：必须有，且为非空字符串。
+*   `decoration_dna.forbidden`：**（强制：必须提供 2-5 个元素的数组）**
+*   `decoration_dna.recommended_combos`：**（强制：必须提供 2-4 个元素的数组）**
 *   `font_family`
 
 #### css_variables 键命名与数量规范（强制红线）

@@ -376,7 +376,6 @@ P5.04  写入 delivery-manifest.json
 - `slide-N.html` 不存在或为空
 - `visual_qa.py` 退出码为 1（致命缺陷）
 - 主 agent 亲自看图发现明显视觉问题
-- PageAgent 的 FINALIZE 中 `P0 状态 = QUALITY_DEGRADED`
 
 **第二步：并行重跑** — 收集完毕后，一次性并行启动所有缺失页：清三件套及 review 图片残留 → 从 4.1 开始重跑（生成 prompt → orchestrator → 创建 PageAgent）。
 
