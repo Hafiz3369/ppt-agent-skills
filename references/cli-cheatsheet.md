@@ -476,8 +476,8 @@ python3 SKILL_DIR/scripts/planning_validator.py OUTPUT_DIR/planning --refs SKILL
 **第二步：并行重跑** -- 收集完毕，一次性并行启动所有缺失页（不串行逐页）：
 
 ```bash
-# 对缺失页列表 [N1, N2, ...] 中每页，清理旧产物：
-python3 -c "import os; [os.remove(p) for p in ['OUTPUT_DIR/planning/planningN.json','OUTPUT_DIR/slides/slide-N.html','OUTPUT_DIR/png/slide-N.png'] if os.path.exists(p)]"
+# 对缺失页列表 [N1, N2, ...] 中每页，清理旧产物及可能的 review 图片残留：
+python3 -c "import os, glob; [os.remove(p) for p in ['OUTPUT_DIR/planning/planningN.json','OUTPUT_DIR/slides/slide-N.html','OUTPUT_DIR/png/slide-N.png'] + glob.glob('OUTPUT_DIR/review/round*/slide-N.png') if os.path.exists(p)]"
 # 从 4.1 开始重跑：生成 prompt -> orchestrator -> 创建 PageAgent-N
 ```
 
@@ -495,7 +495,7 @@ python3 -c "import os; [os.remove(p) for p in ['OUTPUT_DIR/planning/planningN.js
 python3 SKILL_DIR/scripts/html_packager.py OUTPUT_DIR/slides -o OUTPUT_DIR/preview.html
 
 # 2. PNG 管线（与 SVG 并行）
-python3 SKILL_DIR/scripts/html2png.py OUTPUT_DIR/slides -o OUTPUT_DIR/png --scale 2
+python3 SKILL_DIR/scripts/html2png.py OUTPUT_DIR/slides -o OUTPUT_DIR/png --scale 1
 python3 SKILL_DIR/scripts/png2pptx.py OUTPUT_DIR/png -o OUTPUT_DIR/presentation-png.pptx
 
 # 3. SVG 管线（与 PNG 并行）

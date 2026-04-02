@@ -7,7 +7,7 @@
 - 缺点：文字不可编辑（成为像素）
 
 用法：
-    python3 scripts/html2png.py <html_dir_or_file> [-o output_dir] [--scale 2]
+    python3 scripts/html2png.py <html_dir_or_file> [-o output_dir] [--scale 1]
 """
 
 import json
@@ -24,7 +24,7 @@ const path = require('path');
 
 (async () => {
     const config = JSON.parse(process.argv[2]);
-    const scale = config.scale || 2;
+    const scale = config.scale || 1;
     const browser = await puppeteer.launch({
         headless: 'new',
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu',
@@ -85,7 +85,7 @@ def ensure_puppeteer(work_dir: Path) -> bool:
         return False
 
 
-def convert(html_dir: Path, output_dir: Path, scale: int = 2) -> bool:
+def convert(html_dir: Path, output_dir: Path, scale: float = 1.0) -> bool:
     """主转换入口。"""
     if html_dir.is_file():
         html_files = [html_dir]
@@ -135,13 +135,13 @@ def convert(html_dir: Path, output_dir: Path, scale: int = 2) -> bool:
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] in {"-h", "--help"}:
-        print("Usage: python3 scripts/html2png.py <html_dir_or_file> [-o output_dir] [--scale 2]")
+        print("Usage: python3 scripts/html2png.py <html_dir_or_file> [-o output_dir] [--scale 1]")
         sys.exit(0 if len(sys.argv) >= 2 else 1)
 
     html_path = Path(sys.argv[1]).resolve()
 
     output_dir = None
-    scale = 2
+    scale = 1.0
 
     args = sys.argv[2:]
     i = 0
@@ -150,7 +150,7 @@ def main():
             output_dir = Path(args[i + 1]).resolve()
             i += 2
         elif args[i] == "--scale" and i + 1 < len(args):
-            scale = int(args[i + 1])
+            scale = float(args[i + 1])
             i += 2
         else:
             i += 1

@@ -371,7 +371,7 @@ P5.04  写入 delivery-manifest.json
 - 主 agent 亲自看图发现明显视觉问题
 - PageAgent 的 FINALIZE 中 `P0 状态 = QUALITY_DEGRADED`
 
-**第二步：并行重跑** — 收集完毕后，一次性并行启动所有缺失页：清三件套 → 从 4.1 开始重跑（生成 prompt → orchestrator → 创建 PageAgent）。
+**第二步：并行重跑** — 收集完毕后，一次性并行启动所有缺失页：清三件套及 review 图片残留 → 从 4.1 开始重跑（生成 prompt → orchestrator → 创建 PageAgent）。
 
 单页连续 3 次失败 → 标记 `BLOCKED_PAGE_N`，先跳过推进其余页，最后集中处理。
 
