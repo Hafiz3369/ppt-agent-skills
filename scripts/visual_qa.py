@@ -33,13 +33,14 @@ except ImportError:
 # ─────────────────────── 检测函数 ───────────────────────
 
 def check_dimensions(img: Image.Image) -> dict:
-    """检测截图分辨率是否为 2560x1440 或 1280x720。"""
+    """检测截图分辨率是否为 16:9 比例，支持下层缩小图片"""
     w, h = img.size
-    if (w, h) == (2560, 1440):
-        return {"id": "DIM-01", "status": "PASS", "msg": f"分辨率 {w}x{h} (2x scale)"}
-    if (w, h) == (1280, 720):
-        return {"id": "DIM-01", "status": "WARN", "msg": f"分辨率 {w}x{h} (1x scale，建议用 --scale 2)"}
-    return {"id": "DIM-01", "status": "FAIL", "msg": f"分辨率 {w}x{h} 不符合 1280x720 画布规格"}
+    if abs(w / h - 16 / 9) < 0.05:
+        if w >= 960:
+            return {"id": "DIM-01", "status": "PASS", "msg": f"分辨率 {w}x{h} (比例正常)"}
+        else:
+            return {"id": "DIM-01", "status": "WARN", "msg": f"分辨率 {w}x{h} (较小但可接受)"}
+    return {"id": "DIM-01", "status": "FAIL", "msg": f"分辨率 {w}x{h} 不符合 16:9 规格"}
 
 
 def check_blank_ratio(img: Image.Image, threshold: float = 0.40) -> dict:

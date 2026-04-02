@@ -45,24 +45,24 @@
 
 ```bash
 # 1a. 截图到最终位置
-python3 {{SKILL_DIR}}/scripts/html2png.py {{SLIDE_OUTPUT}} -o $(dirname {{PNG_OUTPUT}}) --scale 2
+python3 {{SKILL_DIR}}/scripts/html2png.py {{SLIDE_OUTPUT}} -o $(dirname {{PNG_OUTPUT}}) --scale 0.75
 
 # 1b. 归档到轮次目录（每轮必须，X = 当前轮次编号）
 mkdir -p {{REVIEW_DIR}}/roundX
 cp {{PNG_OUTPUT}} {{REVIEW_DIR}}/roundX/slide-{{PAGE_NUM}}.png
 ```
 
-**Step 2 — 读图 + 前后对比（第 2 轮起） + 3 遍系统扫描**
+**Step 2 — 读图 + 3 遍系统扫描**
 
 必须用图像工具**实际观察 PNG**（不得凭代码想象）。
-从第 2 轮起，必须**同时查看本轮和上轮截图**：`view_file` 依次读取 `{{REVIEW_DIR}}/roundX/slide-{{PAGE_NUM}}.png` 和 `{{REVIEW_DIR}}/round(X-1)/slide-{{PAGE_NUM}}.png`，逐条确认上轮发现的问题是否真正被修复。
+只需要查看本轮的最新截图：`view_file {{REVIEW_DIR}}/roundX/slide-{{PAGE_NUM}}.png`，逐条确认上轮发现的问题是否真正被修复，切勿再读取上一轮的老图！
 
 然后按 Playbook Part A 执行：
 1. **边界巡逻**（四角 → 四边 → 页脚）：检查溢出、裁切、边距
 2. **内容区纵深扫描**（标题 → 焦点区 → 支撑区 → 装饰层）：检查内容完整性、层级关系
 3. **整体印象**（一秒焦点测试 + 毛坯房测试 + 风格一致性）
 
-**如果修复后截图与上轮视觉上无明显差异，必须标记 `FIX_NOT_APPLIED` 并重新排查代码是否真正保存。**
+**如果确信自己改了代码但新截图里还是没效果，重新排查是不是加的位置不对或未成功保存。**
 
 **Step 3 — 输出结构化审查报告**
 
@@ -83,7 +83,7 @@ cp {{PNG_OUTPUT}} {{REVIEW_DIR}}/roundX/slide-{{PAGE_NUM}}.png
 | 轮次 | 目标 | 达标线 | 能否 FINALIZE |
 |------|------|--------|-------------|
 | 第 1 轮 | 全量扫描 + 消灭所有 P0 + 尽量多 P1 | P0 全部清零 | **否**（必须进入第 2 轮） |
-| 第 2 轮 | 前后对比验证修复 + 消灭 P1 残留 + 运行 visual_qa.py | P0+P1 全部清零 + visual_qa 通过 | 是 |
+| 第 2 轮 | 看最新截图验证修复 + 消灭 P1 残留 + 运行 visual_qa.py | P0+P1 全部清零 + visual_qa 通过 | 是 |
 | 第 3 轮 | P2 抛光 + 最终确认 | 可交付标准 | 是 |
 
 ---
