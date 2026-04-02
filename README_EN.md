@@ -2,10 +2,10 @@
   <img src="assets/logo.png" alt="PPT Agent Logo" width="160" />
   <h1>PPT Agent</h1>
   <p>Software-engineered, multi-agent pipeline for professional presentation generation</p>
+  <p>English | <a href="README.md">中文</a></p>
 
   <p>
     <a href="#quick-start"><img src="https://img.shields.io/badge/Quick_Start-blue?style=for-the-badge" alt="Quick Start" /></a>
-    <a href="README.md"><img src="https://img.shields.io/badge/Chinese-red?style=for-the-badge" alt="Chinese" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/MIT-green?style=for-the-badge" alt="License" /></a>
   </p>
 

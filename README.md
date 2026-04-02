@@ -2,10 +2,10 @@
   <img src="assets/logo.png" alt="PPT Agent Logo" width="160" />
   <h1>PPT Agent</h1>
   <p>基于软件工程理念的演示文稿全自动生成框架</p>
+  <p><a href="README_EN.md">English</a> | 中文</p>
 
   <p>
     <a href="#快速开始"><img src="https://img.shields.io/badge/快速开始-blue?style=for-the-badge" alt="Quick Start" /></a>
-    <a href="README_EN.md"><img src="https://img.shields.io/badge/English-gray?style=for-the-badge" alt="English" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/MIT-green?style=for-the-badge" alt="License" /></a>
   </p>
 
