@@ -11,7 +11,6 @@ import argparse
 import re
 import shlex
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
@@ -216,43 +215,43 @@ def check_step4_legacy_aliases(result: CheckResult) -> None:
                 result.error(f"{format_rel(path)}: legacy Step4 alias detected: `{alias}`")
 
 
-def extract_planning_example_block(path: Path) -> str | None:
-    text = read_text(path)
-    anchor = text.find("推荐写成单页对象")
-    if anchor == -1:
-        return None
-    match = re.search(r"```json\s*(\{.*?\})\s*```", text[anchor:], re.S)
-    if not match:
-        return None
-    return match.group(1).strip()
-
-
 def check_planning_example(result: CheckResult) -> None:
+    """Verify the planning playbook schema skeleton contains all required field names."""
     path = ROOT_DIR / "references/playbooks/step4/page-planning-playbook.md"
-    payload = extract_planning_example_block(path)
-    if payload is None:
-        result.error(f"{format_rel(path)}: could not locate planning JSON example")
+    text = read_text(path)
+
+    # The schema skeleton uses <> placeholders instead of real values,
+    # so we verify structural completeness by checking for required field names.
+    required_field_names = [
+        "slide_number",
+        "page_type",
+        "narrative_role",
+        "page_goal",
+        "visual_weight",
+        "layout_hint",
+        "director_command",
+        "decoration_hints",
+        "source_guidance",
+        "resources",
+        "cards",
+        "workflow_metadata",
+        "card_id",
+        "role",
+        "card_type",
+        "card_style",
+        "content_budget",
+        "resource_ref",
+    ]
+
+    # Must have a JSON code block
+    if "```json" not in text:
+        result.error(f"{format_rel(path)}: no JSON schema skeleton found (missing ```json block)")
         return
 
-    with tempfile.TemporaryDirectory(prefix="ppt-skill-check-") as tmp_dir:
-        tmp_path = Path(tmp_dir) / "planning-example.json"
-        tmp_path.write_text(payload, encoding="utf-8")
-        try:
-            pages = load_planning_pages(tmp_path)
-        except Exception as exc:  # pragma: no cover - defensive
-            result.error(f"{format_rel(path)}: planning example is not parseable JSON: {exc}")
-            return
-
-        if not pages:
-            result.error(f"{format_rel(path)}: planning example produced no pages")
-            return
-
-        for page in pages:
-            validation = validate_page(page, REFERENCES_DIR)
-            for message in validation.errors:
-                result.error(f"{format_rel(path)}: example validation error: {message}")
-            for message in validation.warnings:
-                result.warn(f"{format_rel(path)}: example validation warning: {message}")
+    for field_name in required_field_names:
+        # Check for "field_name" (quoted key) in the file
+        if f'"{field_name}"' not in text:
+            result.error(f"{format_rel(path)}: schema skeleton missing required field `{field_name}`")
 
 
 def check_truth_source_docs(result: CheckResult) -> None:

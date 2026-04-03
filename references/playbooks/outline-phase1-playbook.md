@@ -18,9 +18,9 @@
 
 1. **提炼全局核心论点** -- 纵观全盘，写出 1 句话灵魂
 2. **确定 Part 数量和主题** -- 含 Part 间逻辑关系（递进/转折/因果）
-3. **为每 Part 选择论证策略** -- data_driven / case_study / comparison / framework / step_by_step / authority
+3. **为每 Part 选择论证策略** -- narrative_driven(叙事) / data_driven / case_study / comparison / framework / step_by_step / authority
 4. **分配页面并确定每页论点** -- **每页只有一句话 page_goal，绝不能含"和"字**（如果有"和"，说明这页装了两个目标，必须拆分成两页）
-5. **标注每页数据需求** -- 对照素材摘要（`search-brief`或`source-brief`），指出这页需要什么数据支撑，有没有现成的
+5. **寻找故事与内容支撑** -- 记住内容为王。PPT 是辅助讲故事的工具。不要本末倒置为了“排版对数据友好”而刻意罗列碎块化数据。有时一段深刻的文字描述、一个直指人心的洞察，远比拼凑出的大数据更具穿透力。去素材摘要里寻找真正能支撑内容的武器。
 
 ---
 
@@ -38,14 +38,15 @@
 
 ## Part 1: {part_title}
 Part 目标：{part_goal}
-论证策略：{data_driven / case_study / comparison / framework / step_by_step / authority}
+论证策略：{narrative_driven / data_driven / case_study / comparison / framework / step_by_step / authority}
 与上一 Part 的关系：{无（首Part）/ 递进 / 转折 / 因果 / 并列}
 
 ### 第 1 页：{page_title}
 - 页目标：{page_goal，一句话，不含"和"字}
-- 叙事角色：{cover / chapter / data / case / comparison / process / summary / cta}
+- 叙事角色：{cover / toc / section / evidence / comparison / process / close / cta}
+- 页面类型映射：{cover / toc / section / content / end}
 - 论证方式：{proof_type}
-- 数据需求：{这一页需要什么数据来支撑论点}
+- 内容支撑：{这一页需要什么内容（文字洞察/故事/数据）来支撑论点。如果是纯叙事描述，也大胆写。}
 - 素材来源：{found_in_brief: true/false，若 false 标注缺口_说明为何缺失却仍需此页}
 
 ### 第 2 页：{page_title}
@@ -57,4 +58,41 @@ Part 目标：{part_goal}
 ```
 
 **字段枚举约束**：
-- `叙事角色` 必须从 `{cover, chapter, data, case, comparison, process, summary, cta}` 中静态选择。
+- `叙事角色` 必须从 `{cover, toc, section, evidence, comparison, process, close, cta}` 中静态选择。
+- `页面类型映射` 必须从 `{cover, toc, section, content, end}` 中静态选择，与下游 Step 4 的 `page_type` 一一对应。
+
+### 叙事角色 → page_type 映射规则
+
+| 叙事角色 | page_type | 说明 |
+|---------|-----------|------|
+| `cover` | `cover` | 封面页 |
+| `toc` | `toc` | 目录页 |
+| `section` | `section` | 章节过渡页 |
+| `evidence` / `comparison` / `process` | `content` | 正文内容页 |
+| `close` / `cta` | `end` | 结束页（close=总结回顾型，cta=行动号召型）|
+
+---
+
+## 演示骨架强制规则（不可跳过）
+
+无论主题、页数、素材情况如何，生成的大纲**必须**包含以下页面骨架：
+
+| 位置 | 叙事角色 | page_type | 必须性 | 核心功能 |
+|------|---------|-----------|--------|----------|
+| 第 1 页 | `cover` | `cover` | **强制** | 标题冲击力 + 品牌仪式感 |
+| 第 2 页 | `toc` | `toc` | **强制（总页数 >= 6 时）** | 全局路线图，让观众 3 秒理解结构 |
+| 每个 Part 首页 | `section` | `section` | **强制** | 章节过渡呼吸页，告诉观众进入新篇章 |
+| 最后一页 | `close` 或 `cta` | `end` | **强制** | 核心结论收束 + 行动号召 |
+
+**违规检测**：
+- 缺少 cover 或 end = **结构缺陷，必须补回**
+- 总页 >= 6 却没有 toc = **结构缺陷，必须补回**
+- 任何 Part 的首页不是 section（除 Part 1 的首页是 cover/toc 外） = **结构缺陷，该 Part 必须有 section 页**
+- section 页只做呼吸过渡，**绝对禁止**在 section 页塞数据图表或多卡片布局
+
+### 主题延续规则（灵活性保障）
+
+- 一个 Part 的主题**不限定只用一个 Part 讲完**：如果一个主题内容丰富，可以拆分为多个 Part，每个 Part 聚焦该主题的不同维度
+- Part 之间的关系可以是**递进/深化/展开**（同一主题的不同层级），不必是全新的独立话题
+- 例如："Part 2: 技术方案概述 → Part 3: 技术方案深潜"是完全合法的结构
+- 但每个 Part 仍然必须有自己明确的 `Part 目标`，即使是同一大主题下的延续

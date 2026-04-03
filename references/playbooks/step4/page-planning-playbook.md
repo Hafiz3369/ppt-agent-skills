@@ -10,26 +10,21 @@
 
 从 `outline.txt` 中找到第 N 页的定义，明确：
 - `page_goal`：这一页的核心论点（一句话，不含"和"字）
-- `narrative_role`：叙事角色（封面/章节/数据/案例/结尾等）
+- `narrative_role`：叙事角色（cover/toc/section/evidence/comparison/process/close/cta）
 - `proof_type`：论证方式（数据驱动/案例/对比/框架/步骤）
 
 ---
 
-## Phase 2：资源选择（菜单层消费）
+## Phase 2：资源发现与设计决策
 
-运行 `resource_loader.py menu` 获取可用组件摘要后，结合本页 proof_type 和数据类型做选择：
+运行 `resource_loader.py menu` 获取可用组件菜单后，**你是设计师，不是填表员**。不要查表套用，请回答以下设计提问来驱动你的选择：
 
-| 数据类型 | 推荐 `layout_hint` | 推荐 `card_type` / `chart.chart_type` |
-|---------|---------------------|--------------------------------------|
-| 单一核心数字 | `hero-top` / `single-focus` | `data_highlight` + `kpi` / `metric_row` |
-| 多项比较 | `symmetric` / `three-column` | `comparison` + `comparison_bar` |
-| 时间线 | `l-shape` / `waterfall` | `timeline` + `timeline` |
-| 步骤流程 | `l-shape` / `t-shape` / `waterfall` | `process` / `diagram` + `funnel` / `progress_bar`（有明确进度数据时） |
-| 排行/列表 | `asymmetric` / `l-shape` | `list` / `data_highlight` |
-| 图文并茂 | `primary-secondary` / `asymmetric` | `image_hero` / `text` / `data` |
-| 大段文字 | `single-focus` / `asymmetric` | `quote` / `text` |
-| 数据图表 | `primary-secondary` / `single-focus` | `data` + `sparkline` / `ring` / `radar` / `treemap` / `stacked_bar` / `waffle` |
-| 多卡片并列 | `mixed-grid` / `three-column` | `text` / `data` / `list` |
+1. **观众在这一页应该先看到什么？** → 决定你的视觉锚点和主次关系
+2. **这一页的信息是怎么“流动”的？** → 决定空间布局和视觉动线
+3. **这一页和上一页的视觉感受应该有什么不同？** → 决定节奏变化
+4. **在菜单中的工具里，哪些能最好地服务上面 3 个答案？** → 决定 layout_hint、card_type、chart、resource_ref
+
+> **重要**：菜单里的工具是你的调色盘，不是说明书。同样的数据可以用完全不同的工具和布局来表达，关键是你想让观众产生什么感受。
 
 **填写 `resources` 字段时必须说明为什么选择该组件**（`resource_rationale` 字段）。
 
@@ -72,102 +67,76 @@
 
 ## Phase 3：`planningN.json` 结构合同（强制）
 
-你的输出必须是**可直接被 `planning_validator.py` 校验的 JSON**。推荐写成单页对象：
+你的输出必须是**可直接被 `planning_validator.py` 校验的 JSON**。以下是 schema 骨架（**只展示结构，不展示设计决策** -- 布局、卡片类型、视觉风格全部由你自主决定）：
 
 ```json
 {
   "page": {
-    "slide_number": 3,
-    "page_type": "content",
-    "narrative_role": "evidence",
-    "title": "页标题",
-    "page_goal": "这一页只讲一个判断",
-    "audience_takeaway": "观众带走什么",
-    "visual_weight": 7,
-    "layout_hint": "hero-top",
-    "layout_variation_note": "与上一页至少两个维度不同",
-    "focus_zone": "右上 1/3 作为视觉锚点",
-    "negative_space_target": "medium",
-    "page_text_strategy": "标题强、正文短、数据做锚点",
-    "rhythm_action": "推进",
-    "must_avoid": ["禁止平均分栏", "禁止所有卡片同一种 card_style"],
+    "slide_number": "<页码>",
+    "page_type": "<cover/toc/section/content/end>",
+    "narrative_role": "<叙事角色>",
+    "title": "<页标题>",
+    "page_goal": "<一句话核心论点>",
+    "audience_takeaway": "<观众带走什么>",
+    "visual_weight": "<1-10 信息密度>",
+    "layout_hint": "<你的布局选择>",
+    "layout_variation_note": "<与上一页的差异点，自由发挥>",
+    "focus_zone": "<视觉焦点区域描述>",
+    "negative_space_target": "<high/medium/low>",
+    "page_text_strategy": "<文字策略>",
+    "rhythm_action": "<推进/爆发/缓冲/收束>",
+    "must_avoid": ["<你认为这页最危险的平庸设计陷阱>"],
     "variation_guardrails": {
-      "same_gene_as_deck": "保留统一字体、边角和 signature_move",
-      "different_from_previous": ["重心从上移到右", "card_style 组合改为 accent+outline+transparent"]
+      "same_gene_as_deck": "<哪些元素跨页保持统一>",
+      "different_from_previous": ["<与上一页的具体变化维度>"]
     },
     "director_command": {
-      "mood": "判断感强、结论先行",
-      "spatial_strategy": "主锚占据第一视线，支撑内容围绕其展开",
-      "anchor_treatment": "用尺度断层和对比色强化主锚",
-      "techniques": ["T1", "W3"],
-      "prose": "保持证据链清晰，避免装饰压过论点"
+      "mood": "<你为这页设定的情绪基调>",
+      "spatial_strategy": "<你的空间编排策略>",
+      "anchor_treatment": "<你怎么处理视觉锚点>",
+      "techniques": ["<你选用的技法编号>"],
+      "prose": "<用电影镜头语言描述这页的视觉感受>"
     },
     "decoration_hints": {
-      "background": {"feel": "轻微渐变底", "restraint": "不抢文字对比", "techniques": ["T1"]},
-      "floating": {"feel": "局部辅助装饰", "restraint": "只服务锚点动线", "techniques": ["W3"]},
-      "page_accent": {"feel": "强调色集中在锚点附近", "restraint": "accent 只用 1-2 种", "techniques": ["T9"]}
+      "background": {"feel": "<>", "restraint": "<>", "techniques": ["<>"]},
+      "floating": {"feel": "<>", "restraint": "<>", "techniques": ["<>"]},
+      "page_accent": {"feel": "<>", "restraint": "<>", "techniques": ["<>"]}
     },
     "source_guidance": {
-      "brief_sections": ["关键数据清单", "PPTX 结构化数据包 > metrics"],
-      "citation_expectation": "有数字就保留来源",
-      "strictness": "不得超出 brief 结论边界"
+      "brief_sections": ["<素材引用路径>"],
+      "citation_expectation": "<引用策略>",
+      "strictness": "<证据边界>"
     },
     "resources": {
-      "page_template": null,
-      "layout_refs": ["hero-top"],
+      "page_template": "<null 或页面模板 ref>",
+      "layout_refs": ["<你的 layout ref>"],
       "block_refs": [],
-      "chart_refs": ["kpi", "metric-row"],
-      "principle_refs": ["visual-hierarchy", "composition"],
-      "resource_rationale": "用 hero-top 放大单一结论，再用 KPI 组件承托数据锚点"
+      "chart_refs": ["<你选用的 chart ref>"],
+      "principle_refs": ["<你需要的设计原则>"],
+      "resource_rationale": "<为什么选这些资源，必须说明理由>"
     },
     "cards": [
       {
-        "card_id": "s03-anchor",
-        "role": "anchor",
-        "card_type": "data_highlight",
-        "card_style": "accent",
-        "argument_role": "claim",
-        "headline": "核心指标",
-        "body": ["一句解释它为什么重要", "一句说明对业务的影响"],
-        "data_points": [
-          {"label": "同比增长", "value": "47.3", "unit": "%", "source": "search-brief metrics[2]"}
-        ],
-        "chart": {"chart_type": "kpi"},
-        "content_budget": {"headline_max_chars": 12, "body_max_bullets": 2, "body_max_lines": 4},
+        "card_id": "<s页码-role-序号>",
+        "role": "<anchor/support/context>",
+        "card_type": "<你的卡片类型选择>",
+        "card_style": "<你的视觉变体选择>",
+        "argument_role": "<claim/evidence/context>",
+        "headline": "<精炼标题>",
+        "body": ["<正文字符串数组>"],
+        "data_points": [{"label": "<>", "value": "<>", "unit": "<>", "source": "<>"}],
+        "chart": {"chart_type": "<你的图表类型>"},
+        "content_budget": {"headline_max_chars": 12, "body_max_bullets": 3, "body_max_lines": 5},
         "image": {
-          "mode": "decorate",
-          "needed": false,
-          "usage": null,
-          "placement": null,
-          "content_description": null,
-          "source_hint": null,
-          "decorate_brief": "用内联 SVG 和轻量几何装饰填满留白，不抢主锚"
+          "mode": "<generate/provided/manual_slot/decorate>",
+          "needed": "<true/false>",
+          "usage": "<null 或图片用途>",
+          "placement": "<null 或放置位置>",
+          "content_description": "<null 或描述>",
+          "source_hint": "<null 或路径>",
+          "decorate_brief": "<装饰说明>"
         },
-        "resource_ref": {"chart": "kpi", "principle": "visual-hierarchy"}
-      },
-      {
-        "card_id": "s03-support-1",
-        "role": "support",
-        "card_type": "data",
-        "card_style": "outline",
-        "argument_role": "evidence",
-        "headline": "增长原因",
-        "body": ["增长主要来自高客单区域放量", "老客复购提升让同比增速更稳"],
-        "data_points": [
-          {"label": "高客单区域占比", "value": "31", "unit": "%", "source": "search-brief metrics[4]"}
-        ],
-        "chart": {"chart_type": "metric_row"},
-        "content_budget": {"headline_max_chars": 12, "body_max_bullets": 2, "body_max_lines": 4},
-        "image": {
-          "mode": "decorate",
-          "needed": false,
-          "usage": null,
-          "placement": null,
-          "content_description": null,
-          "source_hint": null,
-          "decorate_brief": "用低对比度辅助线和轻微数据底纹承托信息"
-        },
-        "resource_ref": {"chart": "metric-row", "principle": "composition"}
+        "resource_ref": {"chart": "<>", "principle": "<>"}
       }
     ],
     "workflow_metadata": {
@@ -181,11 +150,13 @@
 }
 ```
 
+> **重要提醒**：以上每个 `<>` 占位符都需要你根据本页的内容、受众、风格、叙事节奏做出自主的设计决策。你是设计师，不是填写模板的文员。
+
 ### 必填字段与枚举底线
 
 - 顶层页字段至少要有：`slide_number`、`page_type`、`title`、`page_goal`、`cards`、`visual_weight`、`director_command`、`decoration_hints`、`resources`、`workflow_metadata`。
 - `page_type`：`cover` / `toc` / `section` / `content` / `end`
-- `narrative_role` 推荐使用：`opening` / `orientation` / `transition` / `setup` / `evidence` / `comparison` / `framework` / `process` / `case` / `quote` / `breath` / `close` / `cta`
+- `narrative_role`：与 outline 的叙事角色对齐，使用 `cover` / `toc` / `section` / `evidence` / `comparison` / `process` / `close` / `cta`
 - 内容页必须有 `layout_hint`，并从 validator 认可的集合中选，如 `single-focus`、`symmetric`、`asymmetric`、`three-column`、`primary-secondary`、`hero-top`、`mixed-grid`、`l-shape`、`t-shape`、`waterfall`
 - `cards[].role`：`anchor` / `support` / `context`
 - `cards[].card_style`：`accent` / `elevated` / `filled` / `outline` / `glass` / `transparent`
@@ -209,11 +180,17 @@
 
 ---
 
-## Phase 5：layout 多样性建议
+## Phase 5：你是设计师，不是填表员
 
-鼓励发挥创意，探索多样化、突破性的布局组合。
-- 尽量避免在相邻页面过度重复相同的 `layout_hint`，以保持视觉新鲜感和叙事节奏的起伏。
-- 在策划阶段，你拥有**极大的设计和创意自由度**。后续会有健全的像素级图审兜底修正，不必害怕提出大胆、创新的排版策略。
+> **核心理念**：上面的 Phase 2 菜单和 Phase 3 schema 是你的工具箱和表格结构，不是你的设计决策。你的工作不是"查表填空"，而是"为这一页创造一个独一无二的视觉方案"。
+
+**你的创意自由度：**
+- `layout_hint` 不是铁律，它只是重力场方向的提示。HTML 阶段可以完全重构它
+- `card_type` 和 `chart_type` 决定你用什么工具，但怎么用这个工具完全由你决定
+- `director_command` 是你的电影镜头笔记 -- 写得越具体越有画面感，HTML 阶段越能还原你的视觉构想
+- `must_avoid` 是你对平庸的主动拒绝 -- 每页至少写 1 条真正有意义的禁区
+
+**后续保障**：你在此阶段的所有创意决策都有像素级图审兜底，不必担心冲破边界。
 
 ---
 

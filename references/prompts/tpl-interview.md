@@ -5,89 +5,50 @@
 > - `tpl-interview-structured-ui.md`
 > - `tpl-interview-text-fallback.md`
 
-## 采访目标
+# 采访问卷共享核心
 
-- 用尽量少的轮次拿到足够稳定的 PPT 生产输入
-- 优先收集会影响大纲、风格、配图、分支选择的高信号维度
-- 已知信息只做确认，不机械重复
-- 即使是 text-fallback，也必须保持字段化和分组感
+> 本文件是 Step 0 的共享采访内容合同，不直接作为运行时 prompt 发给主 agent。
+> 运行时应按能力选择 `tpl-interview-structured-ui.md` 或 `tpl-interview-text-fallback.md`。
 
-## 必须覆盖的 4 组维度
+## 核心采访目标（执行指南）
 
-### A. 场景与目标
+作为系统首个守门节点，必须以最高效的轮次获取极高信噪比的输入。核心目标：不与用户寒暄，直接锁定能左右大纲结构、视觉风格和管线（Pipeline）分支的关键维度参数。
 
-- `presentation_scenario`：这份 PPT 用于什么场景
-  推荐选项：新人介绍 / 内部汇报 / 社区宣讲 / 招商合作 / 其他
-- `core_audience`：谁会看，关注点是什么
-  推荐选项：社区新人 / 技术同好 / 团队管理者 / 合作方 / 混合受众
-- `target_action`：希望观众看完后做什么
-  推荐选项：建立认知 / 愿意加入 / 愿意传播 / 愿意合作 / 仅完成汇报
+## 必须覆盖的核心维度域（四组）
 
-### B. 内容与边界
+你向用户抛出的选项，必须精准涵盖以下四个维度域：
 
-- `page_density`：页数与密度
-  推荐选项：少而精 / 适中 / 信息量大
-- `must_include`：必须出现的信息
-- `must_avoid`：必须回避的信息
-- `material_strategy`：资料使用策略与分支
-  推荐选项：research / 非 research
+### A. 业务场景与传达目标
+*左右内容深度与叙事基调*
+- `scenario` (场景): 新人介绍 / 内部汇报 / 社区宣讲 / 招商合作 / 融资路演 / 大众科普等
+- `audience` (身份与受众视角): “你是谁，要在上面向谁讲？” (如：一线操盘手向高层要资源 / 业务一号位向专家画大饼 / 讲师向小白泛大众布道)
+- `target_action` (用户心智转化动作): 建立认知 / 促成意向 / 愿意加入 / 纯信息同步
 
-### C. 风格与素材
+### B. 结构密度与生产管线
+*左右大纲页数、图文排布与数据源获取*
+- `expected_pages` (期望页数): 5-10页 / 10-20页 / 20-30页宽幅 / 自由发挥
+- `page_density` (版面信息密度): 少而精 / 适中 / 容量极大
+- `material_strategy` (数据源头分支): [Research(全网扩写)] 或 [非Research(仅限当前提供资料)]
+- `must_include` / `must_avoid`: (可要求用户补充听众散场时必须记住的【唯一核心主张 The One Big Idea】，以及不可触碰的红线禁忌)
 
-- `visual_style`：整体风格
-  推荐选项：科技社区感 / 极客感 / 简洁商务感 / 自动匹配
-- `brand_constraints`：品牌色、logo、禁忌风格等限制
-- `language_mode`：语言
-  推荐选项：中文 / 英文 / 中英混排
-- `imagery_strategy`：配图策略
-  推荐选项：decorate / generate / provided / manual_slot
-- `presenter_meta`：封面署名、日期、组织信息等
+### C. 视觉审美与资产策略
+*左右后续 Style/HTML 生成器的美学锁*
+- `visual_style` (整体风格): 极简商务 / 科技极客 / 轻量活泼 / 自动匹配
+- `language_mode` (落地产物语言): 中文 / 英文 / 中英混排
+- `imagery_strategy` (配图资产策略): decorate(纯装饰) / generate(AI配文生成) / provided(自带资产) / manual_slot(占位预留)
+- `brand_constraints`: (品牌视觉禁忌限制)
 
-### D. 成功标准与执行
+### D. 构建环境与工程卡口
+- `success_criteria` (用户评价标准)
+- `subagent_model_strategy` (子系统模型接力): 继承主代理 / 降级指定等
 
-- `success_criteria`：用户如何判断这份 PPT 成功
-- `subagent_model_strategy`：子代理模型是否跟主代理一致
+## 落点契约要求
 
-## 归一化落点
+所有问卷结果必须映射到以下两份产物，作为后续子代理的真源输入：
 
-- `interview-qa.txt`：保留原始问答语境
-- `requirements-interview.txt`：写成机器消费格式
-
-### `interview-qa.txt` 写盘锚点（强制）
-
-为了稳定通过 `contract_validator.py interview`，写 `interview-qa.txt` 时除了保留自然问答，还必须额外保留一段**canonical dimension anchors**，至少显式出现以下键或中文标题：
-
-- `场景` 或 `presentation_scenario`
-- `受众` 或 `core_audience`
-- `目标动作` 或 `target_action`
-- `页数与密度` 或 `page_density`
-- `风格` 或 `visual_style`
-- `品牌` 或 `brand_constraints`
-- `必含内容` 或 `must_include`
-- `必避内容` 或 `must_avoid`
-- `语言` 或 `language_mode`
-- `配图` 或 `imagery_strategy`
-- `资料使用策略` 或 `material_strategy`
-
-推荐在问答末尾追加类似：
-
-```text
-## 归纳后的问答落点
-- target_action: ...
-- must_avoid: ...
-- material_strategy: research
-```
-
-`requirements-interview.txt` 至少要能稳定落到这些字段：
-
-- `场景`
-- `受众`
-- `目标动作`
-- `页数与密度`
-- `风格`
-- `品牌`
-- `必含内容`
-- `必避内容`
-- `配图`
-- `资料使用策略`
-- `备注/交付预期`
+1. `interview-qa.txt`
+   保留用户原意。为通过 `contract_validator.py` 强校验，结尾必须附加以下英文锚点块（缺一不可）：
+   `scenario`, `audience`, `target_action`, `expected_pages`, `page_density`, `style`, `brand`, `must_include`, `must_avoid`, `language`, `imagery`, `material_strategy`
+   
+2. `requirements-interview.txt`
+   脱水的纯净参数组，同样必须包含上方的这 12 个锚点维度，并带上你收集到的丰富化选项值，以此指引各层级 Pipeline 的排版和选型走向。

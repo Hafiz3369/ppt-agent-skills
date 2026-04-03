@@ -49,7 +49,7 @@
 ## 执行链路（固定顺序，不得跳步）
 
 1. 读取 `{{OUTLINE_PATH}}` 中第 {{PAGE_NUM}} 页的定义（只关注你这一页）
-2. 读取 `{{REQUIREMENTS_PATH}}` 掌握用户需求和边界约束
+2. 深度读取 `{{REQUIREMENTS_PATH}}`，将其中的【受众画像】、【目标动作】和【版面心智】作为单页选型和内容设计的最高约束（例如：对底层技术受众放大图表卡片，对合作方主打对比及成果锚点）。
 3. 读取 `{{BRIEF_PATH}}` 获取可用素材
 4. 读取 `{{STYLE_PATH}}` 提取 `mood_keywords`、`variation_strategy`、`decoration_dna` 做情绪定调
 5. 加载本地已有的外部**图片清单**：
@@ -60,25 +60,20 @@
    ```bash
    python3 {{SKILL_DIR}}/scripts/resource_loader.py menu --refs-dir {{REFS_DIR}}
    ```
-7. **按下方映射表做资源选择决策**，然后决定 `page_type`、`layout_hint`、`cards[].card_type`、`chart.chart_type`、`resource_ref`、`image.mode`、排版策略等。
+7. **回答以下设计提问来驱动你的资源选择决策**（不要查表套用，你是设计师不是填表员），然后决定 `page_type`、`layout_hint`、`cards[].card_type`、`chart.chart_type`、`resource_ref`、`image.mode`、排版策略等。
 
-### 数据类型 → 推荐资源映射（决策辅助）
+### 设计决策驱动提问
 
-根据本页的 `proof_type` 和实际数据类型，优先按以下映射选择资源：
+在确定布局和资源之前，先回答这 4 个问题（可在心中推演，不需要写入产物）：
 
-| 本页数据特征 | 推荐 layout_hint | 推荐 `card_type` / `chart.chart_type` | 选择理由 |
-|------------|-----------------|--------------------------------------|---------|
-| 单一核心数字/KPI | `hero-top` / `single-focus` | `data_highlight` + `kpi` / `metric_row` | 大字突出，视觉锚点清晰 |
-| 多项横向比较 | `symmetric` / `three-column` | `comparison` + `comparison_bar` | 左右对称利于对比 |
-| 时间线/里程碑 | `l-shape` / `waterfall` | `timeline` + `timeline` | 自带时序叙事 |
-| 步骤/流程 | `l-shape` / `t-shape` / `waterfall` | `process` / `diagram` + `funnel` / `progress_bar`（如有明确数据） | 顺序清晰，可带流程骨架 |
-| 排行榜/Top-N | `asymmetric` / `l-shape` | `list` / `data_highlight` + `comparison_bar`（如需） | 层级视觉明确 |
-| 图文并茂 | `primary-secondary` / `asymmetric` | `image_hero` / `text` / `data` | 图文互补，主次分明 |
-| 大段引言/金句 | `single-focus` / `asymmetric` | `quote` | 聚焦单一信息 |
-| 数据图表 | `primary-secondary` / `single-focus` | `data` + `sparkline` / `ring` / `radar` / `treemap` / `stacked_bar` / `waffle` | 图表主导，论据可视化 |
-| 多卡片并列信息 | `mixed-grid` / `three-column` | `text` / `data` / `list` | 模块化呈现 |
+1. **观众在这一页应该先看到什么？** → 决定视觉锚点和主次关系
+2. **这一页的信息是怎么"流动"的？** → 决定空间布局和视觉动线
+3. **这一页和上一页的视觉感受应该有什么不同？** → 决定节奏变化
+4. **在菜单中的工具里，哪些能最好地服务上面 3 个答案？** → 决定 layout_hint、card_type、chart、resource_ref
 
-**填写 `resources` 字段时必须说明选择理由**（推荐写入 `resources.resource_rationale`），例如："本页展示 3 个 KPI 指标对比，选择 hero-top + metric-row 强化主次层级"。
+> **重要**：菜单里的工具是调色盘而非说明书。同样的数据可以用完全不同的工具和布局来表达，关键是你想让观众产生什么感受。设计原则参考文件（`references/principles/`）和数据类型映射表（`references/design-runtime/data-type-visual-mapping.md`）只在你需要灵感时查阅，不是强制执行的铁律。
+
+**填写 `resources` 字段时必须说明选择理由**（推荐写入 `resources.resource_rationale`），例如回答"为什么用这个布局/组件能最好地让观众产生我想要的感受"。
 8. 将完整 planning 写入 `{{PLANNING_OUTPUT}}`。
 9. 自审（必须执行，不得跳过）：
    ```bash

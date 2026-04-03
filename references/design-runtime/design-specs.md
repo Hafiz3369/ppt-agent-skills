@@ -10,9 +10,91 @@
 ### 画布规范（不可修改）
 
 - 固定尺寸: width=1280px, height=720px, overflow=hidden
-- 标题区: 左上 40px 边距, y=20~70, 最大高度 50px
+- 标题区: 左上 40px 边距, y=20~70, 最大高度 50px（cover/section/end 页可自由处理标题，不受此约束）
 - 内容区: padding 40px, y 从 80px 起, 可用高度 580px, 可用宽度 1200px
 - 页脚区: 底部 40px 边距内，高度 20px
+
+### 统一导航骨架合同（所有页面强制执行）
+
+**为什么需要统一骨架**：每个页面由独立的 PageAgent 生成，如果不统一标题区和页脚区的 HTML 结构，最终拼装出来的演示文稿会出现标题/页脚形态各异、位置飘忽的问题。以下骨架是跨全 deck 保持视觉一致性的最小合同。
+
+#### 页面分类与骨架适用规则
+
+| page_type | 标题区骨架 | 页脚区骨架 | 说明 |
+|-----------|-----------|-----------|------|
+| `content` | **强制使用**下方统一结构 | **强制使用**下方统一结构 | 正文页需要一致的导航体验 |
+| `toc` | **强制使用** | **强制使用** | 目录页也需要标题和页脚 |
+| `cover` | **自由处理**（标题是核心视觉事件） | **可选**（品牌信息可自由放置） | 封面标题是设计主角，不受骨架约束 |
+| `section` | **自由处理**（章节标题是唯一主角） | **强制使用** | section 标题自由发挥，但页脚保持统一 |
+| `end` | **自由处理** | **可选** | 结束页收束镜像，自由度高 |
+
+#### 统一标题区 HTML 骨架（适用于 content / toc 页）
+
+```html
+<!-- 标题区：position:absolute 钉在画布顶部，所有 content/toc 页共用相同结构 -->
+<header class="slide-header">
+  <span class="overline">PART 0{{part_number}} &mdash; {{part_title}}</span>
+  <h1 class="page-title">{{page_title}}</h1>
+</header>
+```
+
+```css
+.slide-header {
+  position: absolute;
+  top: 20px; left: 40px; right: 40px;
+  height: 50px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  z-index: 10;
+}
+.overline {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--accent-1); opacity: 0.8;
+  white-space: nowrap;
+}
+.page-title {
+  font-size: 26px; font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin: 0;
+}
+```
+
+> **创意自由空间**：overline 的内容（Part 编号/品牌标签/空白）、page-title 的具体字号和装饰线、标题与 overline 的位置关系，都允许按风格变化。但 **HTML 结构（`header.slide-header > span.overline + h1.page-title`）和定位方式（`position:absolute; top:20px`）必须全 deck 统一。**
+
+#### 统一页脚区 HTML 骨架（适用于 content / toc / section 页）
+
+```html
+<!-- 页脚区：position:absolute 钉在画布底部，全 deck 统一结构 -->
+<footer class="slide-footer">
+  <span class="footer-section">{{section_label}}</span>
+  <span class="footer-page">{{current_page}} / {{total_pages}}</span>
+</footer>
+```
+
+```css
+.slide-footer {
+  position: absolute;
+  bottom: 12px; left: 40px; right: 40px;
+  height: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+}
+.footer-section {
+  font-size: 10px; color: var(--text-secondary);
+  opacity: 0.5; letter-spacing: 1px;
+}
+.footer-page {
+  font-size: 10px; color: var(--text-secondary);
+  opacity: 0.5;
+}
+```
+
+> **创意自由空间**：页脚内容可以用叙事化页脚（W12 技法）替换 `.footer-section` 的显示内容（如终端状态栏、印章徽记、进度条），但 **HTML 结构（`footer.slide-footer`）和定位方式（`position:absolute; bottom:12px`）必须全 deck 统一。** style.json 的 `decoration_dna.signature_move` 如指定页脚风格，优先执行。
 
 ### 排版阶梯（拉开分层 -- 字号反差是设计力的核心指标）
 
@@ -38,11 +120,18 @@
 | 不同主题区域 | gap:32-48px |
 | 核心论点孤立 | padding:48-80px |
 
-### Bento Grid：重力参考，不是物理枷锁
+### 布局自由度：重力参考，不是物理枷锁
 
-1. **骨架是重力场不是牢笼** -- 用骨架确定大致方位，再用技法牌打破硬切割
+> **核心哲学**：布局工具（Grid/Flex/绝对定位/混合）是手段不是目的。好的页面布局应该让观众感受到"信息自然流淌"，而不是"盒子排列在网格中"。
+
+1. **骨架是重力场不是牢笼** -- layout_hint 只约束重力分布的大致方向，不约束具体实现技术
 2. **极力制造密度不均匀** -- 即使骨架对称，视觉重量也应该引导为一重一轻
-3. **消除盒子感** -- 同主题卡片间的视觉边界要模糊化
+3. **消除盒子感** -- 同主题卡片间的视觉边界要模糊化，不要让观众看出"这是 N 个方块排列"
+4. **布局手段完全自由** -- CSS Grid、Flexbox、position:absolute、混合使用均可。不同页面类型天然适合不同技术：
+   - **封面/章节/结束页**：推荐 absolute 自由编排 + 大面积留白
+   - **数据密集页**：Grid 便于多卡片对齐
+   - **叙事页**：Flex + absolute 混合，制造层次感
+   - **图文并茂页**：absolute 让图文自由叠压
 
 #### 消除盒子感的手段
 
@@ -59,7 +148,11 @@
 /* 背景色融合 */ .card-merged { background: transparent; border-right: 1px solid var(--card-border); }
 ```
 
-> **布局方式完全自由**：CSS Grid、Flexbox、position:absolute、混合使用均可。
+**模板驱动设计的信号（说明设计者在套模板，而非为内容做设计）**：
+- 连续多页的布局骨架完全相同（布局应该由内容驱动，而不是由习惯驱动）
+- 所有内容页的视觉结构都是"标题 + N 个等大卡片排列" -- 这不是设计，是 Word 文档
+- 每页的卡片都用相同的圆角、内边距、阴影 -- 说明设计者在复制粘贴而非思考
+- 没有任何元素的空间位置反映了内容的主次关系
 
 ### 五层景深架构
 
@@ -97,16 +190,14 @@
 
 ## B. 内容与卡片
 
-### 6 种基础卡片内容底线
+### 基础卡片灵动化建议
 
-| 卡片类型 | 最低内容要求 |
-|---------|------------|
-| text | 标题 + 至少 2 段正文或 3-5 条要点 |
-| data | 核心数字 + 单位 + 趋势 + 解读 + 可视化 |
-| list | 至少 4 条，每条 15-30 字 |
-| process | 至少 3 步，每步标题 + 描述 |
-| tag_cloud | 至少 5 个标签，胶囊形 |
-| data_highlight | 超大数字 + 副标题 + 补充数据行 |
+不要让卡片长得像标准公文块。
+
+- **text（文本块）**：如果文字多，不要平铺直叙。提取一个最抓眼球的词加粗，或者在首字母使用类似杂志排版的 Drop Cap 首字下沉。
+- **data（数据块）**：避免仅仅是“图表+图例”。把结论性的一句话作为最大字号，图表只是静静铺在下方作为背景。
+- **list（列表块）**：放弃传统的无序列表点。可以用大号半透明数字、递进颜色的虚线色块，甚至让每条 list 项在绝对定位下稍微错位。
+- **tag_cloud（标签云）**：不要把标签排成一个等间距的矩阵。让重要的标签很大，不重要的标签若隐若现。
 
 ### 卡片视觉变体（card_style）
 
@@ -116,19 +207,15 @@
 - `elevated`：悬浮锚点，多层阴影
 - `filled`/`outline`/`glass`：自由搭配
 
-### 微细节武器库
+### 微细节武器库（避免同质化）
 
-| 细节类别 | 手法 |
-|---------|------|
-| 标题装饰线 | accent 色 3px 短线（每页不同手法） |
-| 关键词高亮 | 正文核心词用 accent 色/加粗/底色药丸 |
-| 数据趋势标记 | 数字旁微小趋势箭头 |
-| 卡片角标 | 序号/类别标记 |
-| 精致分隔 | 渐变线/虚线替代硬切割 gap |
-| 图标化要点 | list 每条前用不同色圆点/方块 |
-| 数据来源标注 | 底部极小字标注 |
+如何让卡片显得精致而不是粗糙拼凑？
 
-**使用密度**：每页至少 3 种微细节手法。
+- **突破硬边**：用渐变模糊的线代替生硬的 solid border。 
+- **点缀元素**：在卡片边缘加上类似 UI 界面角标的 10px 极小文字，标示出“来源”或“权重”。
+- **异构高亮**：对重要词汇不要只用粗体，尝试加上一个 accent 颜色的底色药丸甚至波浪线。
+
+**打破约束**：不必在一页中强行凑够多少种细节。最极简的留白可能就是最好的细节。
 
 ### 元素韵律
 
@@ -159,9 +246,9 @@
 
 每页 2-3 种装饰。来源于策划稿 `decoration_hints` 三维度。
 
-### 解构的导航体系
+### 导航体系（统一骨架 + 风格自由）
 
-底部辅助信息（章节、页码、品牌）可多样化：极高竖行文本、极端大小反差、分散放置、叙事化页脚（W12）等。
+底部辅助信息（章节、页码、品牌）的 **HTML 结构和定位必须使用 A 节定义的统一页脚区骨架**（`footer.slide-footer`），但骨架内部的**视觉风格**可多样化：叙事化页脚（W12 终端状态栏/印章/进度条）、极小微文字、accent 色强调等。风格变化通过替换 `.footer-section` 内容和修改字体/颜色/opacity 实现，不改变骨架结构。
 
 ### 渐变使用指引
 
@@ -180,43 +267,31 @@
 
 ---
 
-## D. 页面类型专属设计
+## D. 页面类型破局灵感（打破思维定势）
 
-### 封面页
-- H0 标题 80px+，配图可采用 `hero-blend` 渐隐融合技法（运行时通常落在 `hero-background` usage）
-- 景深：L0(渐变底) + L1(品牌水印) + L4(超大标题)
-- 字号断层：主标题 80-160px vs 副标题 14-16px
+以下不是你必须遵守的规定，而是当你觉得页面太普通时，可以尝试的"破局"手法：
 
-### 目录页
-- 3 秒让观众理解路线，Part 标题是唯一主角
-- 避免 Word 式居中编号列表
+### 封面页的张力
+- 尝试放弃居中。让标题紧贴左侧出血线，甚至超大字号（160px）直接跨越两行。
+- 尝试“深不见底”的景深：背景不仅是颜色，还可以是一个巨大的品牌 Icon 水印，或者一段若隐若现的代码。
 
-### 章节封面
-- 70%+ 留白，标题极度偏心
-- PART 编号 120px+ opacity 0.04 铺背景
-- 景深仅 L0+L1 两层极度克制
+### 目录与过渡（章节）
+- 章节页尝试 70%+ 的极端留白。标题极度偏心。
+- 尝试把大纲编号当做图案来用：极大的数字（如 120px），极低的透明度（0.04），铺满整个侧边。
 
-### 数据仪表盘页
-- 核心 KPI 脱框（position:absolute, 80-120px）
-- 辅助指标潜伏在小卡片中（28-40px）
-- 景深：L0(暗色控制台底) + L1(数据铺底) + L2(辅助卡片) + L3(脱框数字) + L4(高亮标注)
+### 数据密集与仪表盘
+- 不要把所有数据都装在盒子里。尝试让核心 KPI "脱框"（完全没有背景色和边框的隔离），直接 120px 裸露在画面中。
+- 给次要数据极大的收缩度（28px 的次要字号与 120px 的脱框字号形成强反差）。
 
-### 对比分析页
-- 推荐方案 accent 光晕隆起，被弃方案蜷伏灰暗
-- 跨中缝 VS 徽章 / 对角渐变带破僵局
+### 对比分析与选择
+- 打破左右对称或并排罗列。推荐方案可以像一块巨石一样“隆起”（多层阴影、强光晕），而被弃方案像影子一样蜷伏在底部。
+- 中间不需要画一条竖线，可以用对角线的渐变色带劈斩开两侧的空间。
 
-### 流程/时间线页
-- 时间线/流程线是画面骨架
-- 推荐 transparent card_style
-
-### 金句/引言页
-- 填充率 < 30%，留白 >= 70%
-- 金句偏心放置，T7 留白压迫
-- 景深：L0 + L1(破界水印 opacity 0.02) + L4(金句)
+### 引言与叙事
+- 把引言当做艺术品，放入一整个空白屏幕的正中央，再丢下极低的透明度作为回声。
 
 ### 结束页
-- 封面的收束镜像（不是复制粘贴）
-- 呼应维度选 1-2 种：色调/构图镜像/元素回声/情绪闭环
+- 不要简单写“谢谢”。它可以是封面的收束镜像：同样的色调和构图，元素从极端的张扬变成极端的克制。
 
 ---
 
@@ -243,7 +318,19 @@ body {
 </style>
 </head>
 <body>
-<!-- 你的设计从这里开始 -->
+<!-- 统一标题区（content/toc 页强制；cover/section/end 页按 A 节规则自由处理） -->
+<header class="slide-header">
+  <span class="overline">PART 01 &mdash; 章节标题</span>
+  <h1 class="page-title">页面标题</h1>
+</header>
+
+<!-- 内容区从这里开始 -->
+
+<!-- 统一页脚区（content/toc/section 页强制；cover/end 页可选） -->
+<footer class="slide-footer">
+  <span class="footer-section">章节标签</span>
+  <span class="footer-page">3 / 12</span>
+</footer>
 </body>
 </html>
 ```

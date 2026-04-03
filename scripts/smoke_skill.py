@@ -80,15 +80,112 @@ def write_text(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def extract_planning_example() -> str:
-    text = PLAYBOOK_PATH.read_text(encoding="utf-8")
-    anchor = text.find("推荐写成单页对象")
-    if anchor == -1:
-        raise ValueError("planning example anchor not found")
-    match = re.search(r"```json\s*(\{.*?\})\s*```", text[anchor:], re.S)
-    if not match:
-        raise ValueError("planning example JSON block not found")
-    return match.group(1).strip()
+def build_content_page_fixture() -> dict[str, object]:
+    """Build a minimal content page planning fixture for smoke testing."""
+    return {
+        "page": {
+            "slide_number": 3,
+            "page_type": "content",
+            "narrative_role": "evidence",
+            "title": "增长判断",
+            "page_goal": "证明增长成立",
+            "audience_takeaway": "增长数据可信",
+            "visual_weight": 7,
+            "layout_hint": "hero-top",
+            "layout_variation_note": "与上一页重心不同",
+            "focus_zone": "右上 1/3 作为视觉锚点",
+            "negative_space_target": "medium",
+            "page_text_strategy": "标题强、正文短、数据做锚点",
+            "rhythm_action": "推进",
+            "must_avoid": ["禁止平均分栏"],
+            "variation_guardrails": {
+                "same_gene_as_deck": "保留统一字体和 signature_move",
+                "different_from_previous": ["重心从上移到右"],
+            },
+            "director_command": {
+                "mood": "判断感强、结论先行",
+                "spatial_strategy": "主锚占据第一视线",
+                "anchor_treatment": "用尺度断层强化主锚",
+                "techniques": ["T1", "W3"],
+                "prose": "保持证据链清晰",
+            },
+            "decoration_hints": {
+                "background": {"feel": "轻微渐变底", "restraint": "不抢文字对比", "techniques": ["T1"]},
+                "floating": {"feel": "局部辅助装饰", "restraint": "只服务锚点动线", "techniques": ["W3"]},
+                "page_accent": {"feel": "强调色集中在锚点附近", "restraint": "accent 只用 1-2 种", "techniques": ["T9"]},
+            },
+            "source_guidance": {
+                "brief_sections": ["核心发现"],
+                "citation_expectation": "有数字就保留来源",
+                "strictness": "不得超出 brief 结论边界",
+            },
+            "resources": {
+                "page_template": None,
+                "layout_refs": ["hero-top"],
+                "block_refs": [],
+                "chart_refs": ["kpi", "metric-row"],
+                "principle_refs": ["visual-hierarchy", "composition"],
+                "resource_rationale": "用 hero-top 放大单一结论",
+            },
+            "cards": [
+                {
+                    "card_id": "s03-anchor",
+                    "role": "anchor",
+                    "card_type": "data_highlight",
+                    "card_style": "accent",
+                    "argument_role": "claim",
+                    "headline": "核心指标",
+                    "body": ["一句解释它为什么重要"],
+                    "data_points": [
+                        {"label": "同比增长", "value": "47.3", "unit": "%", "source": "search-brief metrics[2]"}
+                    ],
+                    "chart": {"chart_type": "kpi"},
+                    "content_budget": {"headline_max_chars": 12, "body_max_bullets": 2, "body_max_lines": 4},
+                    "image": {
+                        "mode": "decorate",
+                        "needed": False,
+                        "usage": None,
+                        "placement": None,
+                        "content_description": None,
+                        "source_hint": None,
+                        "decorate_brief": "用内联 SVG 装饰填满留白",
+                    },
+                    "resource_ref": {"chart": "kpi", "principle": "visual-hierarchy"},
+                },
+                {
+                    "card_id": "s03-support-1",
+                    "role": "support",
+                    "card_type": "data",
+                    "card_style": "outline",
+                    "argument_role": "evidence",
+                    "headline": "增长原因",
+                    "body": ["增长主要来自高客单区域放量"],
+                    "data_points": [
+                        {"label": "高客单区域占比", "value": "31", "unit": "%", "source": "search-brief metrics[4]"}
+                    ],
+                    "chart": {"chart_type": "metric_row"},
+                    "content_budget": {"headline_max_chars": 12, "body_max_bullets": 2, "body_max_lines": 4},
+                    "image": {
+                        "mode": "decorate",
+                        "needed": False,
+                        "usage": None,
+                        "placement": None,
+                        "content_description": None,
+                        "source_hint": None,
+                        "decorate_brief": "用低对比度辅助线承托信息",
+                    },
+                    "resource_ref": {"chart": "metric-row", "principle": "composition"},
+                },
+            ],
+            "workflow_metadata": {
+                "stage": "planning",
+                "workflow_version": WORKFLOW_VERSION,
+                "planning_schema_version": PLANNING_SCHEMA_VERSION,
+                "planning_packet_version": PLANNING_PACKET_VERSION,
+                "planning_continuity_version": PLANNING_CONTINUITY_VERSION,
+            },
+        }
+    }
 
 
 def assert_contains(label: str, haystack: str, needles: list[str], result: SmokeResult) -> None:
@@ -241,7 +338,7 @@ def build_fixture_tree(tmp_dir: Path) -> dict[str, Path]:
         ),
     )
     fixtures["images"].mkdir(parents=True, exist_ok=True)
-    write_text(fixtures["planning"], extract_planning_example())
+    write_text(fixtures["planning"], json.dumps(build_content_page_fixture(), ensure_ascii=False, indent=2))
     return fixtures
 
 
@@ -511,10 +608,14 @@ def run_smoke() -> SmokeResult:
                     f"STYLE_PATH={fx['style']}",
                     "--var",
                     f"SKILL_DIR={ROOT_DIR}",
+                    "--var",
+                    f"REVIEW_DIR={tmp_dir / 'review'}",
                     "--inject-file",
                     f"PLAYBOOK={REFERENCES_DIR / 'playbooks/step4/page-review-playbook.md'}",
                     "--inject-file",
                     f"FAILURE_MODES={REFERENCES_DIR / 'principles/runtime-failure-modes.md'}",
+                    "--inject-file",
+                    f"PRINCIPLES_CHEATSHEET={REFERENCES_DIR / 'principles/design-principles-cheatsheet.md'}",
                     "--output",
                     str(fx["prompt_review"]),
                 ],

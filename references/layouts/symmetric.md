@@ -1,17 +1,14 @@
 # 对称双栏版式 (50/50)
 
-> 2张卡片。Grid: 1fr 1fr 列。左右50/50等量对峙。
+> 2张卡片。
+> 空间划分建议：1fr 1fr 列。左右50/50等量对峙。
 > 适用数据：before_after / pros_cons / A方案 vs B方案。
 > 两侧必须用不同 card_style（如 filled+outline），禁止两个都用 filled。
 
 适用：对比、并列概念（A vs B、优势 vs 劣势、方案 A vs 方案 B）
 
-## 重力结构
+## 重力结构意图
 
-```
-Grid: 1fr 1fr 列 x 1fr 行
-两张卡片自动排列，无需 grid 定位
-```
 
 ## 灵动化指引
 

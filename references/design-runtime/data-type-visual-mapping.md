@@ -1,13 +1,13 @@
-# 数据类型 -> 视觉呈现映射表
+# 数据类型 -> 视觉呈现参考索引
 
-> 将 brief 中的数据类型（metrics、timelines、before_after 等 40+ 种）映射到推荐 `card_type`、`layout_hint` 和 CSS 实现参考。
-> Planning sub-agent 根据本页数据特征查表选择 card_type 和布局；HTML sub-agent 根据 CSS 实现参考列选择渲染技法。
+> 本表将 brief 中的数据类型（metrics、timelines、before_after 等 40+ 种）映射到**可选**的 `card_type`、`layout_hint` 和 CSS 实现参考。
+> **重要**：本表是灵感索引而非决策铁律。Planning sub-agent 应先回答"观众应该先看到什么、信息怎么流动"等设计提问，再按需查阅本表获取工具灵感。同样的数据可以用完全不同的工具和布局来表达。
 > 覆盖 8 大类：数据展示、商业分析、对比论证、流程结构、叙事内容、技术学术、进度状态、团队与地理。
 
 本表是 **上游资料整理 / brief 结构化 -> Step 4（Planning）-> Step 4（HTML）** 的桥梁。
 
 - 上游资料整理阶段参考"数据类型"列，识别并格式化原始资料
-- Step 4 的 Planning sub-agent 参考"推荐 card_type"和"推荐布局"列，选择卡片类型
+- Step 4 的 Planning sub-agent **按需查阅**"推荐 card_type"和"推荐布局"列获取灵感，但最终选择由设计意图驱动
 - Step 4 的 HTML sub-agent 参考"CSS 实现参考"列，选择渲染技法
 
 ## 数据展示类
@@ -128,9 +128,10 @@ text | data | list | process | tag_cloud | data_highlight | timeline | diagram |
 
 ---
 
-## 消费规则
+## 设计师的组合逻辑（如何消费本表）
 
-- **上游资料整理 / brief 编制**：识别原始资料中的数据类型 -> 格式化为对应 schema -> 写入可被后续引用的资料摘要
-- **Step 3 大纲**：在 `evidence_packet.source_trace` 中引用具体积木（如 `funnel_data[0]`）
-- **Step 4 Planning**：根据本表选择 `card_type`、`layout_hint`，并在 `resource_rationale` 中说明选择理由
-- **Step 4 HTML**：根据 `card_type` + 本表的"CSS 实现参考" + `references/blocks/` 和 `references/charts/` 下的文档渲染
+这个表格**绝不意味着**“如果遇到数据类型 A，就只能用布局 B”。
+
+1. **破除一一对应**：只要能达成你的设计目标（比如想让数据显得震撼、或者想让对比显得残酷），你完全可以让 `metrics` 使用 `asymmetric`（不对称）或者甚至是 `waterfall` 布局。
+2. **跨界混搭**：如果你觉得表格 `data_tables` 太枯燥，试着把它放进原本为 ` competitive_matrix` 准备的版式结构中。
+3. **解释你的叛逆**：在策划稿中，当你的布局组合越是偏离传统"常见做法"，就越要在 `resource_rationale` 和 `prose` 中把你的镜头语言解释清楚，HTML 层就会为你渲染出来！

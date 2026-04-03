@@ -1,19 +1,14 @@
 # 瀑布流版式 (3 列不等高)
 
-> 3-5张卡片。Grid: 多列不等高。参差高度差制造节奏。
+> 3-5张卡片。
+> 空间划分建议：多列不等高。参差高度差制造节奏。
 > 适用数据：process_flows / timelines / journey_map（需要视觉节奏的序列内容）。
 > 交替高低制造瀑布落差感。高列用 filled/elevated，矮列用 outline/transparent。
 
 适用：多条不等高的信息块（FAQ、特性列表、多维度分析）。4-6 个内容块自然排列。
 
-## 重力结构
+## 重力结构意图
 
-```
-Grid: repeat(3, 1fr) 列 x auto 自动行高
-align-content: start（从顶部开始排列）
-卡片高度由内容自然决定，不强制等高
-无需 grid-row/grid-column 定位，自动从左到右、从上到下排列
-```
 
 ## 灵动化指引
 
