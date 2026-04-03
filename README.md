@@ -23,6 +23,13 @@
 
 **PPT Agent** 以严格的状态机驱动多 Agent 协作，将一句话需求输出为专业级 PPTX 文件，从根源解决传统大模型生成的幻觉、重叠与布局混乱问题。
 
+## 安装
+
+```
+npx skills add sunbigfly/ppt-agent-skills
+```
+
+
 ## 核心亮点
 
 **Subagent 阶段隔离**：Research / Outline / Style / Planning 四大阶段各自运行独立的子代理，Context 不互染。每个子代理创建时强制携带 `SUBAGENT_MODEL` 参数，禁止走默认回退。
